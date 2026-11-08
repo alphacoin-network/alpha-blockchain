@@ -1,60 +1,112 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480" width="480" height="480">
   <defs>
-    <radialGradient id="face" cx="35%" cy="30%" r="75%">
-      <stop offset="0%" stop-color="#fff3c4"/>
-      <stop offset="35%" stop-color="#f5c542"/>
-      <stop offset="75%" stop-color="#c8912a"/>
-      <stop offset="100%" stop-color="#8a5a14"/>
+    <!-- face: bright center -> deep gold rim -->
+    <radialGradient id="face" cx="38%" cy="32%" r="78%">
+      <stop offset="0%"  stop-color="#fff8db"/>
+      <stop offset="22%" stop-color="#ffe98a"/>
+      <stop offset="50%" stop-color="#f5c542"/>
+      <stop offset="80%" stop-color="#d99e25"/>
+      <stop offset="100%" stop-color="#9a6a12"/>
     </radialGradient>
-    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#e8b53a"/>
-      <stop offset="50%" stop-color="#9c6b1e"/>
-      <stop offset="100%" stop-color="#5f3f0d"/>
+    <!-- rim ring: metallic -->
+    <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#ffe89a"/>
+      <stop offset="30%"  stop-color="#e8b53a"/>
+      <stop offset="55%"  stop-color="#8f5f14"/>
+      <stop offset="80%"  stop-color="#d9a82e"/>
+      <stop offset="100%" stop-color="#6b4a0f"/>
     </linearGradient>
+    <!-- edge depth (the coin's side) -->
+    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"  stop-color="#8a5f16"/>
+      <stop offset="50%" stop-color="#5f3f0d"/>
+      <stop offset="100%" stop-color="#a3741f"/>
+    </linearGradient>
+    <!-- embossed alpha glyph -->
     <linearGradient id="glyph" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#7a5410"/>
-      <stop offset="45%" stop-color="#3d2806"/>
-      <stop offset="55%" stop-color="#8a5f16"/>
-      <stop offset="100%" stop-color="#5f3f0d"/>
+      <stop offset="0%"  stop-color="#8a5a10"/>
+      <stop offset="42%" stop-color="#3a2605"/>
+      <stop offset="58%" stop-color="#96660f"/>
+      <stop offset="100%" stop-color="#5c3d0a"/>
     </linearGradient>
+    <!-- glyph highlight -->
+    <linearGradient id="glyphhi" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff3b0"/>
+      <stop offset="100%" stop-color="#f5c542" stop-opacity="0.1"/>
+    </linearGradient>
+    <!-- specular shine -->
     <linearGradient id="shine" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.85"/>
-      <stop offset="45%" stop-color="#ffffff" stop-opacity="0.08"/>
+      <stop offset="0%"  stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="45%" stop-color="#ffffff" stop-opacity="0.12"/>
       <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
-    <filter id="blur"><feGaussianBlur stdDeviation="8"/></filter>
+    <radialGradient id="shadow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#000" stop-opacity="0.5"/>
+      <stop offset="80%" stop-color="#000" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="7"/></filter>
+    <filter id="soft2"><feGaussianBlur stdDeviation="2.2"/></filter>
   </defs>
 
-  <!-- drop shadow -->
-  <ellipse cx="200" cy="350" rx="130" ry="26" fill="#000" opacity="0.35" filter="url(#blur)"/>
+  <!-- ground shadow -->
+  <ellipse cx="240" cy="418" rx="150" ry="26" fill="url(#shadow)"/>
 
-  <!-- coin edge (3D depth) -->
-  <ellipse cx="200" cy="216" rx="150" ry="150" fill="url(#edge)"/>
-  <ellipse cx="200" cy="210" rx="150" ry="150" fill="url(#edge)" opacity="0.9"/>
+  <!-- coin side / thickness -->
+  <g>
+    <ellipse cx="240" cy="254" rx="172" ry="172" fill="url(#edge)"/>
+    <ellipse cx="240" cy="250" rx="172" ry="172" fill="url(#edge)" opacity="0.85"/>
+    <!-- milled edge grooves -->
+    <ellipse cx="240" cy="250" rx="172" ry="172" fill="none"
+             stroke="#3a2605" stroke-width="9" stroke-dasharray="4 6" opacity="0.55"/>
+    <ellipse cx="240" cy="250" rx="172" ry="172" fill="none"
+             stroke="#ffe89a" stroke-width="3" stroke-dasharray="4 6" opacity="0.4"/>
+  </g>
 
   <!-- coin face -->
-  <circle cx="200" cy="200" r="150" fill="url(#face)"/>
+  <circle cx="240" cy="240" r="166" fill="url(#face)"/>
 
-  <!-- milled rim -->
-  <circle cx="200" cy="200" r="138" fill="none" stroke="#8a5a14" stroke-width="5" stroke-dasharray="6 7" opacity="0.8"/>
-  <circle cx="200" cy="200" r="128" fill="none" stroke="#a3741f" stroke-width="2.5"/>
+  <!-- rim ring -->
+  <circle cx="240" cy="240" r="166" fill="none" stroke="url(#rim)" stroke-width="10"/>
+  <circle cx="240" cy="240" r="159" fill="none" stroke="#fff0b8" stroke-width="1.5" opacity="0.7"/>
+  <circle cx="240" cy="240" r="150" fill="none" stroke="#a3741f" stroke-width="2.5"/>
 
-  <!-- alpha glyph with 3D emboss -->
-  <text x="203" y="263" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif"
-        font-size="165" font-weight="bold" font-style="italic" fill="#f8d76b" opacity="0.55">&#945;</text>
-  <text x="200" y="260" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif"
-        font-size="165" font-weight="bold" font-style="italic" fill="url(#glyph)">&#945;</text>
-
-  <!-- top text -->
-  <path id="topArc" d="M 200 78 A 122 122 0 0 1 322 200" fill="none"/>
-  <path id="topArc2" d="M 78 200 A 122 122 0 0 1 200 78" fill="none"/>
-  <text font-family="Verdana, sans-serif" font-size="26" font-weight="bold" letter-spacing="8" fill="#6b4a0f">
-    <textPath href="#topArc2" startOffset="8%">ALPHA</textPath>
+  <!-- arc text: ALPHA COIN -->
+  <defs>
+    <path id="arcT" d="M 240 240 m -133 0 a 133 133 0 0 1 266 0"/>
+    <path id="arcB" d="M 240 240 m -133 0 a 133 133 0 0 0 266 0"/>
+  </defs>
+  <text font-family="Georgia, serif" font-weight="bold" font-size="27"
+        letter-spacing="12" fill="#5f3f0d">
+    <textPath href="#arcT" startOffset="50%" text-anchor="middle">ALPHA COIN</textPath>
   </text>
-  <text font-family="Verdana, sans-serif" font-size="26" font-weight="bold" letter-spacing="8" fill="#6b4a0f">
-    <textPath href="#topArc" startOffset="6%">COIN</textPath>
+  <text font-family="Georgia, serif" font-weight="bold" font-size="27"
+        letter-spacing="12" fill="#fff0b8" opacity="0.55" dy="1.2">
+    <textPath href="#arcT" startOffset="50%" text-anchor="middle">ALPHA COIN</textPath>
   </text>
+  <!-- bottom stars -->
+  <text font-family="Georgia, serif" font-size="20" fill="#5f3f0d" text-anchor="middle"
+        transform="translate(240 348)">&#9733; &#8212;&#8212;&#8212; &#9733;</text>
 
-  <!-- specular shine -->
-  <ellipse cx="150" cy="118" rx="95" ry="60" fill="url(#shine)" transform="rotate(-24 150 118)"/>
+  <!-- center embossed alpha -->
+  <g>
+    <!-- deep shadow copy (emboss) -->
+    <text x="246" y="330" text-anchor="middle" font-family="Georgia, serif"
+          font-size="215" font-weight="bold" font-style="italic"
+          fill="#2a1a03" opacity="0.5" filter="url(#soft2)">&#945;</text>
+    <!-- highlight copy -->
+    <text x="236" y="322" text-anchor="middle" font-family="Georgia, serif"
+          font-size="215" font-weight="bold" font-style="italic"
+          fill="url(#glyphhi)" opacity="0.9">&#945;</text>
+    <!-- main glyph -->
+    <text x="240" y="326" text-anchor="middle" font-family="Georgia, serif"
+          font-size="215" font-weight="bold" font-style="italic"
+          fill="url(#glyph)">&#945;</text>
+  </g>
+
+  <!-- specular shine sweep -->
+  <ellipse cx="168" cy="140" rx="110" ry="66" fill="url(#shine)"
+           transform="rotate(-24 168 140)"/>
+  <ellipse cx="330" cy="330" rx="60" ry="26" fill="#fff" opacity="0.12"
+           transform="rotate(-24 330 330)" filter="url(#soft)"/>
 </svg>
