@@ -1,4 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480" width="480" height="480">
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     viewBox="0 0 480 480" width="480" height="480">
   <defs>
     <radialGradient id="face" cx="38%" cy="30%" r="80%">
       <stop offset="0%"   stop-color="#fff9de"/>
@@ -30,6 +32,10 @@
     </linearGradient>
     <filter id="blur6"><feGaussianBlur stdDeviation="6"/></filter>
     <filter id="blur2"><feGaussianBlur stdDeviation="2"/></filter>
+
+    <!-- arc paths for rim text (top reads left->right, bottom reads left->right too) -->
+    <path id="arcTop" d="M 100 240 A 140 140 0 0 1 380 240" fill="none"/>
+    <path id="arcBot" d="M 380 240 A 140 140 0 0 1 100 240" fill="none"/>
   </defs>
 
   <!-- ground shadow -->
@@ -37,7 +43,8 @@
 
   <!-- coin edge (thickness) -->
   <circle cx="240" cy="252" r="170" fill="url(#edge)"/>
-  <circle cx="240" cy="252" r="170" fill="none" stroke="#2a1a03" stroke-width="8" stroke-dasharray="4 7" opacity="0.5"/>
+  <circle cx="240" cy="252" r="170" fill="none" stroke="#2a1a03"
+          stroke-width="8" stroke-dasharray="4 7" opacity="0.5"/>
 
   <!-- coin face -->
   <circle cx="240" cy="240" r="168" fill="url(#face)"/>
@@ -45,26 +52,34 @@
   <!-- rim -->
   <circle cx="240" cy="240" r="168" fill="none" stroke="url(#rim)" stroke-width="12"/>
   <circle cx="240" cy="240" r="156" fill="none" stroke="#fff3bb" stroke-width="1.5" opacity="0.75"/>
-  <circle cx="240" cy="240" r="146" fill="none" stroke="#8a5c10" stroke-width="2.5"/>
+  <circle cx="240" cy="240" r="126" fill="none" stroke="#8a5c10" stroke-width="2.5"/>
+
+  <!-- ALPHA COIN curved along the rim (embossed: shadow + metal) -->
+  <text font-family="Georgia, serif" font-size="38" font-weight="bold"
+        letter-spacing="14" fill="#241503" opacity="0.4">
+    <textPath xlink:href="#arcTop" startOffset="50%" text-anchor="middle">ALPHA COIN</textPath>
+  </text>
+  <text font-family="Georgia, serif" font-size="38" font-weight="bold"
+        letter-spacing="14" fill="#5f3f0d" dy="-2">
+    <textPath xlink:href="#arcTop" startOffset="50%" text-anchor="middle">ALPHA COIN</textPath>
+  </text>
+
+  <!-- bottom rim: two stars + small divider dots -->
+  <text font-family="Georgia, serif" font-size="30" font-weight="bold"
+        letter-spacing="18" fill="#5f3f0d" dy="6">
+    <textPath xlink:href="#arcBot" startOffset="50%" text-anchor="middle">&#10022; &#160;&#160; &#10022;</textPath>
+  </text>
 
   <!-- embossed alpha glyph -->
-  <text x="245" y="318" text-anchor="middle" font-family="Georgia, serif"
-        font-size="215" font-weight="bold" font-style="italic"
+  <text x="245" y="322" text-anchor="middle" font-family="Georgia, serif"
+        font-size="200" font-weight="bold" font-style="italic"
         fill="#241503" opacity="0.5" filter="url(#blur2)">&#945;</text>
-  <text x="236" y="310" text-anchor="middle" font-family="Georgia, serif"
-        font-size="215" font-weight="bold" font-style="italic"
+  <text x="236" y="314" text-anchor="middle" font-family="Georgia, serif"
+        font-size="200" font-weight="bold" font-style="italic"
         fill="#ffedaa" opacity="0.85">&#945;</text>
-  <text x="240" y="314" text-anchor="middle" font-family="Georgia, serif"
-        font-size="215" font-weight="bold" font-style="italic"
+  <text x="240" y="318" text-anchor="middle" font-family="Georgia, serif"
+        font-size="200" font-weight="bold" font-style="italic"
         fill="url(#glyph)">&#945;</text>
-
-  <!-- ALPHA text under the glyph (plain centered text, always renders) -->
-  <text x="241" y="368" text-anchor="middle" font-family="Verdana, sans-serif"
-        font-size="30" font-weight="bold" letter-spacing="10"
-        fill="#2a1a03" opacity="0.45">ALPHA</text>
-  <text x="240" y="366" text-anchor="middle" font-family="Verdana, sans-serif"
-        font-size="30" font-weight="bold" letter-spacing="10"
-        fill="#5f3f0d">ALPHA</text>
 
   <!-- specular shine -->
   <ellipse cx="166" cy="138" rx="112" ry="68" fill="url(#shine)"
