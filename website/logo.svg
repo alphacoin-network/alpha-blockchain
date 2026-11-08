@@ -1,112 +1,72 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480" width="480" height="480">
   <defs>
-    <!-- face: bright center -> deep gold rim -->
-    <radialGradient id="face" cx="38%" cy="32%" r="78%">
-      <stop offset="0%"  stop-color="#fff8db"/>
-      <stop offset="22%" stop-color="#ffe98a"/>
-      <stop offset="50%" stop-color="#f5c542"/>
-      <stop offset="80%" stop-color="#d99e25"/>
-      <stop offset="100%" stop-color="#9a6a12"/>
+    <radialGradient id="face" cx="38%" cy="30%" r="80%">
+      <stop offset="0%"   stop-color="#fff9de"/>
+      <stop offset="30%"  stop-color="#ffdf6e"/>
+      <stop offset="65%"  stop-color="#f0b52f"/>
+      <stop offset="100%" stop-color="#a06e13"/>
     </radialGradient>
-    <!-- rim ring: metallic -->
     <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%"   stop-color="#ffe89a"/>
-      <stop offset="30%"  stop-color="#e8b53a"/>
-      <stop offset="55%"  stop-color="#8f5f14"/>
-      <stop offset="80%"  stop-color="#d9a82e"/>
+      <stop offset="0%"   stop-color="#fff0a8"/>
+      <stop offset="35%"  stop-color="#e8ae2e"/>
+      <stop offset="60%"  stop-color="#8a5c10"/>
+      <stop offset="85%"  stop-color="#d9a82e"/>
       <stop offset="100%" stop-color="#6b4a0f"/>
     </linearGradient>
-    <!-- edge depth (the coin's side) -->
     <linearGradient id="edge" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%"  stop-color="#8a5f16"/>
-      <stop offset="50%" stop-color="#5f3f0d"/>
-      <stop offset="100%" stop-color="#a3741f"/>
+      <stop offset="0%"   stop-color="#96660f"/>
+      <stop offset="50%"  stop-color="#54390a"/>
+      <stop offset="100%" stop-color="#b07f22"/>
     </linearGradient>
-    <!-- embossed alpha glyph -->
     <linearGradient id="glyph" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%"  stop-color="#8a5a10"/>
-      <stop offset="42%" stop-color="#3a2605"/>
-      <stop offset="58%" stop-color="#96660f"/>
-      <stop offset="100%" stop-color="#5c3d0a"/>
+      <stop offset="0%"   stop-color="#7a5110"/>
+      <stop offset="50%"  stop-color="#3a2605"/>
+      <stop offset="100%" stop-color="#8a5c10"/>
     </linearGradient>
-    <!-- glyph highlight -->
-    <linearGradient id="glyphhi" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#fff3b0"/>
-      <stop offset="100%" stop-color="#f5c542" stop-opacity="0.1"/>
-    </linearGradient>
-    <!-- specular shine -->
     <linearGradient id="shine" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%"  stop-color="#ffffff" stop-opacity="0.9"/>
-      <stop offset="45%" stop-color="#ffffff" stop-opacity="0.12"/>
+      <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="50%"  stop-color="#ffffff" stop-opacity="0.10"/>
       <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
-    <radialGradient id="shadow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#000" stop-opacity="0.5"/>
-      <stop offset="80%" stop-color="#000" stop-opacity="0.18"/>
-      <stop offset="100%" stop-color="#000" stop-opacity="0"/>
-    </radialGradient>
-    <filter id="soft"><feGaussianBlur stdDeviation="7"/></filter>
-    <filter id="soft2"><feGaussianBlur stdDeviation="2.2"/></filter>
+    <filter id="blur6"><feGaussianBlur stdDeviation="6"/></filter>
+    <filter id="blur2"><feGaussianBlur stdDeviation="2"/></filter>
   </defs>
 
   <!-- ground shadow -->
-  <ellipse cx="240" cy="418" rx="150" ry="26" fill="url(#shadow)"/>
+  <ellipse cx="240" cy="420" rx="150" ry="24" fill="#000" opacity="0.35" filter="url(#blur6)"/>
 
-  <!-- coin side / thickness -->
-  <g>
-    <ellipse cx="240" cy="254" rx="172" ry="172" fill="url(#edge)"/>
-    <ellipse cx="240" cy="250" rx="172" ry="172" fill="url(#edge)" opacity="0.85"/>
-    <!-- milled edge grooves -->
-    <ellipse cx="240" cy="250" rx="172" ry="172" fill="none"
-             stroke="#3a2605" stroke-width="9" stroke-dasharray="4 6" opacity="0.55"/>
-    <ellipse cx="240" cy="250" rx="172" ry="172" fill="none"
-             stroke="#ffe89a" stroke-width="3" stroke-dasharray="4 6" opacity="0.4"/>
-  </g>
+  <!-- coin edge (thickness) -->
+  <circle cx="240" cy="252" r="170" fill="url(#edge)"/>
+  <circle cx="240" cy="252" r="170" fill="none" stroke="#2a1a03" stroke-width="8" stroke-dasharray="4 7" opacity="0.5"/>
 
   <!-- coin face -->
-  <circle cx="240" cy="240" r="166" fill="url(#face)"/>
+  <circle cx="240" cy="240" r="168" fill="url(#face)"/>
 
-  <!-- rim ring -->
-  <circle cx="240" cy="240" r="166" fill="none" stroke="url(#rim)" stroke-width="10"/>
-  <circle cx="240" cy="240" r="159" fill="none" stroke="#fff0b8" stroke-width="1.5" opacity="0.7"/>
-  <circle cx="240" cy="240" r="150" fill="none" stroke="#a3741f" stroke-width="2.5"/>
+  <!-- rim -->
+  <circle cx="240" cy="240" r="168" fill="none" stroke="url(#rim)" stroke-width="12"/>
+  <circle cx="240" cy="240" r="156" fill="none" stroke="#fff3bb" stroke-width="1.5" opacity="0.75"/>
+  <circle cx="240" cy="240" r="146" fill="none" stroke="#8a5c10" stroke-width="2.5"/>
 
-  <!-- arc text: ALPHA COIN -->
-  <defs>
-    <path id="arcT" d="M 240 240 m -133 0 a 133 133 0 0 1 266 0"/>
-    <path id="arcB" d="M 240 240 m -133 0 a 133 133 0 0 0 266 0"/>
-  </defs>
-  <text font-family="Georgia, serif" font-weight="bold" font-size="27"
-        letter-spacing="12" fill="#5f3f0d">
-    <textPath href="#arcT" startOffset="50%" text-anchor="middle">ALPHA COIN</textPath>
-  </text>
-  <text font-family="Georgia, serif" font-weight="bold" font-size="27"
-        letter-spacing="12" fill="#fff0b8" opacity="0.55" dy="1.2">
-    <textPath href="#arcT" startOffset="50%" text-anchor="middle">ALPHA COIN</textPath>
-  </text>
-  <!-- bottom stars -->
-  <text font-family="Georgia, serif" font-size="20" fill="#5f3f0d" text-anchor="middle"
-        transform="translate(240 348)">&#9733; &#8212;&#8212;&#8212; &#9733;</text>
+  <!-- embossed alpha glyph -->
+  <text x="245" y="318" text-anchor="middle" font-family="Georgia, serif"
+        font-size="215" font-weight="bold" font-style="italic"
+        fill="#241503" opacity="0.5" filter="url(#blur2)">&#945;</text>
+  <text x="236" y="310" text-anchor="middle" font-family="Georgia, serif"
+        font-size="215" font-weight="bold" font-style="italic"
+        fill="#ffedaa" opacity="0.85">&#945;</text>
+  <text x="240" y="314" text-anchor="middle" font-family="Georgia, serif"
+        font-size="215" font-weight="bold" font-style="italic"
+        fill="url(#glyph)">&#945;</text>
 
-  <!-- center embossed alpha -->
-  <g>
-    <!-- deep shadow copy (emboss) -->
-    <text x="246" y="330" text-anchor="middle" font-family="Georgia, serif"
-          font-size="215" font-weight="bold" font-style="italic"
-          fill="#2a1a03" opacity="0.5" filter="url(#soft2)">&#945;</text>
-    <!-- highlight copy -->
-    <text x="236" y="322" text-anchor="middle" font-family="Georgia, serif"
-          font-size="215" font-weight="bold" font-style="italic"
-          fill="url(#glyphhi)" opacity="0.9">&#945;</text>
-    <!-- main glyph -->
-    <text x="240" y="326" text-anchor="middle" font-family="Georgia, serif"
-          font-size="215" font-weight="bold" font-style="italic"
-          fill="url(#glyph)">&#945;</text>
-  </g>
+  <!-- ALPHA text under the glyph (plain centered text, always renders) -->
+  <text x="241" y="368" text-anchor="middle" font-family="Verdana, sans-serif"
+        font-size="30" font-weight="bold" letter-spacing="10"
+        fill="#2a1a03" opacity="0.45">ALPHA</text>
+  <text x="240" y="366" text-anchor="middle" font-family="Verdana, sans-serif"
+        font-size="30" font-weight="bold" letter-spacing="10"
+        fill="#5f3f0d">ALPHA</text>
 
-  <!-- specular shine sweep -->
-  <ellipse cx="168" cy="140" rx="110" ry="66" fill="url(#shine)"
-           transform="rotate(-24 168 140)"/>
-  <ellipse cx="330" cy="330" rx="60" ry="26" fill="#fff" opacity="0.12"
-           transform="rotate(-24 330 330)" filter="url(#soft)"/>
+  <!-- specular shine -->
+  <ellipse cx="166" cy="138" rx="112" ry="68" fill="url(#shine)"
+           transform="rotate(-24 166 138)"/>
 </svg>
