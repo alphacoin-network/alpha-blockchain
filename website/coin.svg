@@ -1,41 +1,82 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 280" width="280" height="280">
   <defs>
-    <linearGradient id="coinface" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%"  stop-color="#ffa733"/>
-      <stop offset="55%" stop-color="#f7931a"/>
-      <stop offset="100%" stop-color="#e07f0e"/>
+    <!-- metallic coin face: warm 3D radial -->
+    <radialGradient id="face3d" cx="36%" cy="28%" r="85%">
+      <stop offset="0%"   stop-color="#ffedbe"/>
+      <stop offset="28%"  stop-color="#ffd468"/>
+      <stop offset="58%"  stop-color="#f5a623"/>
+      <stop offset="85%"  stop-color="#e07f0e"/>
+      <stop offset="100%" stop-color="#b35f08"/>
+    </radialGradient>
+    <!-- rim: 3D metallic ring -->
+    <linearGradient id="rim3d" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#fff3c8"/>
+      <stop offset="30%"  stop-color="#ffcf5e"/>
+      <stop offset="55%"  stop-color="#c47f12"/>
+      <stop offset="80%"  stop-color="#f0b52f"/>
+      <stop offset="100%" stop-color="#8a4a06"/>
     </linearGradient>
+    <!-- edge: coin thickness -->
+    <linearGradient id="edge3d" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#c47f12"/>
+      <stop offset="45%"  stop-color="#7a4a08"/>
+      <stop offset="100%" stop-color="#e0a62e"/>
+    </linearGradient>
+    <!-- raised glyph -->
     <linearGradient id="glyphW" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%"  stop-color="#ffffff"/>
-      <stop offset="60%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#ffe6c4"/>
+      <stop offset="0%"   stop-color="#ffffff"/>
+      <stop offset="55%"  stop-color="#fff8ef"/>
+      <stop offset="100%" stop-color="#ffd9a0"/>
     </linearGradient>
-    <filter id="embshadow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="5"/>
-    </filter>
-    <filter id="softglow" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="10"/>
-    </filter>
+    <linearGradient id="glyphShadow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#8a4a06"/>
+      <stop offset="100%" stop-color="#5c3204"/>
+    </linearGradient>
+    <linearGradient id="shine3d" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="45%"  stop-color="#ffffff" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="b6"><feGaussianBlur stdDeviation="6"/></filter>
+    <filter id="b3"><feGaussianBlur stdDeviation="3"/></filter>
   </defs>
 
-  <circle cx="140" cy="140" r="118" fill="url(#coinface)"/>
-  <circle cx="140" cy="140" r="118" fill="none" stroke="#d97b0f" stroke-width="3" opacity="0.6"/>
-  <ellipse cx="140" cy="92" rx="92" ry="38" fill="#ffffff" opacity="0.13"/>
+  <!-- ground shadow -->
+  <ellipse cx="140" cy="252" rx="105" ry="18" fill="#000" opacity="0.32" filter="url(#b6)"/>
 
+  <!-- coin thickness (bottom edge, offset down for 3D depth) -->
+  <circle cx="140" cy="150" r="120" fill="url(#edge3d)"/>
+  <circle cx="140" cy="150" r="120" fill="none" stroke="#2a1a03"
+          stroke-width="7" stroke-dasharray="4 6" opacity="0.4"/>
+
+  <!-- coin face -->
+  <circle cx="140" cy="140" r="118" fill="url(#face3d)"/>
+
+  <!-- raised rim -->
+  <circle cx="140" cy="140" r="118" fill="none" stroke="url(#rim3d)" stroke-width="11"/>
+  <circle cx="140" cy="140" r="112" fill="none" stroke="#fff3c8" stroke-width="1.5" opacity="0.8"/>
+  <circle cx="140" cy="140" r="104" fill="none" stroke="#8a4a06" stroke-width="2" opacity="0.7"/>
+
+  <!-- raised alpha glyph -->
   <g transform="rotate(8 140 140)">
-    <text x="144" y="196" text-anchor="middle" font-family="Georgia, serif"
-          font-size="152" font-weight="bold" font-style="italic"
-          fill="#b35f08" filter="url(#embshadow)">&#945;</text>
-    <text x="144" y="193" text-anchor="middle" font-family="Georgia, serif"
-          font-size="152" font-weight="bold" font-style="italic"
-          fill="#8a4a06" opacity="0.85">&#945;</text>
-    <text x="136" y="187" text-anchor="middle" font-family="Georgia, serif"
-          font-size="152" font-weight="bold" font-style="italic"
-          fill="#ffd9a0" opacity="0.9">&#945;</text>
+    <!-- deep shadow -->
+    <text x="146" y="198" text-anchor="middle" font-family="Georgia, serif"
+          font-size="150" font-weight="bold" font-style="italic"
+          fill="url(#glyphShadow)" opacity="0.9" filter="url(#b3)">&#945;</text>
+    <text x="145" y="196" text-anchor="middle" font-family="Georgia, serif"
+          font-size="150" font-weight="bold" font-style="italic"
+          fill="#6b3a05" opacity="0.7">&#945;</text>
+    <!-- top-left highlight (the raise light) -->
+    <text x="134" y="184" text-anchor="middle" font-family="Georgia, serif"
+          font-size="150" font-weight="bold" font-style="italic"
+          fill="#fff3d9" opacity="0.95">&#945;</text>
+    <!-- main raised white glyph -->
     <text x="140" y="190" text-anchor="middle" font-family="Georgia, serif"
-          font-size="152" font-weight="bold" font-style="italic"
+          font-size="150" font-weight="bold" font-style="italic"
           fill="url(#glyphW)">&#945;</text>
-    <ellipse cx="140" cy="198" rx="52" ry="14" fill="#8a4a06" opacity="0.18"
-             filter="url(#softglow)"/>
   </g>
+
+  <!-- specular shine sweep -->
+  <ellipse cx="96" cy="88" rx="80" ry="46" fill="url(#shine3d)"
+           transform="rotate(-26 96 88)"/>
 </svg>

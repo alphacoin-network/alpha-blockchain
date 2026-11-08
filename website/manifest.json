@@ -1,0 +1,12 @@
+{
+  "name": "Alpha Blockchain",
+  "short_name": "ALPHA",
+  "description": "Bitcoin-grade decentralized network — ALPHA coin, tokens, explorer, APIs.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0e1a",
+  "theme_color": "#f7931a",
+  "icons": [
+    { "src": "/coin.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
