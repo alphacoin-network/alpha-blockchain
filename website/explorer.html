@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Explorer — Alpha Blockchain</title>
+  <link rel="icon" href="logo.svg"><link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav></nav>
+<section><div class="wrap">
+  <h2 class="title">Block Explorer</h2>
+  <p class="sub">Search by height, block hash, txid or address.</p>
+  <div class="search">
+    <input id="q" placeholder="block height / block hash / txid / address">
+    <button onclick="search()">Search</button>
+  </div>
+  <div id="result"></div>
+  <div class="two-col">
+    <div>
+      <h3 style="margin-bottom:14px">Latest blocks</h3>
+      <div class="tbl-wrap"><table>
+        <tr><th>Height</th><th>Hash</th><th>Txs</th><th>Age</th></tr>
+        <tbody id="blocks"></tbody>
+      </table></div>
+    </div>
+    <div>
+      <h3 style="margin-bottom:14px">Mempool</h3>
+      <div class="tbl-wrap"><table>
+        <tr><th>Txid</th></tr><tbody id="mempool"></tbody>
+      </table></div>
+    </div>
+  </div>
+</div></section>
+<footer>Alpha Blockchain explorer</footer>
+<script src="app.js"></script>
+<script>
+nav('expl');
+function showBlock(b) {
+  el('result').innerHTML = `<div class="detail flash"><h3>Block ${b.height}</h3><div class="kv">
+    <div class="k">Hash</div><div class="v">${b.hash}</div>
+    <div class="k">Previous</div><div class="v">${b.previousblockhash||'—'}</div>
+    <div class="k">Merkle root</div><div class="v">${b.merkleroot}</div>
+    <div class="k">Time</div><div class="v">${time(b.time)}</div>
+    <div class="k">Bits / Nonce</div><div class="v">${b.bits} / ${b.nonce}</div>
+    <div class="k">Difficulty</div><div class="v">${fmt(b.difficulty)}</div>
+    <div class="k">Size / Weight</div><div class="v">${fmt(b.size)} B / ${fmt(b.weight)} WU</div>
+    <div class="k">Confirmations</div><div class="v">${fmt(b.confirmations)}</div>
+    <div class="k">Transactions</div><div class="v">${b.tx.length}</div></div>
+    <div class="tbl-wrap" style="margin-top:18px"><table><tr><th>txid</th></tr>
+      ${b.tx.map(t => `<tr><td class="hash"><a href="#" onclick="showTx('${t}');return false">${t}</a></td></tr>`).join('')}
+    </table></div></div>`;
+}
+function showTx(t) {
+  api('tx/'+t).then(d => {
+    el('result').innerHTML = `<div class="detail flash"><h3>Transaction</h3><div class="kv">
+      <div class="k">Txid</div><div class="v">${d.txid}</div>
+      <div class="k">Size / vsize</div><div class="v">${d.size} / ${d.vsize}</div>
+      <div class="k">Confirmations</div><div class="v">${d.confirmations||0}</div>
+      <div class="k">Locktime</div><div class="v">${d.locktime}</div></div>
+      <div class="two-col" style="margin-top:18px">
+        <div class="tbl-wrap"><table><tr><th>Inputs</th></tr>
+          ${d.vin.map(v => `<tr><td class="hash">${v.coinbase ? 'coinbase' : short(v.txid)+':'+v.vout}</td></tr>`).join('')}
+        </table></div>
+        <div class="tbl-wrap"><table><tr><th>Outputs</th><th class="num">α</th></tr>
+          ${d.vout.map(v => `<tr><td class="hash">${v.scriptPubKey.address||v.scriptPubKey.type}</td>
+            <td class="num">${fmt(v.value)}</td></tr>`).join('')}
+        </table></div>
+      </div></div>`;
+    window.scrollTo(0,0);
+  });
+}
+async function search() {
+  const q = el('q').value.trim(); if (!q) return;
+  const r = await api('search?q='+encodeURIComponent(q));
+  if (r.type === 'block') api('block/'+r.id).then(showBlock).catch(() => el('result').innerHTML='<div class="detail">not found</div>');
+  else if (r.type === 'tx') showTx(r.id);
+  else api('address/'+r.id).then(a => {
+    el('result').innerHTML = `<div class="detail flash"><h3>Address</h3><div class="kv">
+      <div class="k">Address</div><div class="v">${a.address}</div>
+      <div class="k">Balance</div><div class="v">${fmt(a.balance)} α</div>
+      <div class="k">UTXOs</div><div class="v">${a.utxo_count}</div></div>
+      ${a.tokens.length ? `<div class="tbl-wrap" style="margin-top:16px"><table><tr><th>Token</th><th class="num">Balance</th></tr>
+        ${a.tokens.map(t=>`<tr><td>${t.name}</td><td class="num">${fmt(t.display_balance)}</td></tr>`).join('')}</table></div>`:''}
+      </div>`;
+  }).catch(() => el('result').innerHTML='<div class="detail">not found</div>');
+}
+async function refresh() {
+  const bs = await api('blocks?n=12').catch(()=>[]);
+  el('blocks').innerHTML = bs.map(b =>
+    `<tr><td><a href="#" onclick="showBlockHeight(${b.height});return false">${b.height}</a></td>
+     <td class="hash">${short(b.hash)}</td><td class="num">${b.nTx}</td><td>${ago(b.time)}</td></tr>`).join('');
+  const m = await api('mempool').catch(()=>({txids:[]}));
+  el('mempool').innerHTML = m.txids.length
+    ? m.txids.slice(0,12).map(t=>`<tr><td class="hash"><a href="#" onclick="showTx('${t}');return false">${t}</a></td></tr>`).join('')
+    : '<tr><td class="hash">empty</td></tr>';
+}
+function showBlockHeight(h){ api('block/'+h).then(showBlock); }
+el('q').addEventListener('keydown', e => { if (e.key==='Enter') search(); });
+refresh(); setInterval(refresh, 15000);
+</script>
+</body></html>

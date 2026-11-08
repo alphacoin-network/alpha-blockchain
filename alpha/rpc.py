@@ -1,0 +1,1074 @@
+"""JSON-RPC server -- bitcoind-style interface over HTTP.
+
+`alphad` runs this; `alpha-cli` (or curl) calls it.
+"""
+
+import json
+import os
+import threading
+import time
+from decimal import Decimal
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+from . import constants, merkleproof, script, tokens as _tokens, wallet as _wallet
+from .block import Block
+from .transaction import OutPoint, Transaction, TxIn, TxOut
+from .utils import (
+    BytesReader, compact_to_target, hash_to_hex, hex_to_hash, now,
+)
+
+
+class RPCError(Exception):
+    def __init__(self, code: int, message: str):
+        super().__init__(message)
+        self.code = code
+
+
+RPC_PARSE_ERROR = -32700
+RPC_INVALID_REQUEST = -32600
+RPC_METHOD_NOT_FOUND = -32601
+RPC_INVALID_PARAMS = -32602
+RPC_MISC_ERROR = -1
+RPC_INVALID_ADDRESS_OR_KEY = -5
+RPC_WALLET_INSUFFICIENT_FUNDS = -6
+
+
+def coins(amount: int) -> float:
+    """alphasats -> ALPHA decimal for JSON output."""
+    return float(Decimal(amount) / Decimal(constants.COIN))
+
+
+def sats(amount) -> int:
+    """ALPHA decimal -> alphasats."""
+    return int(Decimal(str(amount)) * constants.COIN)
+
+
+def tx_to_json(tx: Transaction, params, block=None, block_height=None,
+               tip_height=None) -> dict:
+    def script_json(spk: bytes):
+        typ, data = script.solver(spk)
+        out = {"asm": script_asm(spk), "hex": spk.hex(), "type": typ}
+        addr = script.extract_destination(spk, params)
+        if addr:
+            out["address"] = addr
+        return out
+
+    def script_asm(spk: bytes) -> str:
+        try:
+            parts = []
+            for op in script.parse_script(spk):
+                if op.data is not None:
+                    parts.append(op.data.hex() if op.data else "0")
+                else:
+                    parts.append(f"OP_{op.opcode:#x}")
+            return " ".join(parts)
+        except script.ScriptError:
+            return spk.hex()
+
+    d = {
+        "txid": tx.txid_hex(),
+        "hash": hash_to_hex(tx.wtxid()),
+        "version": tx.version,
+        "size": tx.total_size(),
+        "vsize": tx.vsize(),
+        "weight": tx.weight(),
+        "locktime": tx.locktime,
+        "vin": [],
+        "vout": [],
+    }
+    for i, tin in enumerate(tx.vin):
+        vin = {"sequence": tin.sequence}
+        if tin.is_coinbase():
+            vin["coinbase"] = tin.script_sig.hex()
+        else:
+            vin["txid"] = hash_to_hex(tin.prevout.txid)
+            vin["vout"] = tin.prevout.vout
+            vin["scriptSig"] = {"asm": script_asm(tin.script_sig),
+                                "hex": tin.script_sig.hex()}
+        if tin.witness:
+            vin["txinwitness"] = [w.hex() for w in tin.witness]
+        d["vin"].append(vin)
+    for n, tout in enumerate(tx.vout):
+        d["vout"].append({
+            "value": coins(tout.value),
+            "n": n,
+            "scriptPubKey": script_json(tout.script_pubkey),
+        })
+    if block is not None and tip_height is not None:
+        d["confirmations"] = tip_height - block_height + 1
+        d["blockhash"] = block.hash_hex() if hasattr(block, "hash_hex") else block
+    return d
+
+
+def block_to_json(block: Block, entry, chain, verbosity: int = 1) -> dict:
+    d = {
+        "hash": block.hash_hex(),
+        "confirmations": chain.height - entry.height + 1,
+        "height": entry.height,
+        "version": block.header.version,
+        "merkleroot": hash_to_hex(block.header.merkle),
+        "time": block.header.timestamp,
+        "mediantime": entry.median_time_past(),
+        "nonce": block.header.nonce,
+        "bits": f"{block.header.bits:08x}",
+        "difficulty": difficulty(block.header.bits, chain.params),
+        "chainwork": f"{entry.chainwork:064x}",
+        "nTx": len(block.txs),
+        "size": block.total_size(),
+        "weight": block.weight(),
+        "previousblockhash": (hash_to_hex(block.header.prev_hash)
+                              if entry.height else None),
+        "tx": [tx.txid_hex() for tx in block.txs],
+    }
+    if verbosity >= 2:
+        d["tx"] = [tx_to_json(tx, chain.params, block, entry.height,
+                              chain.height) for tx in block.txs]
+    return d
+
+
+def difficulty(bits: int, params) -> float:
+    """Bitcoin difficulty = pow_limit_target / current_target."""
+    limit = compact_to_target(params.pow_limit_bits)
+    cur = compact_to_target(bits)
+    return limit / cur if cur else 0.0
+
+
+# ---------------------------------------------------------------------------
+# RPC method implementations
+# ---------------------------------------------------------------------------
+class RPCMethods:
+    def __init__(self, node):
+        self.node = node
+
+    # -- chain ------------------------------------------------------------
+    def getblockcount(self):
+        return self.node.chain.height
+
+    def getbestblockhash(self):
+        return hash_to_hex(self.node.chain.best_block_hash())
+
+    def getblockhash(self, height: int):
+        e = self.node.chain.get_block_index(int(height))
+        if e is None:
+            raise RPCError(RPC_INVALID_PARAMS, "block height out of range")
+        return hash_to_hex(e.hash)
+
+    def getblock(self, blockhash: str, verbosity: int = 1):
+        h = hex_to_hash(blockhash)
+        entry = self.node.chain.index.get(h)
+        block = self.node.chain.get_block(h)
+        if entry is None or block is None:
+            raise RPCError(RPC_INVALID_PARAMS, "block not found")
+        return block_to_json(block, entry, self.node.chain, int(verbosity))
+
+    def getblockheader(self, blockhash: str):
+        h = hex_to_hash(blockhash)
+        entry = self.node.chain.index.get(h)
+        if entry is None:
+            raise RPCError(RPC_INVALID_PARAMS, "block not found")
+        return {
+            "hash": hash_to_hex(entry.hash),
+            "confirmations": self.node.chain.height - entry.height + 1,
+            "height": entry.height,
+            "version": entry.header.version,
+            "merkleroot": hash_to_hex(entry.header.merkle),
+            "time": entry.header.timestamp,
+            "mediantime": entry.median_time_past(),
+            "nonce": entry.header.nonce,
+            "bits": f"{entry.header.bits:08x}",
+            "difficulty": difficulty(entry.header.bits, self.node.params),
+            "chainwork": f"{entry.chainwork:064x}",
+        }
+
+    def getblockchaininfo(self):
+        chain = self.node.chain
+        return {
+            "chain": self.node.params.name,
+            "blocks": chain.height,
+            "headers": chain.height,
+            "bestblockhash": hash_to_hex(chain.best_block_hash()),
+            "difficulty": difficulty(chain.tip.header.bits, self.node.params),
+            "mediantime": chain.tip.median_time_past(),
+            "chainwork": f"{chain.tip.chainwork:064x}",
+            "initialblockdownload": False,
+            "size_on_disk": sum(len(b.serialize()) for b in chain.blocks.values()),
+            "pruned": False,
+            "supply": coins(chain.total_supply()),
+        }
+
+    def getdifficulty(self):
+        return difficulty(self.node.chain.tip.header.bits, self.node.params)
+
+    def gettxout(self, txid: str, n: int):
+        coin = self.node.chain.get_utxo(hex_to_hash(txid), int(n))
+        if coin is None:
+            return None
+        return {
+            "bestblock": hash_to_hex(self.node.chain.best_block_hash()),
+            "confirmations": self.node.chain.height - coin.height + 1,
+            "value": coins(coin.txout.value),
+            "scriptPubKey": {
+                "hex": coin.txout.script_pubkey.hex(),
+                "type": script.solver(coin.txout.script_pubkey)[0],
+                "address": script.extract_destination(
+                    coin.txout.script_pubkey, self.node.params),
+            },
+            "coinbase": coin.is_coinbase,
+        }
+
+    # -- mempool ------------------------------------------------------------
+    def getrawmempool(self):
+        return [hash_to_hex(t) for t in self.node.mempool.txs]
+
+    def getmempoolinfo(self):
+        return {
+            "size": len(self.node.mempool),
+            "bytes": sum(e.tx.total_size()
+                         for e in self.node.mempool.txs.values()),
+            "usage": len(self.node.mempool),
+            "mempoolminfee": 0.00001,
+        }
+
+    # -- transactions ---------------------------------------------------------
+    def _find_tx(self, txid: bytes):
+        entry = self.node.mempool.get(txid)
+        if entry:
+            return entry.tx, None, None
+        for e in self.node.chain.active:
+            block = self.node.chain.get_block(e.hash)
+            if block is None:
+                continue
+            for tx in block.txs:
+                if tx.txid() == txid:
+                    return tx, block, e.height
+        return None, None, None
+
+    def getrawtransaction(self, txid: str, verbose: bool = False):
+        h = hex_to_hash(txid)
+        tx, block, height = self._find_tx(h)
+        if tx is None:
+            raise RPCError(RPC_INVALID_ADDRESS_OR_KEY, "no such transaction")
+        if not verbose:
+            return tx.serialize().hex()
+        return tx_to_json(tx, self.node.params, block, height,
+                          self.node.chain.height)
+
+    def decoderawtransaction(self, hexstr: str):
+        try:
+            tx = Transaction.deserialize(bytes.fromhex(hexstr))
+        except (ValueError, KeyError, IndexError) as e:
+            raise RPCError(RPC_INVALID_PARAMS, f"tx decode failed: {e}")
+        return tx_to_json(tx, self.node.params)
+
+    def sendrawtransaction(self, hexstr: str):
+        try:
+            tx = Transaction.deserialize(bytes.fromhex(hexstr))
+        except (ValueError, KeyError, IndexError) as e:
+            raise RPCError(RPC_INVALID_PARAMS, f"tx decode failed: {e}")
+        try:
+            self.node.submit_tx(tx)
+        except Exception as e:
+            raise RPCError(RPC_MISC_ERROR, str(e))
+        return tx.txid_hex()
+
+    # -- wallet -----------------------------------------------------------------
+    def getnewaddress(self, addrtype: str = "bech32"):
+        return self.node.wallet.new_address(addrtype)
+
+    def getaddresses(self):
+        return self.node.wallet.addresses()
+
+    def getbalance(self, minconf: int = 1):
+        return coins(self.node.wallet.balance(self.node.chain, int(minconf)))
+
+    def listunspent(self, minconf: int = 0):
+        out = []
+        for u in self.node.wallet.list_unspent(self.node.chain, int(minconf)):
+            out.append({
+                "txid": hash_to_hex(u["txid"]),
+                "vout": u["vout"],
+                "address": script.extract_destination(
+                    u["script"], self.node.params),
+                "amount": coins(u["value"]),
+                "confirmations": u["confirmations"],
+                "spendable": True,
+            })
+        return out
+
+    def sendmany(self, _dummy, outputs: dict, fee_rate=1):
+        outs = []
+        for addr, amt in outputs.items():
+            try:
+                outs.append((addr, sats(amt)))
+            except Exception:
+                raise RPCError(RPC_INVALID_ADDRESS_OR_KEY,
+                               f"bad output {addr}")
+        try:
+            tx = self.node.wallet.create_transaction(
+                self.node.chain, outs, int(fee_rate))
+            self.node.submit_tx(tx)
+        except ValueError as e:
+            raise RPCError(RPC_WALLET_INSUFFICIENT_FUNDS, str(e))
+        except Exception as e:
+            raise RPCError(RPC_MISC_ERROR, str(e))
+        return tx.txid_hex()
+
+    def createrawtransaction(self, inputs: list, outputs) -> str:
+        vin = []
+        for i in inputs:
+            seq = int(i.get("sequence", 0xFFFFFFFF))
+            vin.append(TxIn(prevout=OutPoint(hex_to_hash(i["txid"]),
+                                           int(i["vout"])), sequence=seq))
+        vout = []
+        for addr, amt in (outputs.items() if isinstance(outputs, dict)
+                          else []):
+            if addr == "data":
+                vout.append(TxOut(0, script.script_op_return(
+                    bytes.fromhex(amt))))
+                continue
+            try:
+                spk = script.script_for_address(addr, self.node.params)
+            except ValueError:
+                raise RPCError(RPC_INVALID_ADDRESS_OR_KEY,
+                               f"bad address {addr}")
+            vout.append(TxOut(sats(amt), spk))
+        tx = Transaction(version=constants.TX_VERSION, vin=vin, vout=vout,
+                         locktime=0)
+        return tx.serialize().hex()
+
+    def signrawtransactionwithwallet(self, hexstr: str):
+        try:
+            tx = Transaction.deserialize(bytes.fromhex(hexstr))
+        except Exception as e:
+            raise RPCError(RPC_INVALID_PARAMS, f"tx decode failed: {e}")
+        complete = True
+        for i, txin in enumerate(tx.vin):
+            coin = self.node.chain.utxo.get(txin.prevout.key())
+            if coin is None:
+                entry = self.node.mempool.get(txin.prevout.txid)
+                if entry and txin.prevout.vout < len(entry.tx.vout):
+                    out = entry.tx.vout[txin.prevout.vout]
+                    spk, val = out.script_pubkey, out.value
+                else:
+                    complete = False
+                    continue
+            else:
+                spk, val = coin.txout.script_pubkey, coin.txout.value
+            key = self.node.wallet._key_for_script(spk)
+            if key is None:
+                complete = False
+                continue
+            try:
+                _wallet.Wallet.sign_input(tx, i, spk, val, key)
+            except ValueError:
+                complete = False
+        return {"hex": tx.serialize().hex(), "complete": complete}
+
+    def signrawtransaction(self, hexstr: str):
+        return self.signrawtransactionwithwallet(hexstr)
+
+    def getreceivedbyaddress(self, address: str):
+        try:
+            spk = script.script_for_address(address, self.node.params)
+        except ValueError:
+            raise RPCError(RPC_INVALID_ADDRESS_OR_KEY, "invalid address")
+        total = 0
+        for e in self.node.chain.active:
+            block = self.node.chain.get_block(e.hash)
+            for tx in block.txs:
+                total += sum(o.value for o in tx.vout
+                             if o.script_pubkey == spk)
+        return coins(total)
+
+    def listreceivedbyaddress(self, minconf: int = 0):
+        received = {}
+        confs = {}
+        tip = self.node.chain.height
+        for e in self.node.chain.active:
+            block = self.node.chain.get_block(e.hash)
+            for tx in block.txs:
+                for o in tx.vout:
+                    addr = script.extract_destination(o.script_pubkey,
+                                                      self.node.params)
+                    if addr is None:
+                        continue
+                    received[addr] = received.get(addr, 0) + o.value
+                    confs[addr] = max(confs.get(addr, 0),
+                                      tip - e.height + 1)
+        return [{"address": a, "amount": coins(v),
+                 "confirmations": confs[a]} for a, v in received.items()]
+
+    def signmessage(self, address: str, message: str):
+        try:
+            return self.node.wallet.sign_message(address, message)
+        except ValueError as e:
+            raise RPCError(RPC_INVALID_ADDRESS_OR_KEY, str(e))
+
+    def verifymessage(self, address: str, signature: str, message: str):
+        return _wallet.verify_message(address, signature, message,
+                                      self.node.params)
+
+    def sendtoaddress(self, address: str, amount, fee_rate=1):
+        try:
+            script.script_for_address(address, self.node.params)
+        except ValueError:
+            raise RPCError(RPC_INVALID_ADDRESS_OR_KEY, "invalid address")
+        try:
+            tx = self.node.wallet.create_transaction(
+                self.node.chain, [(address, sats(amount))], int(fee_rate))
+            self.node.submit_tx(tx)
+        except ValueError as e:
+            raise RPCError(RPC_WALLET_INSUFFICIENT_FUNDS, str(e))
+        except Exception as e:
+            raise RPCError(RPC_MISC_ERROR, str(e))
+        return tx.txid_hex()
+
+    # -- wallet encryption (bitcoind encryptwallet/walletpassphrase/walletlock) --
+    def encryptwallet(self, passphrase: str):
+        w = self.node.wallet
+        if w.is_encrypted():
+            raise RPCError(RPC_MISC_ERROR, "wallet already encrypted")
+        w.encrypt(str(passphrase))
+        return "wallet encrypted; Alpha server stopping is not required"
+
+    def walletpassphrase(self, passphrase: str, timeout: int = 60):
+        w = self.node.wallet
+        if not w.is_encrypted():
+            raise RPCError(RPC_MISC_ERROR, "wallet is not encrypted")
+        try:
+            w.unlock(str(passphrase), int(timeout))
+        except ValueError:
+            raise RPCError(RPC_INVALID_ADDRESS_OR_KEY,
+                           "the passphrase is incorrect")
+        return None
+
+    def walletlock(self):
+        self.node.wallet.lock()
+        return None
+
+    def walletpassphrasechange(self, old: str, new: str):
+        try:
+            self.node.wallet.change_passphrase(str(old), str(new))
+        except ValueError as e:
+            raise RPCError(RPC_INVALID_ADDRESS_OR_KEY, str(e))
+        return None
+
+    def dumpprivkey(self, address: str):
+        try:
+            return self.node.wallet.export_wif(address)
+        except ValueError:
+            raise RPCError(RPC_INVALID_ADDRESS_OR_KEY, "address not in wallet")
+
+    def importprivkey(self, wif: str):
+        try:
+            k = self.node.wallet.import_wif(wif)
+        except ValueError as e:
+            raise RPCError(RPC_INVALID_ADDRESS_OR_KEY, str(e))
+        return k.address("bech32", self.node.params)
+
+    def getwalletinfo(self):
+        w = self.node.wallet
+        return {
+            "balance": coins(w.balance(self.node.chain)),
+            "keypoolsize": len(w.all_key_records()) or len(w.keys),
+            "txcount": len(w.list_unspent(self.node.chain)),
+            "encrypted": w.is_encrypted(),
+            "unlocked_until": w._unlock_until if w.is_encrypted() else 0,
+        }
+
+    def validateaddress(self, address: str):
+        try:
+            spk = script.script_for_address(address, self.node.params)
+        except ValueError:
+            return {"isvalid": False}
+        return {
+            "isvalid": True,
+            "address": address,
+            "scriptPubKey": spk.hex(),
+            "isscript": spk[0] == script.OP_HASH160 if spk else False,
+            "iswitness": script.witness_program(spk) is not None,
+        }
+
+    # -- tokens (ALP protocol) ------------------------------------------------------
+    def _wallet_scripts(self):
+        out = {}
+        for k in self.node.wallet.keys:
+            for spk in k.scripts():
+                out[spk] = k
+        return out
+
+    def _find_token_address(self, token_id: bytes, min_amount: int = 1,
+                            issuer_only: bool = False):
+        """Find a wallet address holding >= min_amount of the token (or the
+        issuer address). Returns (script_pubkey, address)."""
+        owned = self._wallet_scripts()
+        info = self.node.tokens.registry.get(token_id)
+        for (tid, spk), amt in self.node.tokens.balances.items():
+            if tid != token_id or spk not in owned or amt < min_amount:
+                continue
+            if issuer_only and (info is None or spk != info.issuer_script):
+                continue
+            return spk, script.extract_destination(spk, self.node.params)
+        return None, None
+
+    def _submit_token_op(self, payload: bytes, signer_spk: bytes,
+                         signer_addr: str, recipient_addr: str | None,
+                         value: int = 546):
+        tx = self.node.wallet.create_token_op_tx(
+            self.node.chain, payload, signer_addr, recipient_addr, value)
+        self.node.submit_tx(tx)
+        return tx
+
+    def _funded_address(self):
+        """A wallet address that currently has spendable UTXOs."""
+        for u in self.node.wallet.list_unspent(self.node.chain, 1):
+            return u["script"], script.extract_destination(
+                u["script"], self.node.params)
+        return None, None
+
+    def createtoken(self, name: str, decimals: int = 0, supply=0,
+                    address: str | None = None):
+        """Issue a new ALP token. token_id = the txid of this transaction."""
+        if address is None:
+            _, address = self._funded_address()
+            if address is None:
+                raise RPCError(RPC_WALLET_INSUFFICIENT_FUNDS,
+                               "wallet has no spendable outputs")
+        signer_spk = script.script_for_address(address, self.node.params)
+        payload = _tokens.encode_issue(str(name), int(decimals), sats(0)
+                                       if False else int(Decimal(str(supply))
+                                       * (10 ** int(decimals))))
+        tx = self._submit_token_op(payload, signer_spk, address, address)
+        return {"token_id": tx.txid_hex(), "txid": tx.txid_hex(),
+                "address": address}
+
+    def sendtoken(self, token_id: str, address: str, amount,
+                  fromaddress: str | None = None):
+        tid = hex_to_hash(token_id)
+        if tid not in self.node.tokens.registry:
+            raise RPCError(RPC_INVALID_PARAMS, "unknown token")
+        amt = int(Decimal(str(amount)) * 1)  # raw units
+        info = self.node.tokens.registry[tid]
+        amt = int(Decimal(str(amount)) * (10 ** info.decimals))
+        if fromaddress is None:
+            spk, fromaddress = self._find_token_address(tid, amt)
+            if spk is None:
+                raise RPCError(RPC_WALLET_INSUFFICIENT_FUNDS,
+                               "no wallet address holds enough of this token")
+        else:
+            spk = script.script_for_address(fromaddress, self.node.params)
+        payload = _tokens.encode_send(tid, amt)
+        tx = self._submit_token_op(payload, spk, fromaddress, address)
+        return tx.txid_hex()
+
+    def minttoken(self, token_id: str, amount, address: str | None = None):
+        tid = hex_to_hash(token_id)
+        info = self.node.tokens.registry.get(tid)
+        if info is None:
+            raise RPCError(RPC_INVALID_PARAMS, "unknown token")
+        amt = int(Decimal(str(amount)) * (10 ** info.decimals))
+        spk, signer = self._find_token_address(tid, 1, issuer_only=True)
+        if spk is None:
+            raise RPCError(RPC_INVALID_ADDRESS_OR_KEY,
+                           "issuer address not in wallet")
+        payload = _tokens.encode_mint(tid, amt)
+        tx = self._submit_token_op(payload, spk, signer, address or signer)
+        return tx.txid_hex()
+
+    def burntoken(self, token_id: str, amount, address: str | None = None):
+        tid = hex_to_hash(token_id)
+        info = self.node.tokens.registry.get(tid)
+        if info is None:
+            raise RPCError(RPC_INVALID_PARAMS, "unknown token")
+        amt = int(Decimal(str(amount)) * (10 ** info.decimals))
+        if address is None:
+            spk, address = self._find_token_address(tid, amt)
+        else:
+            spk = script.script_for_address(address, self.node.params)
+        if spk is None:
+            raise RPCError(RPC_WALLET_INSUFFICIENT_FUNDS,
+                           "no wallet address holds enough of this token")
+        payload = _tokens.encode_burn(tid, amt)
+        tx = self._submit_token_op(payload, spk, address, address)
+        return tx.txid_hex()
+
+    def listtokens(self):
+        return self.node.tokens.list_tokens(self.node.params)
+
+    def gettokeninfo(self, token_id: str):
+        d = self.node.tokens.token_info(hex_to_hash(token_id),
+                                        self.node.params)
+        if d is None:
+            raise RPCError(RPC_INVALID_PARAMS, "unknown token")
+        return d
+
+    def gettokenbalance(self, token_id: str, address: str | None = None):
+        tid = hex_to_hash(token_id)
+        info = self.node.tokens.registry.get(tid)
+        if info is None:
+            raise RPCError(RPC_INVALID_PARAMS, "unknown token")
+        if address is not None:
+            spk = script.script_for_address(address, self.node.params)
+            amt = self.node.tokens.balance(tid, spk)
+            return {"address": address, "balance": amt,
+                    "display_balance": amt / 10 ** info.decimals}
+        return self.node.tokens.balance_json(tid, self.node.params)
+
+    def listtokenbalances(self, address: str | None = None):
+        if address is not None:
+            spks = [script.script_for_address(address, self.node.params)]
+        else:
+            spks = list(self._wallet_scripts())
+        out = []
+        for spk in spks:
+            for tid, amt in self.node.tokens.balances_for(spk).items():
+                info = self.node.tokens.registry.get(tid)
+                out.append({
+                    "token_id": hash_to_hex(tid),
+                    "name": info.name if info else "?",
+                    "address": script.extract_destination(spk,
+                                                          self.node.params),
+                    "balance": amt,
+                    "display_balance": amt / 10 ** (info.decimals if info
+                                                    else 0),
+                })
+        return out
+
+    def gettokenholders(self, token_id: str):
+        return self.node.tokens.balance_json(hex_to_hash(token_id),
+                                             self.node.params)
+
+    # -- proofs / misc ---------------------------------------------------------------
+    def gettxoutproof(self, txids: list, blockhash: str | None = None):
+        wanted = {hex_to_hash(t) for t in txids}
+        if blockhash:
+            block = self.node.chain.get_block(hex_to_hash(blockhash))
+        else:
+            block = None
+            for e in self.node.chain.active:
+                b = self.node.chain.get_block(e.hash)
+                if b and any(tx.txid() in wanted for tx in b.txs):
+                    block = b
+                    break
+        if block is None:
+            raise RPCError(RPC_INVALID_PARAMS, "block not found")
+        return merkleproof.txout_proof(block, wanted).hex()
+
+    def verifytxoutproof(self, hexstr: str):
+        try:
+            matched, root, header = merkleproof.verify_proof(
+                bytes.fromhex(hexstr))
+        except (ValueError, KeyError, IndexError) as e:
+            raise RPCError(RPC_INVALID_PARAMS, f"bad proof: {e}")
+        return [hash_to_hex(t) for t in matched]
+
+    def getchaintips(self):
+        parents = {e.parent.hash for e in self.node.chain.index.values()
+                   if e.parent}
+        tips = []
+        for h, e in self.node.chain.index.items():
+            if h in parents:
+                continue
+            on_main = (e.height < len(self.node.chain.active)
+                       and self.node.chain.active[e.height] is e)
+            tips.append({
+                "height": e.height,
+                "hash": hash_to_hex(h),
+                "branchlen": 0 if on_main else e.height - (
+                    self.node.chain._find_fork(e).height if e.parent else 0),
+                "status": "active" if on_main else "valid-fork",
+            })
+        return tips
+
+    def getblockstats(self, hash_or_height):
+        if isinstance(hash_or_height, str) and len(hash_or_height) == 64:
+            entry = self.node.chain.index.get(hex_to_hash(hash_or_height))
+        else:
+            entry = self.node.chain.get_block_index(int(hash_or_height))
+        if entry is None:
+            raise RPCError(RPC_INVALID_PARAMS, "block not found")
+        block = self.node.chain.get_block(entry.hash)
+        fees = 0
+        total_out = 0
+        for tx in block.txs[1:]:
+            in_sum = 0
+            for tin in tx.vin:
+                c = self.node.chain.utxo.get(tin.prevout.key())
+                if c:
+                    in_sum += c.txout.value
+            if in_sum:
+                fees += max(0, in_sum - tx.total_output_value())
+            total_out += tx.total_output_value()
+        return {
+            "height": entry.height,
+            "hash": hash_to_hex(entry.hash),
+            "blockhash": hash_to_hex(entry.hash),
+            "time": entry.header.timestamp,
+            "mediantime": entry.median_time_past(),
+            "txs": len(block.txs),
+            "total_size": block.total_size(),
+            "total_weight": block.weight(),
+            "subsidy": coins(self.node.chain.subsidy(entry.height)),
+            "totalfee": coins(fees),
+            "total_out": coins(total_out + block.txs[0].total_output_value()),
+        }
+
+    def decodescript(self, hexstr: str):
+        spk = bytes.fromhex(hexstr)
+        typ, data = script.solver(spk)
+        out = {"asm": "", "type": typ}
+        addr = script.extract_destination(spk, self.node.params)
+        if addr:
+            out["address"] = addr
+        if typ == script.TX_SCRIPTHASH:
+            out["p2sh"] = addr
+        wp = script.witness_program(spk)
+        if wp:
+            out["segwit"] = {"version": wp[0], "program": wp[1].hex(),
+                             "address": addr}
+        return out
+
+    def uptime(self):
+        return int(time.time()) - self.node.start_time
+
+    def getnetworkhashps(self, nblocks: int = 120):
+        tip = self.node.chain.tip
+        n = min(int(nblocks), tip.height)
+        if n <= 0:
+            return 0
+        first = self.node.chain.get_block_index(tip.height - n)
+        work = tip.chainwork - first.chainwork
+        timespan = max(1, tip.header.timestamp - first.header.timestamp)
+        return work / timespan
+
+    def scantxoutset(self, action: str = "start"):
+        if action != "start":
+            return {"success": False}
+        unspents = []
+        total = 0
+        for (txid, n), c in self.node.chain.utxo.items():
+            unspents.append({
+                "txid": hash_to_hex(txid), "vout": n,
+                "amount": coins(c.txout.value),
+                "height": c.height,
+                "scriptPubKey": c.txout.script_pubkey.hex(),
+                "address": script.extract_destination(c.txout.script_pubkey,
+                                                      self.node.params),
+            })
+            total += c.txout.value
+        return {"success": True, "unspents": unspents,
+                "total_amount": coins(total)}
+
+    def getmempoolentry(self, txid: str):
+        e = self.node.mempool.get(hex_to_hash(txid))
+        if e is None:
+            raise RPCError(RPC_INVALID_PARAMS, "tx not in mempool")
+        return {"size": e.tx.total_size(), "vsize": e.tx.vsize(),
+                "weight": e.tx.weight(), "fee": coins(e.fee),
+                "time": e.time, "feerate": e.fee_rate}
+
+    def listtransactions(self, count: int = 10):
+        owned = set(self._wallet_scripts())
+        out = []
+        tip = self.node.chain.height
+        for e in reversed(self.node.chain.active):
+            block = self.node.chain.get_block(e.hash)
+            if block is None:
+                continue
+            for tx in block.txs:
+                got = sum(o.value for o in tx.vout
+                          if o.script_pubkey in owned)
+                if got:
+                    out.append({
+                        "txid": tx.txid_hex(), "category": "receive",
+                        "amount": coins(got),
+                        "confirmations": tip - e.height + 1,
+                        "blockhash": block.hash_hex(),
+                        "blockheight": e.height,
+                    })
+                if len(out) >= int(count):
+                    return out
+        return out
+
+    def sendopreturn(self, data_hex: str, address: str | None = None):
+        """Embed arbitrary data in the chain via OP_RETURN."""
+        if address is None:
+            address = self.node.wallet.new_address("bech32")
+        spk = script.script_for_address(address, self.node.params)
+        tx = self.node.wallet.create_token_op_tx(
+            self.node.chain, bytes.fromhex(data_hex), address, address)
+        self.node.submit_tx(tx)
+        return tx.txid_hex()
+
+    # -- mining -------------------------------------------------------------------
+    def generatetoaddress(self, nblocks: int, address: str):
+        try:
+            spk = script.script_for_address(address, self.node.params)
+        except ValueError:
+            raise RPCError(RPC_INVALID_ADDRESS_OR_KEY, "invalid address")
+        hashes = []
+        for _ in range(int(nblocks)):
+            block = self.node.generate_block(spk)
+            hashes.append(block.hash_hex())
+        return hashes
+
+    def generate(self, nblocks: int = 1):
+        addr = self.node.wallet.new_address("bech32")
+        return self.generatetoaddress(nblocks, addr)
+
+    def getmininginfo(self):
+        return {
+            "blocks": self.node.chain.height,
+            "difficulty": difficulty(self.node.chain.tip.header.bits,
+                                     self.node.params),
+            "networkhashps": 0,
+            "pooledtx": len(self.node.mempool),
+            "chain": self.node.params.name,
+        }
+
+    # -- network ------------------------------------------------------------------
+    def addnode(self, nodeaddr: str):
+        if ":" in nodeaddr:
+            ip, port = nodeaddr.rsplit(":", 1)
+            port = int(port)
+        else:
+            ip, port = nodeaddr, self.node.params.default_port
+        ok = self.node.connect(ip, port)
+        if not ok:
+            raise RPCError(RPC_MISC_ERROR, "could not connect")
+        return None
+
+    def getpeerinfo(self):
+        out = []
+        for p in self.node.peers:
+            out.append({
+                "addr": f"{p.addr[0]}:{p.addr[1]}",
+                "inbound": p.inbound,
+                "handshake": p.handshake_done,
+                "version": p.peer_version.get("version"),
+                "subver": (p.peer_version.get("user_agent") or b"").decode(
+                    "utf-8", "replace"),
+                "startingheight": p.peer_version.get("start_height", 0),
+            })
+        return out
+
+    def getconnectioncount(self):
+        return len([p for p in self.node.peers if p.handshake_done])
+
+    def getnetworkinfo(self):
+        return {
+            "version": 70015,
+            "subversion": "/Alpha:0.1.0/",
+            "protocolversion": 70015,
+            "localservices": "0000000000000409",
+            "connections": len(self.node.peers),
+            "networkactive": True,
+        }
+
+    def estimatesmartfee(self, conf_target: int = 6):
+        return {"feerate": 0.00001000, "blocks": int(conf_target)}
+
+    def stop(self):
+        threading.Thread(target=self.node.stop, daemon=True).start()
+        return "Alpha node stopping"
+
+
+# ---------------------------------------------------------------------------
+# HTTP server
+# ---------------------------------------------------------------------------
+def make_handler(rpc: RPCMethods, auth: str | None = None):
+    """HTTP handler. If `auth` ("user:pass") is set, HTTP Basic auth is
+    required -- same scheme bitcoind uses with its .cookie file."""
+    expected = ("Basic " + __import__("base64").b64encode(
+        auth.encode()).decode()) if auth else None
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def _authorized(self) -> bool:
+            if expected is None:
+                return True
+            if self.headers.get("Authorization") == expected:
+                return True
+            self.send_response(401)
+            self.send_header("WWW-Authenticate", 'Basic realm="alphad"')
+            self.end_headers()
+            return False
+
+        # -- bitcoind-compatible REST endpoints ----------------------------------
+        def do_GET(self):
+            if not self._authorized():
+                return
+            try:
+                result = self._rest(self.path)
+            except RPCError as e:
+                self._reply({"error": {"code": e.code, "message": str(e)}}, 404)
+                return
+            except Exception as e:  # noqa: BLE001
+                self._reply({"error": {"code": -1, "message": str(e)}}, 500)
+                return
+            if result is None:
+                self._reply({"error": {"code": -5,
+                                       "message": "not found"}}, 404)
+            else:
+                self._reply(result)
+
+        def _rest(self, path: str):
+            parts = [p for p in path.split("/") if p]
+            if not parts or parts[0] != "rest":
+                return None
+            route = parts[1:]
+            if route == ["chaininfo.json"]:
+                return rpc.getblockchaininfo()
+            if route == ["mempool", "info.json"]:
+                return rpc.getmempoolinfo()
+            if route == ["mempool", "contents.json"]:
+                return {"txids": rpc.getrawmempool(),
+                        "size": len(rpc.node.mempool)}
+            if len(route) == 2 and route[0] == "block" \
+                    and route[1].endswith(".json"):
+                return rpc.getblock(route[1][:-5], 2)
+            if len(route) == 3 and route[0] == "block" \
+                    and route[1] == "notxdetails" \
+                    and route[2].endswith(".json"):
+                return rpc.getblock(route[2][:-5], 1)
+            if len(route) == 3 and route[0] == "headers" \
+                    and route[2].endswith(".json"):
+                count = int(route[1])
+                entry = rpc.node.chain.index.get(
+                    hex_to_hash(route[2][:-5]))
+                if entry is None:
+                    return None
+                out = []
+                e = entry
+                while e and len(out) < count:
+                    out.append(rpc.getblockheader(hash_to_hex(e.hash)))
+                    e = e.parent
+                return out
+            if len(route) == 2 and route[0] == "tx" \
+                    and route[1].endswith(".json"):
+                return rpc.getrawtransaction(route[1][:-5], True)
+            if len(route) == 2 and route[0] == "utxo" \
+                    and route[1].endswith(".json"):
+                txid_n = route[1][:-5]
+                txid, n = txid_n.rsplit("-", 1)
+                return rpc.gettxout(txid, int(n))
+            if route == ["tokens.json"]:
+                return rpc.listtokens()
+            if len(route) == 2 and route[0] == "token" \
+                    and route[1].endswith(".json"):
+                return rpc.gettokeninfo(route[1][:-5])
+            return None
+
+        def do_POST(self):
+            if not self._authorized():
+                return
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                body = json.loads(self.rfile.read(length) or b"{}")
+            except (ValueError, json.JSONDecodeError):
+                self._reply({"jsonrpc": "2.0", "id": None, "result": None,
+                             "error": {"code": RPC_PARSE_ERROR,
+                                       "message": "parse error"}})
+                return
+            method = body.get("method", "")
+            params = body.get("params", [])
+            if not isinstance(params, (list, tuple)):
+                params = [params]
+            fn = getattr(rpc, method, None)
+            if fn is None or method.startswith("_"):
+                err = {"code": RPC_METHOD_NOT_FOUND,
+                       "message": "method not found"}
+                self._reply({"jsonrpc": "2.0", "id": body.get("id"),
+                             "result": None, "error": err})
+                return
+            try:
+                result = fn(*params)
+                self._reply({"jsonrpc": "2.0", "id": body.get("id"),
+                             "result": result, "error": None})
+            except RPCError as e:
+                self._reply({"jsonrpc": "2.0", "id": body.get("id"),
+                             "result": None,
+                             "error": {"code": e.code, "message": str(e)}})
+            except _wallet.WalletLocked as e:
+                self._reply({"jsonrpc": "2.0", "id": body.get("id"),
+                             "result": None,
+                             "error": {"code": -13,
+                                       "message": str(e)}})
+            except TypeError as e:
+                self._reply({"jsonrpc": "2.0", "id": body.get("id"),
+                             "result": None,
+                             "error": {"code": RPC_INVALID_PARAMS,
+                                       "message": str(e)}})
+            except Exception as e:  # noqa: BLE001
+                self._reply({"jsonrpc": "2.0", "id": body.get("id"),
+                             "result": None,
+                             "error": {"code": RPC_MISC_ERROR,
+                                       "message": str(e)}})
+
+        def _reply(self, obj, status: int = 200):
+            data = json.dumps(obj).encode()
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+    return Handler
+
+
+def serve(node, host: str, port: int,
+          auth: str | None = None) -> ThreadingHTTPServer:
+    rpc = RPCMethods(node)
+    httpd = ThreadingHTTPServer((host, port), make_handler(rpc, auth))
+    httpd.daemon_threads = True
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    return httpd
+
+
+def call(host: str, port: int, method: str, params=None,
+         auth: str | None = None):
+    """Client helper used by alpha-cli / alphaweb."""
+    import base64
+    import urllib.request
+    body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method,
+                       "params": params or []}).encode()
+    headers = {"Content-Type": "application/json"}
+    if auth:
+        headers["Authorization"] = ("Basic " + base64.b64encode(
+            auth.encode()).decode())
+    req = urllib.request.Request(f"http://{host}:{port}/", data=body,
+                                 headers=headers)
+    with urllib.request.urlopen(req, timeout=600) as resp:
+        out = json.loads(resp.read())
+    if out.get("error"):
+        raise RPCError(out["error"]["code"], out["error"]["message"])
+    return out.get("result")
+
+
+def get_cookie(datadir: str) -> str | None:
+    """Read a bitcoind-style .cookie file ("user:pass")."""
+    try:
+        with open(os.path.join(datadir, ".cookie")) as f:
+            return f.read().strip()
+    except OSError:
+        return None
+
+
+def make_cookie(datadir: str) -> str:
+    """Create the cookie file if missing (bitcoind behavior)."""
+    import secrets
+    path = os.path.join(datadir, ".cookie")
+    existing = get_cookie(datadir)
+    if existing:
+        return existing
+    os.makedirs(datadir, exist_ok=True)
+    cred = f"__cookie__:{secrets.token_hex(32)}"
+    with open(path, "w") as f:
+        f.write(cred)
+    try:
+        os.chmod(path, 0o600)
+    except OSError:
+        pass
+    return cred

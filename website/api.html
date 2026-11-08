@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>API — Alpha Blockchain</title>
+  <link rel="icon" href="logo.svg"><link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav></nav>
+<section><div class="wrap">
+  <h2 class="title">Developer API</h2>
+  <p class="sub">JSON-RPC (bitcoind-compatible) on <code>:18443</code> · REST on
+     <code>:18443/rest/…</code> · web API on <code>:8080/api/…</code></p>
+
+  <h3 style="margin:26px 0 12px">JSON-RPC — <span class="tag">POST /</span></h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>Method</th><th>Description</th></tr><tbody id="rpc"></tbody>
+  </table></div>
+
+  <h3 style="margin:26px 0 12px">REST — <span class="tag">GET</span></h3>
+  <div class="tbl-wrap"><table><tbody>
+    <tr><td class="hash">/rest/chaininfo.json</td><td>blockchain summary</td></tr>
+    <tr><td class="hash">/rest/block/&lt;hash&gt;.json</td><td>full block with txs</td></tr>
+    <tr><td class="hash">/rest/block/notxdetails/&lt;hash&gt;.json</td><td>block without txs</td></tr>
+    <tr><td class="hash">/rest/tx/&lt;txid&gt;.json</td><td>transaction detail</td></tr>
+    <tr><td class="hash">/rest/headers/&lt;n&gt;/&lt;hash&gt;.json</td><td>block headers</td></tr>
+    <tr><td class="hash">/rest/mempool/info.json</td><td>mempool stats</td></tr>
+    <tr><td class="hash">/rest/mempool/contents.json</td><td>mempool txids</td></tr>
+    <tr><td class="hash">/rest/utxo/&lt;txid&gt;-&lt;n&gt;.json</td><td>UTXO lookup</td></tr>
+    <tr><td class="hash">/rest/tokens.json</td><td>token registry</td></tr>
+    <tr><td class="hash">/rest/token/&lt;id&gt;.json</td><td>token info</td></tr>
+  </tbody></table></div>
+
+  <h3 style="margin:26px 0 12px">Example</h3>
+  <pre>curl -X POST http://127.0.0.1:18443 \
+  -d '{"jsonrpc":"2.0","id":1,"method":"getblockchaininfo","params":[]}'</pre>
+</div></section>
+<footer>Alpha Blockchain API</footer>
+<script src="app.js"></script>
+<script>
+nav('api');
+const METHODS = [
+  ['getblockcount / getbestblockhash / getblockhash / getblock / getblockheader', 'chain data'],
+  ['getblockchaininfo / getblockstats / getchaintips / getdifficulty', 'chain state'],
+  ['getrawtransaction / getrawmempool / getmempoolinfo / getmempoolentry', 'tx + mempool'],
+  ['gettxout / scantxoutset / gettxoutproof / verifytxoutproof', 'UTXO + SPV proofs'],
+  ['createrawtransaction / signrawtransactionwithwallet / sendrawtransaction / decoderawtransaction', 'raw tx workflow'],
+  ['getnewaddress / getbalance / listunspent / sendtoaddress / sendmany / getreceivedbyaddress / listreceivedbyaddress / listtransactions / getwalletinfo / getaddresses', 'wallet'],
+  ['dumpprivkey / importprivkey / signmessage / verifymessage / validateaddress', 'keys + messages'],
+  ['generatetoaddress / generate / getmininginfo / getnetworkhashps', 'mining'],
+  ['createtoken / sendtoken / minttoken / burntoken / listtokens / gettokeninfo / gettokenbalance / listtokenbalances / gettokenholders', 'ALP tokens'],
+  ['addnode / getpeerinfo / getconnectioncount / getnetworkinfo', 'P2P network'],
+  ['sendopreturn / decodescript / estimatesmartfee / uptime / stop', 'misc'],
+];
+el('rpc').innerHTML = METHODS.map(m =>
+  `<tr><td class="hash">${m[0]}</td><td>${m[1]}</td></tr>`).join('');
+</script>
+</body></html>

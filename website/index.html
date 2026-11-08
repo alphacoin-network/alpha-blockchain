@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Alpha Blockchain — The Bitcoin-Grade Network</title>
+  <link rel="icon" href="logo.svg"><link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav></nav>
+<div class="hero">
+  <div>
+    <h1>Sound money,<br><span class="g">rebuilt faithfully.</span></h1>
+    <p>Alpha Blockchain is a decentralized network engineered to Bitcoin's exact
+       specification — 21,000,000 coins, 10-minute blocks, proof-of-work, UTXO,
+       halvings — plus a native token layer for building your own projects.</p>
+    <a class="btn btn-gold" href="explorer.html">Open Explorer</a>
+    <a class="btn btn-ghost" href="api.html">Developer API</a>
+  </div>
+  <div class="coin-scene">
+    <div class="coin-glow"></div>
+    <div class="coin">
+      <div class="rim"></div>
+      <div class="face front"></div>
+      <div class="face back"></div>
+    </div>
+    <div class="coin-shadow"></div>
+  </div>
+</div>
+
+<section><div class="wrap">
+  <h2 class="title">Live network</h2><p class="sub">Real-time stats from your node.</p>
+  <div class="grid stats" id="stats"><div class="loading">loading…</div></div>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="title">Built like Bitcoin. Nothing less.</h2>
+  <p class="sub">Every consensus rule, wire format and cryptographic primitive
+     mirrors Bitcoin — audited against its real known-answer vectors.</p>
+  <div class="grid cards">
+    <div class="card"><div class="icon">₿</div><h3>Bitcoin-grade consensus</h3>
+      <p>SHA-256d proof-of-work, 2016-block retargets, 10-minute spacing, median-time-past — byte-identical headers and difficulty math.</p></div>
+    <div class="card"><div class="icon">α</div><h3>21,000,000 ALPHA</h3>
+      <p>50-coin subsidy halving every 210,000 blocks to exactly 20,999,999.9769 total — the same scarcity curve as Bitcoin.</p></div>
+    <div class="card"><div class="icon">⛓</div><h3>UTXO + Script</h3>
+      <p>Full stack-machine interpreter: P2PKH, P2SH, multisig, CLTV/CSV timelocks, segwit v0 witness programs.</p></div>
+    <div class="card"><div class="icon">◈</div><h3>Tokens on-chain</h3>
+      <p>The ALP protocol lets anyone issue, mint, send and burn tokens secured by the same proof-of-work — like Omni on Bitcoin.</p></div>
+    <div class="card"><div class="icon">⇄</div><h3>Real P2P network</h3>
+      <p>Bitcoin's exact wire protocol — version/verack handshake, inv/getdata relay, headers-first sync, block+tx propagation.</p></div>
+    <div class="card"><div class="icon">⌬</div><h3>Decentralized by design</h3>
+      <p>Anyone can mine, run a node, build projects or issue tokens. No permission, no center — just consensus.</p></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <h2 class="title">Start building</h2><p class="sub">Three commands and you're mining.</p>
+  <pre>python alphad.py --chain regtest --datadir ./data
+python alpha_cli.py generatetoaddress 101 $(python alpha_cli.py getnewaddress bech32)
+python alpha_cli.py createtoken MyToken 8 1000000</pre>
+</div></section>
+
+<footer>Alpha Blockchain · ALPHA coin · engineered to the Bitcoin specification</footer>
+<script src="app.js"></script><script>nav('home'); loadStats('stats');</script>
+</body></html>

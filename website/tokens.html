@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tokens — Alpha Blockchain</title>
+  <link rel="icon" href="logo.svg"><link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav></nav>
+<section><div class="wrap">
+  <h2 class="title">Tokens on Alpha</h2>
+  <p class="sub">Assets issued on-chain via the ALP protocol — anyone can create
+     one with <code>createtoken</code>.</p>
+  <div class="tbl-wrap"><table>
+    <tr><th>Name</th><th>Token ID</th><th>Decimals</th><th class="num">Supply</th><th>Issuer</th><th>Height</th></tr>
+    <tbody id="tokens"><tr><td colspan="6" class="loading">loading…</td></tr></tbody>
+  </table></div>
+  <div id="holders" style="margin-top:24px"></div>
+</div></section>
+<footer>Alpha Blockchain · ALP token protocol</footer>
+<script src="app.js"></script>
+<script>
+nav('tok');
+async function load() {
+  const ts = await api('tokens').catch(()=>[]);
+  el('tokens').innerHTML = ts.length ? ts.map(t =>
+    `<tr><td><b>${t.name}</b></td>
+     <td class="hash"><a href="#" onclick="holders('${t.token_id}');return false">${short(t.token_id)}</a></td>
+     <td>${t.decimals}</td><td class="num">${fmt(t.display_supply)}</td>
+     <td class="hash">${short(t.issuer||'—')}</td><td>${t.created_height}</td></tr>`).join('')
+    : '<tr><td colspan="6" class="loading">no tokens issued yet</td></tr>';
+}
+async function holders(tid) {
+  const d = await api('token/'+tid).catch(()=>null);
+  if (!d || !d.info) { el('holders').innerHTML = '<div class="detail">not found</div>'; return; }
+  el('holders').innerHTML = `<div class="detail flash"><h3>${d.info.name} — holders</h3>
+    <div class="tbl-wrap"><table><tr><th>Address</th><th class="num">Balance</th></tr>
+    ${d.holders.length ? d.holders.map(h =>
+      `<tr><td class="hash">${h.address||'—'}</td><td class="num">${fmt(h.display_balance)}</td></tr>`).join('')
+      : '<tr><td colspan="2" class="loading">no holders</td></tr>'}
+    </table></div></div>`;
+}
+load(); setInterval(load, 20000);
+</script>
+</body></html>

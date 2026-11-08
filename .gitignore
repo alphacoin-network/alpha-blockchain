@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+data-*/
+demo-data*/
+*.log
+.cookie
+wallet.json
+chain/
+blocks.dat
