@@ -184,6 +184,10 @@ LOCKTIME_THRESHOLD = 500_000_000
 
 SIGVERSION_BASE = 0
 SIGVERSION_WITNESS_V0 = 1
+SIGVERSION_TAPROOT = 2
+SIGVERSION_TAPSCRIPT = 3
+
+OP_CHECKSIGADD = 0xBA   # BIP342 tapscript multisig opcode
 
 
 # ---------------------------------------------------------------------------
@@ -523,6 +527,8 @@ class ScriptContext:
     block_height: int = 0       # for CLTV/CSV context
     block_time: int = 0
     all_prevouts: dict | None = None  # {"amounts":[...], "spks":[...]} for BIP341
+    tapleaf_hash: bytes = b""         # for tapscript script-path sighash
+    tapleaf_codesep_pos: int = 0xFFFFFFFF  # last executed OP_CODESEPARATOR
 
 
 def _check_sig_encoding(sig: bytes, flags: int) -> None:
@@ -701,13 +707,20 @@ def eval_script(stack: list, script: bytes, ctx: ScriptContext) -> None:
                 stack.append(sha256d(v))
         elif opcode == OP_CODESEPARATOR:
             last_codesep_end = op.end
+            ctx.tapleaf_codesep_pos = op.start   # BIP342 codesep position
         elif opcode in (OP_CHECKSIG, OP_CHECKSIGVERIFY):
             if len(stack) < 2:
                 raise ScriptError("stack underflow")
             pubkey = stack.pop()
             sig = stack.pop()
             ok = False
-            if sig:
+            if ctx.sigversion == SIGVERSION_TAPSCRIPT:
+                # BIP342: x-only pubkey + schnorr sig (empty sig = just false)
+                if sig:
+                    if len(pubkey) != 32:
+                        raise ScriptError("tapscript needs 32B x-only pubkey")
+                    ok = _check_signature(sig, pubkey, b"", ctx)
+            elif sig:
                 if ctx.flags & (SCRIPT_VERIFY_DERSIG | SCRIPT_VERIFY_LOW_S
                                 | SCRIPT_VERIFY_STRICTENC):
                     _check_sig_encoding(sig, ctx.flags)
@@ -726,6 +739,19 @@ def eval_script(stack: list, script: bytes, ctx: ScriptContext) -> None:
                     raise ScriptError("CHECKSIGVERIFY failed")
             else:
                 stack.append(b"\x01" if ok else b"")
+        elif opcode == OP_CHECKSIGADD:
+            # BIP342: <sig> <n> <pubkey> -> <n + (sig valid ? 1 : 0)>
+            if ctx.sigversion != SIGVERSION_TAPSCRIPT:
+                raise ScriptError("OP_CHECKSIGADD is tapscript-only")
+            if len(stack) < 3:
+                raise ScriptError("stack underflow")
+            pubkey = stack.pop()
+            n = decode_script_num(stack.pop())
+            sig = stack.pop()
+            if len(pubkey) != 32:
+                raise ScriptError("tapscript needs 32B x-only pubkey")
+            incr = 1 if (sig and _check_signature(sig, pubkey, b"", ctx)) else 0
+            stack.append(encode_script_num(n + incr))
         elif opcode in (OP_CHECKMULTISIG, OP_CHECKMULTISIGVERIFY):
             if not stack:
                 raise ScriptError("stack underflow")
@@ -818,6 +844,21 @@ def eval_script(stack: list, script: bytes, ctx: ScriptContext) -> None:
 
 def _check_signature(sig: bytes, pubkey: bytes, script_code: bytes,
                      ctx: ScriptContext) -> bool:
+    if ctx.sigversion == SIGVERSION_TAPSCRIPT:
+        # BIP342: schnorr sig, 64B (default) or 65B (with hash_type byte)
+        from . import schnorr as _schnorr
+        from .transaction import hashlib_tagged
+        if len(sig) not in (64, 65):
+            return False
+        hash_type = sig[64] if len(sig) == 65 else 0x00
+        if hash_type not in (0x00, 0x01, 0x02, 0x03, 0x81, 0x82, 0x83):
+            return False
+        ext = (ctx.tapleaf_hash + b"\x00"
+               + struct.pack("<I", ctx.tapleaf_codesep_pos))
+        sighash = ctx.tx.signature_hash_v1(
+            ctx.n_in, ctx.all_prevouts["amounts"],
+            ctx.all_prevouts["spks"], hash_type, ext=ext)
+        return _schnorr.schnorr_verify(sighash, pubkey, sig[:64])
     hash_type = sig[-1]
     try:
         if ctx.sigversion == SIGVERSION_WITNESS_V0:
@@ -1055,22 +1096,38 @@ def eval_witness_program(witver: int, witprog: bytes, witness: list,
             return
         raise ScriptError("bad v0 program length")
     if witver == 1 and len(witprog) == 32:
-        # P2TR key-path: witness = [64/65-byte schnorr sig] (BIP341)
-        if len(witness) != 1 or len(witness[0]) not in (64, 65):
-            raise ScriptError("P2TR key-path needs one schnorr signature")
-        sig = witness[0]
-        hash_type = sig[64] if len(sig) == 65 else 0x00
-        if hash_type not in (0x00, 0x01, 0x02, 0x03, 0x81, 0x82, 0x83):
-            raise ScriptError("bad taproot sighash")
         prevouts = getattr(ctx, "all_prevouts", None)
         if prevouts is None:
             raise ScriptError("taproot eval needs all_prevouts")
-        sighash = ctx.tx.signature_hash_v1(
-            ctx.n_in, prevouts["amounts"], prevouts["spks"], hash_type)
         from . import schnorr as _schnorr
-        if not _schnorr.schnorr_verify(sighash, witprog, sig[:64]):
-            raise ScriptError("taproot signature verification failed")
-        return
+        if len(witness) == 1 and len(witness[0]) in (64, 65):
+            # key-path: single schnorr signature
+            sig = witness[0]
+            hash_type = sig[64] if len(sig) == 65 else 0x00
+            if hash_type not in (0x00, 0x01, 0x02, 0x03,
+                                 0x81, 0x82, 0x83):
+                raise ScriptError("bad taproot sighash")
+            sighash = ctx.tx.signature_hash_v1(
+                ctx.n_in, prevouts["amounts"], prevouts["spks"],
+                hash_type)
+            if not _schnorr.schnorr_verify(sighash, witprog, sig[:64]):
+                raise ScriptError("taproot signature failed")
+            return
+        if len(witness) >= 2:
+            # script-path: [...args, script, control_block]
+            args, tapscript, control = \
+                witness[:-2], witness[-2], witness[-1]
+            try:
+                _schnorr.verify_script_path(control, witprog, tapscript)
+            except ValueError as e:
+                raise ScriptError(f"bad control block: {e}")
+            # run the tapscript with the args as initial stack
+            ctx.sigversion = SIGVERSION_TAPSCRIPT
+            ctx.tapleaf_hash = _schnorr.tapleaf_hash(tapscript)
+            ctx.tapleaf_codesep_pos = 0xFFFFFFFF
+            eval_script(list(args), tapscript, ctx)
+            return
+        raise ScriptError("bad taproot witness")
     # Unknown witness version: succeeds (anyone-can-spend) per BIP141.
     return
 

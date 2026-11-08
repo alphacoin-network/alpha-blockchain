@@ -284,7 +284,8 @@ class Transaction:
     # -- BIP341 signature hashing (taproot key-path) ---------------------------
     def signature_hash_v1(self, n_in: int, amounts: list,
                           script_pubkeys: list, hash_type: int = 0x00,
-                          annex: bytes | None = None) -> bytes:
+                          annex: bytes | None = None,
+                          ext: bytes = b"") -> bytes:
         """BIP341 SigMsg for key-path spends (SIGHASH_DEFAULT/ALL)."""
         import hashlib as _hl
         from .utils import ser_compact_size
@@ -323,7 +324,8 @@ class Transaction:
         else:
             sha_outs = sha(ser_outputs())
 
-        spend_type = 0x01 if annex is not None else 0x00
+        ext_flag = 1 if ext else 0
+        spend_type = (ext_flag << 1) + (1 if annex is not None else 0)
         m = bytes([hash_type])
         m += struct.pack("<i", self.version) + struct.pack("<I", self.locktime)
         m += sha_prevouts + sha_amounts + sha_spks + sha_seqs + sha_outs
@@ -339,8 +341,7 @@ class Transaction:
             m += sha(ser_varstr(annex))
         if base == 0x03 and n_in < len(self.vout):
             m += sha(self.vout[n_in].serialize())
-
-        th = hashlib_tagged("TapSighash")
+        m += ext                     # BIP342: tapleaf_hash||key_version||codesep
         return hashlib_tagged("TapSighash", b"\x00" + m)
 
     # -- locktime (BIP65 semantics) -------------------------------------------

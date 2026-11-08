@@ -15,6 +15,7 @@ import time
 
 from .filters import siphash
 from .transaction import Transaction
+from .utils import BytesReader
 
 from .block import Block, BlockHeader
 from .transaction import Transaction
@@ -30,6 +31,10 @@ MSG_BLOCK = 2
 MSG_FILTERED_BLOCK = 3
 MSG_WITNESS_TX = 0x40000001
 MSG_WITNESS_BLOCK = 0x40000002
+MSG_CMPCT_BLOCK = 4
+
+NODE_BLOOM = 1 << 2
+NODE_COMPACT_FILTERS = 1 << 6
 
 HEADER_LEN = 24
 MAX_MESSAGE = 32 * 1024 * 1024
@@ -309,6 +314,75 @@ def pack_reject(message: str, code: int, reason: str) -> bytes:
 
 
 # ---------------------------------------------------------------------------
+# BIP37: filterload / filteradd / filterclear + merkleblock
+# ---------------------------------------------------------------------------
+def pack_filterload(bloom_filter) -> bytes:
+    return (ser_varstr(bytes(bloom_filter.data))
+            + struct.pack("<I", bloom_filter.n_funcs)
+            + struct.pack("<I", bloom_filter.tweak)
+            + b"\x01")                        # BLOOM_UPDATE_ALL
+
+
+def pack_filteradd(data: bytes) -> bytes:
+    return ser_varstr(data)
+
+
+def pack_merkleblock(block, pmt) -> bytes:
+    return (block.header.serialize() + struct.pack("<I", len(block.txs))
+            + pmt.serialize())
+
+
+def unpack_merkleblock(payload: bytes):
+    from .block import BlockHeader
+    from .merkleproof import PartialMerkleTree
+    r = BytesReader(payload)
+    hdr = BlockHeader.parse(r)
+    n_tx = r.read_u32()
+    hashes = r.read(r.read_varint() * 32)
+    flags = r.read(r.read_varint())
+    return hdr, n_tx, hashes, flags
+
+
+# ---------------------------------------------------------------------------
+# BIP152: sendcmpct advertise
+# ---------------------------------------------------------------------------
+def pack_sendcmpct(announce: bool = True, version: int = 2) -> bytes:
+    return bytes([1 if announce else 0]) + struct.pack("<Q", version)
+
+
+def unpack_sendcmpct(payload: bytes):
+    return payload[0] != 0, struct.unpack("<Q", payload[1:9])[0]
+
+
+# ---------------------------------------------------------------------------
+# BIP157: getcfilters / cfilter / getcfheaders / cfheaders
+# ---------------------------------------------------------------------------
+def pack_getcfilters(filter_type: int, start: int, stop_hash: bytes) -> bytes:
+    return bytes([filter_type]) + struct.pack("<I", start) + stop_hash
+
+
+def pack_cfilter(filter_type: int, block_hash: bytes,
+                 filter_data: bytes) -> bytes:
+    return (bytes([filter_type]) + block_hash + ser_varstr(filter_data))
+
+
+def unpack_cfilter(payload: bytes):
+    r = BytesReader(payload)
+    return r.read(1)[0], r.read(32), r.read(r.read_varint())
+
+
+def pack_cfheaders(filter_type: int, stop_hash: bytes,
+                   prev_header: bytes, headers: list) -> bytes:
+    return (bytes([filter_type]) + stop_hash + prev_header
+            + ser_compact_size(len(headers)) + b"".join(headers))
+
+
+def pack_getcfheaders(filter_type: int, start: int,
+                      stop_hash: bytes) -> bytes:
+    return bytes([filter_type]) + struct.pack("<I", start) + stop_hash
+
+
+# ---------------------------------------------------------------------------
 # Peer connection (one per remote node; send + receive threads)
 # ---------------------------------------------------------------------------
 class Peer(threading.Thread):
@@ -420,10 +494,52 @@ class PeerServer(threading.Thread):
                 pass
 
 
-def connect_peer(node, ip: str, port: int, timeout: int = 10) -> Peer | None:
-    """Outbound connection with handshake kickoff."""
+def _socks5_connect(proxy: tuple, dest_host: str, dest_port: int,
+                    timeout: int) -> socket.socket:
+    """SOCKS5 handshake through `proxy` (ip, port) -- used for .onion/.i2p."""
+    import struct as _st
+    sock = socket.create_connection(proxy, timeout=timeout)
     try:
-        sock = socket.create_connection((ip, port), timeout=timeout)
+        sock.sendall(b"\x05\x01\x00")          # ver5, 1 method, no-auth
+        r = sock.recv(2)
+        if r != b"\x05\x00":
+            raise OSError("socks5 auth refused")
+        # connect request: atyp=3 (domain name)
+        req = (b"\x05\x01\x00\x03" + bytes([len(dest_host)])
+               + dest_host.encode() + _st.pack(">H", dest_port))
+        sock.sendall(req)
+        # response: ver rep rsv atyp | addr | port
+        resp = sock.recv(4)
+        if len(resp) < 4 or resp[1] != 0:
+            raise OSError(
+                f"socks5 connect failed: {resp[1] if len(resp)>1 else '?'}")
+        atyp = resp[3]
+        addrlen = {1: 4, 4: 16}.get(atyp)
+        if addrlen is None:
+            if atyp == 3:
+                ln = sock.recv(1)[0]
+                sock.recv(ln + 2)
+            else:
+                raise OSError("bad socks5 atyp")
+        else:
+            sock.recv(addrlen + 2)
+        return sock
+    except OSError:
+        sock.close()
+        raise
+
+
+def connect_peer(node, ip: str, port: int, timeout: int = 10,
+                 proxy: tuple | None = None) -> Peer | None:
+    """Outbound connection with handshake kickoff.
+
+    `proxy` = ("127.0.0.1", 9050) routes through a SOCKS5 proxy (Tor).
+    """
+    try:
+        if proxy:
+            sock = _socks5_connect(proxy, ip, port, timeout)
+        else:
+            sock = socket.create_connection((ip, port), timeout=timeout)
         sock.settimeout(None)
         peer = Peer(node, sock, (ip, port), inbound=False)
         node.register_peer(peer)

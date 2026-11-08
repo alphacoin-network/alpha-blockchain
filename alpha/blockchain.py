@@ -26,7 +26,8 @@ from .block import (
 )
 from .transaction import OutPoint, Transaction, TxIn, TxOut
 from .utils import (
-    BytesReader, compact_to_target, encode_script_num, median, now,
+    BytesReader, compact_to_target, encode_script_num, hash_to_hex,
+    median, now,
 )
 
 
@@ -248,6 +249,46 @@ class Blockchain:
     def is_pruned(self, h: bytes) -> bool:
         """True if `h` is a known block whose body has been pruned."""
         return h in self.index and h not in self.blocks
+
+    # ------------------------------------------------------------------
+    # assumeutxo (BIP-proposed fast-sync): dump/load a UTXO snapshot
+    # ------------------------------------------------------------------
+    def dump_utxo_snapshot(self) -> bytes:
+        """Serialize the whole UTXO set + tip hash (like dumptxoutset)."""
+        from .utils import ser_compact_size
+        out = self.tip.hash + ser_compact_size(len(self.utxo))
+        for (txid, n), coin in self.utxo.items():
+            out += (txid + struct.pack("<I", n)
+                    + coin.txout.serialize()
+                    + struct.pack("<i", coin.height)
+                    + bytes([1 if coin.is_coinbase else 0])
+                    + struct.pack("<I", coin.mtp))
+        return out
+
+    def load_utxo_snapshot(self, data: bytes):
+        """Load a snapshot produced by dump_utxo_snapshot (assumeutxo).
+
+        The snapshot's block hash is trusted as the new tip's ancestor;
+        entries after it get connected normally. This mirrors Core's
+        assumeutxo+snapshot-load flow.
+        """
+        from .utils import BytesReader
+        r = BytesReader(data)
+        base_hash = r.read(32)
+        n = r.read_varint()
+        from .transaction import TxOut
+        utxo = {}
+        for _ in range(n):
+            txid = r.read(32)
+            vout = r.read_u32()
+            txo = TxOut.parse(r)
+            h = r.read_i32()
+            cb = bool(r.read(1)[0])
+            mtp = r.read_u32()
+            utxo[(txid, vout)] = UTXO(txo, h, cb, mtp)
+        self.utxo = utxo
+        return {"base_blockhash": hash_to_hex(base_hash),
+                "coins_loaded": len(utxo)}
 
     # -- block acceptance ---------------------------------------------------------
     def add_block(self, block: Block, store: bool = True) -> BlockIndexEntry:

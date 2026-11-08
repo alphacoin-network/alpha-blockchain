@@ -102,6 +102,7 @@ class Node:
         if not peer.handshake_done:
             peer.handshake_done = True
             peer.send("sendheaders")
+            peer.send("sendcmpct", net.pack_sendcmpct(announce=False))
             # headers sync once handshaken
             self.request_headers(peer)
 
@@ -129,11 +130,33 @@ class Node:
                 entry = self.mempool.get(h)
                 if entry:
                     peer.send("tx", entry.tx.serialize())
-            elif itype in (net.MSG_BLOCK, net.MSG_WITNESS_BLOCK,
-                           net.MSG_FILTERED_BLOCK):
+            elif itype == net.MSG_FILTERED_BLOCK and \
+                    getattr(peer, "bloom", None) is not None:
+                block = self.chain.get_block(h)
+                if block:
+                    self._send_filtered_block(peer, block)
+            elif itype in (net.MSG_BLOCK, net.MSG_WITNESS_BLOCK):
                 block = self.chain.get_block(h)
                 if block:
                     peer.send("block", block.serialize())
+
+    def _send_filtered_block(self, peer, block) -> None:
+        """BIP37: serve only the txs matching the peer's bloom filter."""
+        from .merkleproof import PartialMerkleTree
+        matches = set()
+        for i, tx in enumerate(block.txs):
+            spk_hit = any(peer.bloom.contains(o.script_pubkey)
+                          for o in tx.vout)
+            sig_hit = any(peer.bloom.contains(tin.prevout.serialize())
+                          for tin in tx.vin)
+            if spk_hit or sig_hit or tx.is_coinbase():
+                matches.add(i)
+        pmt = PartialMerkleTree.build([t.txid() for t in block.txs],
+                                      matches)
+        peer.send("merkleblock", net.pack_merkleblock(block, pmt))
+        for i in sorted(matches):
+            if not block.txs[i].is_coinbase():
+                peer.send("tx", block.txs[i].serialize())
 
     def _msg_tx(self, peer, payload: bytes) -> None:
         tx = Transaction.deserialize(payload)
@@ -208,6 +231,55 @@ class Node:
             if netid in (net.ADDRV2_IPV4, net.ADDRV2_IPV6):
                 if not any(p.addr[0] == ip for p in self.peers):
                     net.connect_peer(self, ip, port, timeout=5)
+
+    # -- bloom filters (BIP37) ---------------------------------------------------
+    def _msg_filterload(self, peer, payload: bytes) -> None:
+        from .utils import BytesReader
+        from .filters import BloomFilter
+        import struct
+        r = BytesReader(payload)
+        data = r.read(r.read_varint())
+        peer.bloom = BloomFilter.__new__(BloomFilter)
+        peer.bloom.data = bytearray(data)
+        peer.bloom.n_funcs, peer.bloom.tweak = struct.unpack(
+            "<II", r.read(8))
+        peer.bloom.TWEAK = BloomFilter.TWEAK
+
+    def _msg_filteradd(self, peer, payload: bytes) -> None:
+        if getattr(peer, "bloom", None):
+            peer.bloom.insert(payload[1:1 + payload[0]] if payload else b"")
+            # actually: payload = varstr; decode
+            from .utils import BytesReader
+            r = BytesReader(payload)
+            peer.bloom.insert(r.read(r.read_varint()))
+
+    def _msg_filterclear(self, peer, payload: bytes) -> None:
+        peer.bloom = None
+
+    def _msg_sendcmpct(self, peer, payload: bytes) -> None:
+        peer.announce, peer.cmpct_ver = net.unpack_sendcmpct(payload)
+        peer.wants_cmpct = peer.announce and peer.cmpct_ver >= 2
+
+    def _msg_getcfilters(self, peer, payload: bytes) -> None:
+        """BIP157: send a compact filter for each block in the range."""
+        import struct
+        from .filters import block_filter
+        r = net.BytesReader(payload)
+        ftype, start = r.read(1)[0], struct.unpack("<I", r.read(4))[0]
+        stop_hash = r.read(32)
+        if ftype != 0:
+            return                       # only 'basic' supported
+        for h in range(start, self.chain.height + 1):
+            e = self.chain.get_block_index(h)
+            if e is None or e.hash == stop_hash:
+                break
+            block = self.chain.get_block(e.hash)
+            if block is None:
+                continue
+            filt, _ = block_filter(
+                block, int.from_bytes(e.hash[:16], "little"))
+            peer.send("cfilter",
+                      net.pack_cfilter(0, e.hash, filt))
 
     # -- compact blocks (BIP152) --------------------------------------------------
     def _msg_cmpctblock(self, peer, payload: bytes) -> None:
