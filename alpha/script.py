@@ -340,6 +340,7 @@ TX_MULTISIG = "multisig"
 TX_NULL_DATA = "nulldata"
 TX_WITNESS_V0_KEYHASH = "witness_v0_keyhash"    # P2WPKH
 TX_WITNESS_V0_SCRIPTHASH = "witness_v0_scripthash"  # P2WSH
+TX_WITNESS_V1_TAPROOT = "witness_v1_taproot"    # P2TR
 TX_WITNESS_UNKNOWN = "witness_unknown"
 
 
@@ -364,6 +365,8 @@ def solver(script: bytes):
             return TX_WITNESS_V0_KEYHASH, prog
         if ver == 0 and len(prog) == 32:
             return TX_WITNESS_V0_SCRIPTHASH, prog
+        if ver == 1 and len(prog) == 32:
+            return TX_WITNESS_V1_TAPROOT, prog
         return TX_WITNESS_UNKNOWN, (ver, prog)
 
     if (len(script) == 25 and script[0] == OP_DUP and script[1] == OP_HASH160
@@ -519,6 +522,7 @@ class ScriptContext:
     sigversion: int = SIGVERSION_BASE
     block_height: int = 0       # for CLTV/CSV context
     block_time: int = 0
+    all_prevouts: dict | None = None  # {"amounts":[...], "spks":[...]} for BIP341
 
 
 def _check_sig_encoding(sig: bytes, flags: int) -> None:
@@ -1050,16 +1054,35 @@ def eval_witness_program(witver: int, witprog: bytes, witness: list,
                 raise ScriptError("witness item too large")
             return
         raise ScriptError("bad v0 program length")
+    if witver == 1 and len(witprog) == 32:
+        # P2TR key-path: witness = [64/65-byte schnorr sig] (BIP341)
+        if len(witness) != 1 or len(witness[0]) not in (64, 65):
+            raise ScriptError("P2TR key-path needs one schnorr signature")
+        sig = witness[0]
+        hash_type = sig[64] if len(sig) == 65 else 0x00
+        if hash_type not in (0x00, 0x01, 0x02, 0x03, 0x81, 0x82, 0x83):
+            raise ScriptError("bad taproot sighash")
+        prevouts = getattr(ctx, "all_prevouts", None)
+        if prevouts is None:
+            raise ScriptError("taproot eval needs all_prevouts")
+        sighash = ctx.tx.signature_hash_v1(
+            ctx.n_in, prevouts["amounts"], prevouts["spks"], hash_type)
+        from . import schnorr as _schnorr
+        if not _schnorr.schnorr_verify(sighash, witprog, sig[:64]):
+            raise ScriptError("taproot signature verification failed")
+        return
     # Unknown witness version: succeeds (anyone-can-spend) per BIP141.
     return
 
 
 def verify_script(script_sig: bytes, script_pubkey: bytes, tx, n_in: int,
                   amount: int, flags: int,
-                  block_height: int = 0, block_time: int = 0) -> bool:
+                  block_height: int = 0, block_time: int = 0,
+                  all_prevouts: dict | None = None) -> bool:
     """Full input-script verification, mirroring Bitcoin's VerifyScript.
 
     `amount` is the value of the output being spent (required for segwit).
+    `all_prevouts` = {"amounts":[...], "spks":[...]} for every input (BIP341).
     Raises ScriptError on failure, returns True on success.
     """
     if flags & SCRIPT_VERIFY_SIGPUSHONLY and not is_push_only(script_sig):
@@ -1068,7 +1091,7 @@ def verify_script(script_sig: bytes, script_pubkey: bytes, tx, n_in: int,
     stack: list = []
     stack_copy: list | None = None
     ctx = ScriptContext(tx, n_in, amount, flags, SIGVERSION_BASE,
-                        block_height, block_time)
+                        block_height, block_time, all_prevouts)
     eval_script(stack, script_sig, ctx)
     if flags & SCRIPT_VERIFY_P2SH:
         stack_copy = list(stack)

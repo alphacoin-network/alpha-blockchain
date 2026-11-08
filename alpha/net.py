@@ -13,6 +13,9 @@ import struct
 import threading
 import time
 
+from .filters import siphash
+from .transaction import Transaction
+
 from .block import Block, BlockHeader
 from .transaction import Transaction
 from .utils import BytesReader, ser_compact_size, ser_varstr, sha256d
@@ -200,6 +203,104 @@ def unpack_addr(payload: bytes):
     r = BytesReader(payload)
     n = r.read_varint()
     return [deser_netaddr(r, with_time=True) for _ in range(n)]
+
+
+# ---------------------------------------------------------------------------
+# addrv2 (BIP155): variable-length network addresses
+# ---------------------------------------------------------------------------
+ADDRV2_IPV4 = 0x01
+ADDRV2_IPV6 = 0x02
+ADDRV2_TORV3 = 0x04
+ADDRV2_I2P = 0x05
+
+
+def pack_addrv2(addrs) -> bytes:
+    """addrs: [(services, ip, port, ts, netid)] -- netid in ADDDRV2_* codes."""
+    import ipaddress
+    out = ser_compact_size(len(addrs))
+    for services, ip, port, ts, netid in addrs:
+        out += struct.pack("<I", ts) + struct.pack("<q", services)
+        out += bytes([netid])
+        if netid == ADDRV2_IPV4:
+            out += bytes([4]) + ipaddress.IPv4Address(ip).packed
+        elif netid == ADDRV2_IPV6:
+            out += bytes([16]) + ipaddress.IPv6Address(ip).packed
+        elif netid == ADDRV2_TORV3:
+            out += bytes([32]) + ip  # raw 32-byte onion key
+        elif netid == ADDRV2_I2P:
+            out += bytes([32]) + ip  # raw 32-byte i2p hash
+        out += struct.pack(">H", port)
+    return out
+
+
+def unpack_addrv2(payload: bytes):
+    import ipaddress
+    r = BytesReader(payload)
+    n = r.read_varint()
+    out = []
+    for _ in range(n):
+        ts = r.read_i32(); services = r.read_u64()
+        netid = r.read(1)[0]; ln = r.read_varint()
+        raw = r.read(ln)
+        if netid == ADDRV2_IPV4:
+            ip = str(ipaddress.IPv4Address(raw))
+        elif netid == ADDRV2_IPV6:
+            ip = str(ipaddress.IPv6Address(raw))
+        else:
+            ip = raw.hex()            # tor/i2p opaque blob
+        out.append((services, ip, r.read_u16(), ts, netid))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Compact blocks (BIP152): header + short txids + prefilled txs
+# ---------------------------------------------------------------------------
+def pack_cmpctblock(block, short_ids: list, prefilled) -> bytes:
+    """short_ids: 6-byte ids in tx order; prefilled: [(index, tx), ...]."""
+    out = block.header.serialize()
+    out += struct.pack("<Q", block.compact_nonce) \
+        if hasattr(block, "compact_nonce") else struct.pack("<Q", 0)
+    out += ser_compact_size(len(short_ids))
+    out += b"".join(short_ids)
+    out += ser_compact_size(len(prefilled))
+    for idx, tx in prefilled:
+        out += ser_compact_size(idx) + tx.serialize(include_witness=True)
+    return out
+
+
+def unpack_cmpctblock(payload: bytes):
+    from .block import Block
+    r = BytesReader(payload)
+    hdr_bytes = payload[:80]
+    r.read(80)
+    salt = r.read_u64()
+    n = r.read_varint()
+    short = [r.read(6) for _ in range(n)]
+    n2 = r.read_varint()
+    prefilled = [(r.read_varint(), Transaction.from_reader(r))
+                 for _ in range(n2)]
+    from .block import BlockHeader
+    return BlockHeader.deserialize(hdr_bytes), salt, short, prefilled
+
+
+def pack_getblocktxn(block_hash: bytes, indexes: list) -> bytes:
+    return block_hash + ser_compact_size(len(indexes)) + b"".join(
+        ser_compact_size(i) for i in indexes)
+
+
+def unpack_getblocktxn(payload: bytes):
+    r = BytesReader(payload)
+    bh = r.read(32)
+    n = r.read_varint()
+    return bh, [r.read_varint() for _ in range(n)]
+
+
+def pack_blocktxn(block, indexes: list) -> bytes:
+    out = block.hash()
+    out += ser_compact_size(len(indexes))
+    for i in indexes:
+        out += block.txs[i].serialize(include_witness=True)
+    return out
 
 
 def pack_reject(message: str, code: int, reason: str) -> bytes:

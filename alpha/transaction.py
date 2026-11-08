@@ -33,6 +33,15 @@ _SIGHASH_SINGLE_BUG = b"\x01" + b"\x00" * 31
 BLANK_OUTPUT_VALUE = 0xFFFFFFFFFFFFFFFF  # int64 -1, used by SIGHASH_SINGLE
 
 
+def hashlib_tagged(tag: str, msg: bytes | None = None) -> bytes:
+    """BIP340 tagged hash: sha256(sha256(tag)||sha256(tag)||msg)."""
+    import hashlib
+    th = hashlib.sha256(tag.encode()).digest()
+    if msg is None:
+        return th
+    return hashlib.sha256(th + th + msg).digest()
+
+
 @dataclass
 class OutPoint:
     """A reference to a specific output of a previous transaction."""
@@ -271,6 +280,68 @@ class Transaction:
             + struct.pack("<I", hash_type)
         )
         return sha256d(preimage)
+
+    # -- BIP341 signature hashing (taproot key-path) ---------------------------
+    def signature_hash_v1(self, n_in: int, amounts: list,
+                          script_pubkeys: list, hash_type: int = 0x00,
+                          annex: bytes | None = None) -> bytes:
+        """BIP341 SigMsg for key-path spends (SIGHASH_DEFAULT/ALL)."""
+        import hashlib as _hl
+        from .utils import ser_compact_size
+
+        def sha(b):
+            return _hl.sha256(b).digest()
+
+        def ser_outpoints():
+            return b"".join(t.prevout.serialize() for t in self.vin)
+
+        def ser_amounts():
+            return b"".join(struct.pack("<q", a) for a in amounts)
+
+        def ser_spks():
+            return b"".join(ser_varstr(s) for s in script_pubkeys)
+
+        def ser_sequences():
+            return b"".join(struct.pack("<I", t.sequence) for t in self.vin)
+
+        def ser_outputs():
+            return b"".join(o.serialize() for o in self.vout)
+
+        base = hash_type & 0x03
+        anyone = bool(hash_type & SIGHASH_ANYONECANPAY)
+
+        sha_prevouts = b"" if anyone else sha(ser_outpoints())
+        sha_amounts = b"" if anyone else sha(ser_amounts())
+        sha_spks = b"" if anyone else sha(ser_spks())
+        sha_seqs = (b"" if anyone or base in (0x02, 0x03)
+                    else sha(ser_sequences()))
+        if base == 0x03:  # SINGLE
+            sha_outs = b"" if n_in >= len(self.vout) else sha(
+                self.vout[n_in].serialize())
+        elif base == 0x02:  # NONE
+            sha_outs = b""
+        else:
+            sha_outs = sha(ser_outputs())
+
+        spend_type = 0x01 if annex is not None else 0x00
+        m = bytes([hash_type])
+        m += struct.pack("<i", self.version) + struct.pack("<I", self.locktime)
+        m += sha_prevouts + sha_amounts + sha_spks + sha_seqs + sha_outs
+        m += bytes([spend_type])
+        if anyone:
+            m += self.vin[n_in].prevout.serialize()
+            m += struct.pack("<q", amounts[n_in])
+            m += ser_varstr(script_pubkeys[n_in])
+            m += struct.pack("<I", self.vin[n_in].sequence)
+        else:
+            m += struct.pack("<I", n_in)
+        if annex is not None:
+            m += sha(ser_varstr(annex))
+        if base == 0x03 and n_in < len(self.vout):
+            m += sha(self.vout[n_in].serialize())
+
+        th = hashlib_tagged("TapSighash")
+        return hashlib_tagged("TapSighash", b"\x00" + m)
 
     # -- locktime (BIP65 semantics) -------------------------------------------
     def is_final(self, block_height: int, block_time: int) -> bool:

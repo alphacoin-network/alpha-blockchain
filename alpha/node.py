@@ -43,6 +43,7 @@ class Node:
         self.wallet = Wallet(self.params, wallet_path)
         self.peers: list = []
         self.peers_lock = threading.RLock()
+        self._pending_compact: dict = {}
         self.stopped = False
         self.server = None
         self._syncing = False
@@ -200,6 +201,67 @@ class Node:
 
     def _msg_sendheaders(self, peer, payload: bytes) -> None:
         pass
+
+    def _msg_addrv2(self, peer, payload: bytes) -> None:
+        """BIP155 variable-length network addresses."""
+        for services, ip, port, ts, netid in net.unpack_addrv2(payload):
+            if netid in (net.ADDRV2_IPV4, net.ADDRV2_IPV6):
+                if not any(p.addr[0] == ip for p in self.peers):
+                    net.connect_peer(self, ip, port, timeout=5)
+
+    # -- compact blocks (BIP152) --------------------------------------------------
+    def _msg_cmpctblock(self, peer, payload: bytes) -> None:
+        hdr, salt, short, prefilled = net.unpack_cmpctblock(payload)
+        bh = hdr.hash()
+        if bh in self.chain.index:
+            return
+        have = {net.siphash(0, 0, t.tx.txid()).to_bytes(8, "little")[:6]: t.tx
+                for t in self.mempool.txs.values()}
+        prefilled_map = dict(prefilled)
+        n_tx = len(short) + len(prefilled_map)
+        txs = [None] * n_tx
+        for idx, tx in prefilled_map.items():
+            if idx < n_tx:
+                txs[idx] = tx
+        need_idx = []
+        pi = 0
+        for i in range(n_tx):
+            if txs[i] is not None:
+                continue
+            sid = short[pi] if pi < len(short) else None
+            pi += 1
+            if sid in have:
+                txs[i] = have[sid]
+            else:
+                need_idx.append(i)
+        if need_idx:
+            peer.send("getblocktxn", net.pack_getblocktxn(bh, need_idx))
+            self._pending_compact[(bh, peer)] = (hdr, txs, need_idx)
+            return
+        self._submit_compact(hdr, txs)
+
+    def _msg_blocktxn(self, peer, payload: bytes) -> None:
+        from .utils import BytesReader
+        r = BytesReader(payload)
+        bh = r.read(32)
+        n = r.read_varint()
+        key = (bh, peer)
+        if key not in self._pending_compact:
+            return
+        hdr, txs, need_idx = self._pending_compact.pop(key)
+        for i in need_idx:
+            txs[i] = Transaction.from_reader(r)
+        self._submit_compact(hdr, txs)
+
+    def _msg_getblocktxn(self, peer, payload: bytes) -> None:
+        bh, idxs = net.unpack_getblocktxn(payload)
+        block = self.chain.get_block(bh)
+        if block:
+            peer.send("blocktxn", net.pack_blocktxn(
+                block, [i for i in idxs if i < len(block.txs)]))
+
+    def _submit_compact(self, hdr, txs) -> None:
+        self.submit_block(Block(hdr, txs))
 
     # ------------------------------------------------------------------
     # sync / relay helpers

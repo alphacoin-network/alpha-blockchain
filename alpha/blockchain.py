@@ -230,6 +230,25 @@ class Blockchain:
     def get_block(self, h: bytes) -> Block | None:
         return self.blocks.get(h)
 
+    def prune(self, keep_blocks: int = 288) -> int:
+        """Bitcoin --prune: drop old block bodies, keep headers + UTXO set.
+
+        Keeps the last `keep_blocks` blocks on the active chain. Returns the
+        number of bodies pruned.
+        """
+        cutoff = self.height - keep_blocks
+        pruned = 0
+        for e in self.active:
+            if e.height >= cutoff:
+                break
+            if self.blocks.pop(e.hash, None) is not None:
+                pruned += 1
+        return pruned
+
+    def is_pruned(self, h: bytes) -> bool:
+        """True if `h` is a known block whose body has been pruned."""
+        return h in self.index and h not in self.blocks
+
     # -- block acceptance ---------------------------------------------------------
     def add_block(self, block: Block, store: bool = True) -> BlockIndexEntry:
         """Validate a block and connect it (possibly triggering a reorg)."""
@@ -427,7 +446,9 @@ class Blockchain:
 
             tx_in_sum = 0
             view = {}
-            for n_in, txin in enumerate(tx.vin):
+            # pass 1: resolve ALL input coins (BIP341 sighash needs every
+            # prevout's amount + scriptPubKey before any script runs)
+            for txin in tx.vin:
                 key = txin.prevout.key()
                 coin = self.utxo.get(key) or view.get(key)
                 if coin is None:
@@ -445,12 +466,20 @@ class Blockchain:
                 if tx_in_sum > constants.MAX_MONEY:
                     raise ChainError("input sum too large")
 
-                # verify the spending script
+            prevouts = {
+                "amounts": [view[t.prevout.key()].txout.value for t in tx.vin],
+                "spks": [view[t.prevout.key()].txout.script_pubkey
+                         for t in tx.vin],
+            }
+            # pass 2: verify every input script + sigops
+            for n_in, txin in enumerate(tx.vin):
+                coin = view[txin.prevout.key()]
                 try:
                     script.verify_script(
                         txin.script_sig, coin.txout.script_pubkey, tx,
                         n_in, coin.txout.value, flags,
-                        block_height=height, block_time=mtp)
+                        block_height=height, block_time=mtp,
+                        all_prevouts=prevouts)
                 except script.ScriptError as e:
                     raise ChainError(f"script verification failed: {e}")
 

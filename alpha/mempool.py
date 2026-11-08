@@ -105,15 +105,22 @@ class Mempool:
                                                  prev_mtp):
                 raise MempoolError("sequence locks not satisfied")
 
-            # script verification
+            # script verification (BIP341 needs every input's prevout)
             flags = script.STANDARD_SCRIPT_FLAGS
+            prevouts = {
+                "amounts": [coins[t.prevout.key()].txout.value
+                            for t in tx.vin],
+                "spks": [coins[t.prevout.key()].txout.script_pubkey
+                         for t in tx.vin],
+            }
             for n_in, txin in enumerate(tx.vin):
                 coin = coins[txin.prevout.key()]
                 try:
                     script.verify_script(
                         txin.script_sig, coin.txout.script_pubkey, tx,
                         n_in, coin.txout.value, flags,
-                        block_height=next_height, block_time=prev_mtp)
+                        block_height=next_height, block_time=prev_mtp,
+                        all_prevouts=prevouts)
                 except script.ScriptError as e:
                     raise MempoolError(f"script failed: {e}")
 
@@ -126,6 +133,19 @@ class Mempool:
             if conflicts and fee <= old_fee:
                 raise MempoolError(
                     "replacement fee must exceed conflicting tx fee")
+
+            # package limits (Bitcoin: <=25 ancestors/descendants, <=101k WU)
+            anc = self._ancestors(tx)
+            if len(anc) >= 25:
+                raise MempoolError(
+                    f"too many unconfirmed ancestors ({len(anc)})")
+            if sum(self.txs[t].tx.weight() for t in anc) \
+                    + tx.weight() > 101_000:
+                raise MempoolError("ancestor package too large")
+            for dep in {t.prevout.txid for t in tx.vin} & set(self.txs):
+                if len(self._descendants_of(dep)) >= 25:
+                    raise MempoolError(
+                        "parent has too many unconfirmed descendants")
 
             # replace conflicts (RBF)
             for old_txid in conflicts:
@@ -147,6 +167,46 @@ class Mempool:
                 raise MempoolError("conflicting tx does not signal RBF")
             old_fee += entry.fee
         return old_fee
+
+    def _ancestors(self, tx) -> set:
+        out = set()
+        stack = [t.prevout.txid for t in tx.vin]
+        while stack:
+            tid = stack.pop()
+            if tid in out or tid not in self.txs:
+                continue
+            out.add(tid)
+            stack += [i.prevout.txid for i in self.txs[tid].tx.vin]
+        return out
+
+    def _descendants_of(self, txid) -> set:
+        out = set()
+        changed = True
+        while changed:
+            changed = False
+            for t, e in self.txs.items():
+                if t in out or t == txid:
+                    continue
+                if any(i.prevout.txid in out | {txid}
+                       for i in e.tx.vin):
+                    out.add(t)
+                    changed = True
+        return out
+
+    def ancestor_feerate(self, txid) -> float:
+        """CPFP package rate: fee/vsize of tx + all mempool ancestors."""
+        anc = self._ancestors(self.txs[txid].tx) | {txid}
+        fee = sum(self.txs[t].fee for t in anc)
+        vb = sum(self.txs[t].tx.vsize() for t in anc)
+        return fee / max(1, vb)
+
+    def estimate_fee(self, conf_target: int = 6) -> float:
+        """estimatesmartfee-style: the Nth-highest package feerate."""
+        if not self.txs:
+            return -1.0
+        rates = sorted((self.ancestor_feerate(t) for t in self.txs),
+                       reverse=True)
+        return rates[min(len(rates) - 1, max(0, conf_target - 1))]
 
     def _remove(self, txid: bytes) -> None:
         entry = self.txs.pop(txid, None)

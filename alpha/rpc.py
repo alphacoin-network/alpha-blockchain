@@ -12,7 +12,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import constants, merkleproof, script, tokens as _tokens, wallet as _wallet
 from .block import Block
-from .transaction import OutPoint, Transaction, TxIn, TxOut
+from .transaction import (
+    OutPoint, SIGHASH_ALL, Transaction, TxIn, TxOut)
 from .utils import (
     BytesReader, compact_to_target, hash_to_hex, hex_to_hash, now,
 )
@@ -867,6 +868,129 @@ class RPCMethods:
 
     def estimatesmartfee(self, conf_target: int = 6):
         return {"feerate": 0.00001000, "blocks": int(conf_target)}
+
+    # -- PSBT (BIP174) -----------------------------------------------------------
+    def createpsbt(self, outputs: dict, locktime: int = 0):
+        """Create an unfunded PSBT spending nothing (caller fills inputs)."""
+        from . import psbt as _psbt
+        tx = Transaction.deserialize(
+            bytes.fromhex(self.createrawtransaction([], outputs)))
+        tx.locktime = int(locktime)
+        return _psbt.PSBT(tx).to_base64()
+
+    def walletcreatefundedpsbt(self, outputs: dict, conf_target: int = 6):
+        """Build + fund a PSBT from the wallet."""
+        from . import psbt as _psbt
+        tx = self.node.wallet.create_transaction(
+            self.node.chain,
+            [(a, sats(v)) for a, v in outputs.items()])
+        p = _psbt.PSBT(tx)
+        for n_in, txin in enumerate(tx.vin):
+            coin = self.node.chain.utxo.get(txin.prevout.key())
+            if coin is not None:
+                p.set_witness_utxo(n_in, coin.txout)
+        return p.to_base64()
+
+    def walletprocesspsbt(self, b64: str):
+        """Sign what we can in a PSBT. Returns updated PSBT."""
+        from . import psbt as _psbt
+        p = _psbt.PSBT.from_base64(b64)
+        complete = True
+        for n_in in range(len(p.tx.vin)):
+            spk_txo = p.input_utxo_spk(n_in)
+            if spk_txo is None:
+                complete = False
+                continue
+            typ, data = script.solver(spk_txo.script_pubkey)
+            try:
+                key = self.node.wallet._key_for_script(
+                    spk_txo.script_pubkey)
+                if key is None:
+                    complete = False
+                    continue
+                val = p.input_value(n_in)
+                spk = spk_txo.script_pubkey
+                if typ == script.TX_WITNESS_V1_TAPROOT:
+                    from . import schnorr
+                    amounts = [p.input_value(i)
+                               for i in range(len(p.tx.vin))]
+                    spks = [p.input_utxo_spk(i).script_pubkey
+                            for i in range(len(p.tx.vin))]
+                    sighash = p.tx.signature_hash_v1(
+                        n_in, amounts, spks, 0x00)
+                    sig = schnorr.schnorr_sign(
+                        sighash, schnorr.taproot_tweak(key.priv))
+                    p.add_partial_sig(n_in, b"", sig)
+                elif typ == script.TX_WITNESS_V0_KEYHASH:
+                    code = script.script_p2pkh(data)
+                    sh = p.tx.signature_hash_v0(code, n_in, val, SIGHASH_ALL)
+                    sig = crypto.ecdsa_sign_der(sh, key.priv) + b"\x01"
+                    p.add_partial_sig(n_in, key.pubkey, sig)
+                elif typ in (script.TX_PUBKEYHASH, script.TX_PUBKEY):
+                    sh = p.tx.signature_hash(spk, n_in, SIGHASH_ALL)
+                    sig = crypto.ecdsa_sign_der(sh, key.priv) + b"\x01"
+                    p.add_partial_sig(n_in, key.pubkey, sig)
+                else:
+                    complete = False
+            except Exception:
+                complete = False
+        return {"psbt": p.to_base64(), "complete": complete}
+
+    def finalizepsbt(self, b64: str):
+        """Finalize all inputs and extract the raw transaction."""
+        from . import psbt as _psbt
+        p = _psbt.PSBT.from_base64(b64)
+        try:
+            p.finalize()
+        except Exception as e:
+            raise RPCError(RPC_MISC_ERROR, f"finalize failed: {e}")
+        return {"hex": p.extract().serialize(include_witness=True).hex(),
+                "complete": True}
+
+    def combinepsbt(self, psbts: list):
+        from . import psbt as _psbt
+        ps = [_psbt.PSBT.from_base64(b) for b in psbts]
+        ps[0].combine(*ps[1:])
+        return ps[0].to_base64()
+
+    def decodepsbt(self, b64: str):
+        from . import psbt as _psbt
+        p = _psbt.PSBT.from_base64(b64)
+        return {"tx": tx_to_json(p.tx, self.node.params),
+                "inputs": [
+                    {"has_utxo": any(k[:1] == bytes([0]) or k[:1] == bytes([1])
+                                     for k in inp),
+                     "partial_sigs": len(p.partial_sigs(i))}
+                    for i, inp in enumerate(p.inputs)]}
+
+    # -- descriptors + filters --------------------------------------------------
+    def getdescriptorinfo(self, descriptor: str):
+        from . import descriptors
+        spk = descriptors.expand(descriptor, self.node.params)
+        return {"descriptor": descriptor,
+                "scriptpubkey": spk.hex(),
+                "type": descriptors.descriptor_type(descriptor)}
+
+    def deriveaddresses(self, descriptor: str, range_: int = 1):
+        from . import descriptors
+        spk = descriptors.expand(descriptor, self.node.params)
+        dest = script.extract_destination(spk, self.node.params)
+        return [dest] * range_ if dest else []
+
+    def getblockfilter(self, blockhash: str, filtertype: str = "basic"):
+        """BIP158 compact filter for a block."""
+        from . import filters as _f
+        block = self.node.chain.get_block(hex_to_hash(blockhash))
+        if block is None:
+            raise RPCError(RPC_INVALID_PARAMS, "block not found")
+        key = int.from_bytes(block.header.hash()[:16], "little")
+        filt, n = _f.block_filter(block, key)
+        return {"filter": filt.hex(), "header": block.header.hash().hex(),
+                "type": filtertype, "block_hash": block.header.hash().hex()}
+
+    def estimatesmartfee(self, conf_target: int = 6, estimate_mode: str = "CONSERVATIVE"):
+        return {"feerate": self.node.mempool.estimate_fee(conf_target),
+                "blocks": conf_target}
 
     def stop(self):
         threading.Thread(target=self.node.stop, daemon=True).start()

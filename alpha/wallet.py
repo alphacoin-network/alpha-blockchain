@@ -23,6 +23,7 @@ from .utils import hash160, ser_varstr, sha256d
 ADDRTYPE_LEGACY = "legacy"              # P2PKH  ("1...")
 ADDRTYPE_P2SH_SEGWIT = "p2sh-segwit"    # P2SH-P2WPKH ("3...")
 ADDRTYPE_BECH32 = "bech32"              # P2WPKH ("alpha1...")
+ADDRTYPE_TAPROOT = "taproot"            # P2TR   ("alpha1p...")
 
 # Signed-message prefix (Bitcoin uses "Bitcoin Signed Message:\n")
 MESSAGE_PREFIX = b"Alpha Signed Message:\n"
@@ -33,11 +34,29 @@ def _iv_for(pubkey: bytes) -> bytes:
     return hash160(pubkey)[:16]
 
 
+def _p2tr_program_from_pubkey(pub: bytes) -> bytes:
+    """P2TR output program (x-only tweaked key) from any pubkey bytes."""
+    from . import crypto as _c
+    from .transaction import hashlib_tagged
+    p = _c.parse_pubkey(pub)
+    if p[1] & 1:
+        p = _c.point_neg(p)
+    t = int.from_bytes(hashlib_tagged("TapTweak", p[0].to_bytes(32, "big")),
+                       "big") % _c.ORDER_N
+    q = _c.point_add(p, _c.point_mul(t))
+    return q[0].to_bytes(32, "big")
+
+
+def _p2tr_script_from_pubkey(pub: bytes) -> bytes:
+    return b"\x51\x20" + _p2tr_program_from_pubkey(pub)
+
+
 def _scripts_for_pubkey(pub: bytes):
-    """The 3 standard scriptPubKeys for a pubkey (all spend types)."""
+    """All standard scriptPubKeys for a pubkey (all spend types)."""
     h = hash160(pub)
     return (script.script_p2pkh(h), script.script_p2wpkh(h),
-            script.script_p2sh(hash160(script.script_p2wpkh(h))))
+            script.script_p2sh(hash160(script.script_p2wpkh(h))),
+            _p2tr_script_from_pubkey(pub))
 
 
 # ---------------------------------------------------------------------------
@@ -108,12 +127,16 @@ class WalletKey:
         if addrtype == ADDRTYPE_BECH32:
             return encode_segwit_address(params.bech32_hrp, 0,
                                          self.pubkey_hash)
+        if addrtype == ADDRTYPE_TAPROOT:
+            return encode_segwit_address(
+                params.bech32_hrp, 1, _p2tr_program_from_pubkey(self.pubkey))
         raise ValueError(f"unknown address type {addrtype}")
 
     def scripts(self):
         """All scriptPubKeys this key can spend."""
         return (self.script_p2pkh, self.script_p2wpkh,
-                self.script_p2sh_p2wpkh)
+                self.script_p2sh_p2wpkh,
+                _p2tr_script_from_pubkey(self.pubkey))
 
 
 class WalletLocked(Exception):
@@ -133,6 +156,8 @@ class Wallet:
         self._master = None                       # unlocked master key
         self._unlocked: list[WalletKey] = []      # decrypted keys in memory
         self._unlock_until = 0
+        self.hd_seed = None                        # BIP32 seed (if HD wallet)
+        self.hd_index = 0                          # next derivation index
         if path and os.path.exists(path):
             self._load()
 
@@ -175,6 +200,9 @@ class Wallet:
                  "crypted": bytes.fromhex(e["crypted"])}
                 for e in data["keys"]]
             return
+        if data.get("hd_seed"):
+            self.hd_seed = bytes.fromhex(data["hd_seed"])
+            self.hd_index = data.get("hd_index", 0)
         for wif in data.get("keys", []):
             priv, comp = wif_decode(wif, self.params)
             self.keys.append(WalletKey(priv, comp))
@@ -195,6 +223,9 @@ class Wallet:
         else:
             data = {"keys": [wif_encode(k.priv, self.params, k.compressed)
                              for k in self.keys]}
+            if self.hd_seed is not None:
+                data["hd_seed"] = self.hd_seed.hex()
+                data["hd_index"] = self.hd_index
         tmp = self.path + ".tmp"
         with open(tmp, "w") as f:
             json.dump(data, f, indent=2)
@@ -282,7 +313,30 @@ class Wallet:
         self.save()
 
     # -- keys / addresses -----------------------------------------------------
+    def init_hd(self, seed: bytes | None = None) -> "HDKey":
+        """Initialize BIP32 HD wallet. Returns the master xpub key."""
+        from . import bip32
+        import secrets
+        self.hd_seed = seed or secrets.token_bytes(32)
+        self.hd_index = 0
+        self.save()
+        return bip32.HDKey.from_seed(self.hd_seed)
+
+    def _hd_key(self) -> "HDKey | None":
+        from . import bip32
+        if self.hd_seed is None:
+            return None
+        return bip32.HDKey.from_seed(self.hd_seed)
+
     def new_key(self, compressed: bool = True) -> WalletKey:
+        # HD wallet: derive m/0'/0'/i chain (external addresses)
+        if self.hd_seed is not None and not self.encrypted:
+            node = self._hd_key().derive(f"m/0'/0'/{self.hd_index}")
+            self.hd_index += 1
+            k = WalletKey(node.priv, compressed)
+            self.keys.append(k)
+            self.save()
+            return k
         if self.encrypted:
             if self.is_locked():
                 raise WalletLocked("wallet is locked")
@@ -355,7 +409,8 @@ class Wallet:
     def addresses(self):
         out = []
         for k in self.all_key_records():
-            for t in (ADDRTYPE_LEGACY, ADDRTYPE_P2SH_SEGWIT, ADDRTYPE_BECH32):
+            for t in (ADDRTYPE_LEGACY, ADDRTYPE_P2SH_SEGWIT,
+                      ADDRTYPE_BECH32, ADDRTYPE_TAPROOT):
                 out.append(k.address(t, self.params))
         if not out and self.encrypted:
             # locked: derive addresses from stored pubkeys
@@ -375,7 +430,7 @@ class Wallet:
     def _key_for_address(self, address: str) -> WalletKey | None:
         for k in self._active_keys():
             for t in (ADDRTYPE_LEGACY, ADDRTYPE_P2SH_SEGWIT,
-                      ADDRTYPE_BECH32):
+                      ADDRTYPE_BECH32, ADDRTYPE_TAPROOT):
                 if k.address(t, self.params) == address:
                     return k
         # fall back: maybe locked but address is ours
@@ -483,11 +538,14 @@ class Wallet:
             change_key = next((k for k in self.all_key_records()), None)
             if change_key is None:
                 raise WalletLocked("no change key available")
-            change_spk = getattr(change_key, {
-                ADDRTYPE_LEGACY: "script_p2pkh",
-                ADDRTYPE_P2SH_SEGWIT: "script_p2sh_p2wpkh",
-                ADDRTYPE_BECH32: "script_p2wpkh",
-            }[change_addrtype])
+            if change_addrtype == ADDRTYPE_TAPROOT:
+                change_spk = _p2tr_script_from_pubkey(change_key.pubkey)
+            else:
+                change_spk = getattr(change_key, {
+                    ADDRTYPE_LEGACY: "script_p2pkh",
+                    ADDRTYPE_P2SH_SEGWIT: "script_p2sh_p2wpkh",
+                    ADDRTYPE_BECH32: "script_p2wpkh",
+                }[change_addrtype])
             parsed.append(TxOut(change, change_spk))
         else:
             # dust change goes to the miner as extra fee
@@ -511,12 +569,15 @@ class Wallet:
     def sign(self, tx: Transaction, prev_scripts: list, values: list,
              keys: list) -> None:
         """Sign all inputs of `tx` with the matching wallet keys."""
+        all_prevouts = {"amounts": list(values), "spks": list(prev_scripts)}
         for i in range(len(tx.vin)):
-            self.sign_input(tx, i, prev_scripts[i], values[i], keys[i])
+            self.sign_input(tx, i, prev_scripts[i], values[i], keys[i],
+                            all_prevouts)
 
     @staticmethod
     def sign_input(tx: Transaction, i: int, spk: bytes, value: int,
-                   key: WalletKey) -> None:
+                   key: WalletKey,
+                   all_prevouts: dict | None = None) -> None:
         """Sign a single input (usable on partially-owned transactions)."""
         txin = tx.vin[i]
         typ, data = script.solver(spk)
@@ -540,6 +601,17 @@ class Wallet:
             sighash = tx.signature_hash_v0(code, i, value, SIGHASH_ALL)
             sig = crypto.ecdsa_sign_der(sighash, key.priv) + b"\x01"
             txin.witness = [sig, key.pubkey]
+            txin.script_sig = b""
+        elif typ == script.TX_WITNESS_V1_TAPROOT:
+            from . import schnorr
+            tweaked = schnorr.taproot_tweak(key.priv)
+            if schnorr.xonly_pubkey(tweaked) != data:
+                raise ValueError("key does not own this P2TR output")
+            if all_prevouts is None:
+                all_prevouts = {"amounts": [value], "spks": [spk]}
+            sighash = tx.signature_hash_v1(
+                i, all_prevouts["amounts"], all_prevouts["spks"], 0x00)
+            txin.witness = [schnorr.schnorr_sign(sighash, tweaked)]
             txin.script_sig = b""
         elif typ == script.TX_SCRIPTHASH:
             # P2SH-wrapped P2WPKH
