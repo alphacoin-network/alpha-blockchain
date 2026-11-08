@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Whitepaper — Alpha Blockchain</title>
+  <meta name="description" content="Alpha Blockchain whitepaper: a Bitcoin-grade decentralized network — consensus, monetary policy, script, tokens, network, security and the full ecosystem roadmap.">
+  <meta name="theme-color" content="#f7931a">
+  <link rel="icon" type="image/svg+xml" href="coin.svg">
+  <link rel="apple-touch-icon" href="coin.svg"><link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .wp { max-width: 820px; margin: 0 auto; line-height: 1.75; }
+    .wp h2 { font-size: 30px; margin: 44px 0 12px; }
+    .wp h3 { font-size: 20px; margin: 30px 0 10px; color: var(--gold); }
+    .wp p, .wp li { color: #c8d0e8; font-size: 15.5px; }
+    .wp ul { padding-left: 24px; margin: 12px 0; }
+    .wp li { margin-bottom: 6px; }
+    .wp .abs { background: var(--card); border-left: 4px solid var(--gold);
+      padding: 20px 24px; border-radius: 0 12px 12px 0; font-style: italic; color: var(--dim); }
+    .wp .kvs { display:grid; grid-template-columns: 220px 1fr; gap:8px 18px;
+      background: var(--card); padding: 20px; border-radius: 12px; font-family: var(--mono); font-size: 13.5px; }
+    .wp .k { color: var(--dim); }
+    .wp .cover { text-align: center; padding: 50px 0 30px; }
+    .wp .cover img { width: 120px; }
+    .wp .cover h1 { font-size: 42px; margin-top: 18px; }
+    .wp .cover p { color: var(--dim); font-size: 17px; }
+    .wp .toc { columns: 2; font-size: 14px; }
+    .wp .toc a { color: var(--accent); display:block; margin-bottom:6px; }
+  </style>
+</head>
+<body>
+<nav></nav>
+<section><div class="wrap"><div class="wp">
+
+  <div class="cover">
+    <img src="coin.svg" alt="alpha coin">
+    <h1>Alpha Blockchain</h1>
+    <p>A Bitcoin-grade decentralized network — ALPHA coin, tokens and the full ecosystem.<br>
+       <b>Whitepaper v1.0</b></p>
+  </div>
+
+  <h3>Contents</h3>
+  <div class="toc">
+    <a href="#abs">Abstract</a><a href="#intro">1. Introduction</a>
+    <a href="#consensus">2. Consensus</a><a href="#money">3. Monetary Policy</a>
+    <a href="#script">4. Script &amp; Contracts</a><a href="#tokens">5. Tokens (ALP)</a>
+    <a href="#network">6. Network &amp; Nodes</a><a href="#wallet">7. Wallet &amp; Keys</a>
+    <a href="#security">8. Security Model</a><a href="#apis">9. APIs &amp; Interop</a>
+    <a href="#usecases">10. Use Cases</a><a href="#roadmap">11. Roadmap</a>
+  </div>
+
+  <h2 id="abs">Abstract</h2>
+  <p class="abs">Alpha Blockchain is a decentralized proof-of-work network engineered to
+  Bitcoin's exact technical specification — SHA-256d PoW, 21,000,000-coin supply, 10-minute
+  blocks, UTXO accounting, a full stack-machine Script engine, SegWit and Taproot — extended
+  with a native token layer (ALP), SPV proofs, compact-block filters, PSBT, HD wallets and a
+  complete explorer/REST API. It is designed to be permissionless, auditable and compatible
+  with Bitcoin's well-understood security model.</p>
+
+  <h2 id="intro">1. Introduction</h2>
+  <p>Alpha Blockchain re-implements Bitcoin's battle-tested design from first principles —
+  a clean-room Python implementation with zero external dependencies — and layers the
+  infrastructure needed for the next generation of applications: a deterministic token
+  protocol (ALP), a block explorer, developer APIs and the plumbing for DeFi, identity,
+  real-world assets and enterprise use. The goal: <b>the security model developers already
+  trust, with the tooling they actually need.</b></p>
+
+  <h2 id="consensus">2. Consensus</h2>
+  <ul>
+    <li><b>Proof of Work</b>: SHA-256d header hash ≤ compact target (nBits, 80-byte headers).</li>
+    <li><b>Difficulty retarget</b>: every 2016 blocks, ±4× clamp, 10-minute spacing.</li>
+    <li><b>Median-time-past</b>: 11-block median + 2-hour future limit.</li>
+    <li><b>Chain selection</b>: most cumulative chainwork; full reorg support.</li>
+    <li><b>UTXO</b>: deterministic set with coinbase maturity (100 blocks) and unique-txid rules.</li>
+    <li><b>BIP34</b>: block height in coinbase; genesis reward unspendable (Bitcoin quirk).</li>
+  </ul>
+
+  <h2 id="money">3. Monetary Policy</h2>
+  <div class="kvs">
+    <div class="k">Max supply</div><div>21,000,000 ALPHA</div>
+    <div class="k">Subunit</div><div>1 ALPHA = 100,000,000 alphasats</div>
+    <div class="k">Block subsidy</div><div>50 ALPHA, halving every 210,000 blocks</div>
+    <div class="k">Total issuance</div><div>20,999,999.9769 ALPHA (Bitcoin-identical)</div>
+    <div class="k">Block time</div><div>10 minutes</div>
+    <div class="k">Coinbase maturity</div><div>100 blocks</div>
+  </div>
+
+  <h2 id="script">4. Script &amp; Contracts</h2>
+  <p>A complete Bitcoin-style stack interpreter supports every standard locking script:</p>
+  <ul>
+    <li>P2PK, P2PKH, P2SH, m-of-n multisig, OP_RETURN</li>
+    <li>CLTV (BIP65) &amp; CSV (BIP112) timelocks</li>
+    <li>SegWit v0: P2WPKH / P2WSH / P2SH-P2WPKH (BIP141/143/144)</li>
+    <li><b>Taproot (BIP340/341/342)</b>: schnorr signatures, key-path and script-path
+        spends, tapleaf merkle trees, control blocks, OP_CHECKSIGADD</li>
+    <li>Full sighash matrix: ALL/NONE/SINGLE/ANYONECANPAY (legacy + BIP143 + BIP341)</li>
+  </ul>
+
+  <h2 id="tokens">5. Tokens — the ALP protocol</h2>
+  <p>Assets are issued on-chain via an <b>OP_RETURN meta-protocol</b> (Omni-style), so the
+  base consensus stays untouched while a deterministic parallel indexer tracks balances.</p>
+  <ul>
+    <li><b>Issue</b>: <code>createtoken</code> — token_id = issuance txid</li>
+    <li><b>Send / transfer</b>: <code>sendtoken</code> — balance moves between addresses</li>
+    <li><b>Mint (issuer-only) &amp; burn</b>: <code>minttoken</code> / <code>burntoken</code></li>
+    <li><b>Registry &amp; holders</b>: <code>listtokens</code>, <code>gettokeninfo</code>,
+        <code>gettokenholders</code>, <code>gettokenbalance</code></li>
+    <li><b>Reorg-safe</b>: per-block undo journal rolls back token state on reorgs</li>
+    <li>Anyone can build on it — <code>sendopreturn</code> embeds arbitrary project data</li>
+  </ul>
+
+  <h2 id="network">6. Network &amp; Nodes</h2>
+  <ul>
+    <li><b>Wire protocol</b>: Bitcoin-exact framing — magic, 12-byte command, sha256d checksum</li>
+    <li><b>Handshake</b>: version/verack, sendheaders, sendcmpct (BIP152)</li>
+    <li><b>Sync</b>: headers-first + getblocks + block/tx relay via inv/getdata</li>
+    <li><b>Compact blocks</b>: short-ID reconstruction from mempool (BIP152)</li>
+    <li><b>Bloom filters</b>: BIP37 filtered-block serving for light clients</li>
+    <li><b>Compact filters</b>: BIP157/158 GCS filters (getblockfilter/getcfilters)</li>
+    <li><b>addrv2 (BIP155)</b> + SOCKS5 proxy + <b>Tor hidden service</b> (.onion hosting)</li>
+    <li><b>Pruning &amp; assumeutxo</b>: keep-N block pruning + UTXO-snapshot fast sync</li>
+  </ul>
+
+  <h2 id="wallet">7. Wallet &amp; Keys</h2>
+  <ul>
+    <li><b>Encryption</b>: AES-256-CBC + SHA-512×25000 EVP_BytesToKey (encryptwallet/unlock/lock)</li>
+    <li><b>HD</b>: BIP32 deterministic keys (xprv/xpub, hardened/normal, BIP39 seed)</li>
+    <li><b>Addresses</b>: legacy, P2SH-segwit, bech32 P2WPKH, <b>bech32m taproot</b></li>
+    <li><b>Signing</b>: coin-select + change, SIGHASH_ALL for all script types,
+        signmessage/verifymessage (ECDSA public-key recovery)</li>
+    <li><b>PSBT</b>: create/fund/sign/combine/finalize + BIP380 descriptors</li>
+  </ul>
+
+  <h2 id="security">8. Security Model</h2>
+  <ul>
+    <li>Deterministic RFC6979 nonces (no nonce-reuse → no key leak)</li>
+    <li>Strict DER (BIP66) + low-S (BIP62) — signature malleability closed</li>
+    <li>Curve-validation on all pubkeys (off-curve rejected)</li>
+    <li>Cookie-auth RPC (bitcoind model), wallet file 0600, no eval/exec/pickle</li>
+    <li>All consensus bounds enforced (MAX_MONEY, negative outputs, double-spend, fee≥0)</li>
+  </ul>
+
+  <h2 id="apis">9. APIs &amp; Interoperability</h2>
+  <ul>
+    <li><b>JSON-RPC</b>: ~65 bitcoind-compatible methods (chain, wallet, mining, tx,
+        tokens, PSBT, descriptors, filters, estimatesmartfee…)</li>
+    <li><b>REST</b>: <code>/rest/chaininfo|block|tx|headers|mempool|utxo|tokens</code></li>
+    <li><b>Web/explorer API</b>: <code>/api/stats|blocks|block|tx|address|tokens|search</code></li>
+    <li><b>SPV</b>: gettxoutproof / verifytxoutproof partial-merkle proofs</li>
+  </ul>
+
+  <h2 id="usecases">10. Use Cases</h2>
+  <div class="grid cards" style="margin-top:16px">
+    <div class="card"><h3>Payments</h3><p>Peer-to-peer value transfer, merchant invoicing, cross-border settlement.</p></div>
+    <div class="card"><h3>Tokenization</h3><p>Issue real-world and digital assets on ALP — loyalty points, game items, shares.</p></div>
+    <div class="card"><h3>DeFi</h3><p>The base layer for swaps, escrow, collateral and on-chain agreements.</p></div>
+    <div class="card"><h3>Identity</h3><p>Verifiable credentials and self-sovereign identity anchored on-chain.</p></div>
+    <div class="card"><h3>Enterprise</h3><p>Supply-chain, certificates, audit trails — tamper-evident records.</p></div>
+    <div class="card"><h3>Developers</h3><p>Every tool Bitcoin offers plus tokens, PSBT, descriptors and a live explorer.</p></div>
+  </div>
+
+  <h2 id="roadmap">11. Roadmap</h2>
+  <p>Core infrastructure is <b>complete and verified</b>. Next phases build the ecosystem on top.
+     See the live <a href="roadmap.html">roadmap page</a> for per-milestone status.</p>
+  <ul>
+    <li><b>Done</b>: full consensus, coin, script, segwit+taproot, network, wallet, tokens,
+        explorer, APIs, Tor, pruning, filters</li>
+    <li><b>In progress</b>: web wallet UI, merchant tools</li>
+    <li><b>Planned</b>: DEX/swap, staking, lending, stablecoin, NFT, domains, identity/KYC,
+        oracle, AI agents, enterprise suite</li>
+  </ul>
+
+  <p style="color:var(--dim);margin-top:40px;font-size:13.5px">Alpha Blockchain — engineered to
+  the Bitcoin specification. This document describes the implementation as built; future
+  ecosystem components are roadmap items, not live features.</p>
+
+</div></div></section>
+<footer>Alpha Blockchain whitepaper</footer>
+<script src="app.js"></script><script>nav('wp');</script>
+</body></html>

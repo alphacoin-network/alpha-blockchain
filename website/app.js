@@ -21,6 +21,8 @@ function nav(active) {
     <a href="explorer.html" ${active === 'expl' ? 'class="active"' : ''}>Explorer</a>
     <a href="tokens.html" ${active === 'tok' ? 'class="active"' : ''}>Tokens</a>
     <a href="api.html" ${active === 'api' ? 'class="active"' : ''}>API</a>
+    <a href="roadmap.html" ${active === 'rm' ? 'class="active"' : ''}>Roadmap</a>
+    <a href="whitepaper.html" ${active === 'wp' ? 'class="active"' : ''}>Whitepaper</a>
     <div class="spacer"></div>
     <span class="chip" id="netchip">…</span>`;
   api('stats').then(s => {
