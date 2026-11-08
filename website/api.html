@@ -2,68 +2,179 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>API — Alpha Blockchain</title>
-  <meta name="description" content="Alpha Blockchain developer API: bitcoind-compatible JSON-RPC, REST endpoints, PSBT, descriptors, token methods and explorer JSON API.">
-  <meta name="robots" content="index, follow">
+  <title>API Reference — Alpha Blockchain</title>
+  <meta name="description" content="Full developer API reference for Alpha Blockchain: bitcoind-compatible JSON-RPC, REST endpoints, PSBT, descriptors, tokens and explorer API with examples.">
   <meta name="theme-color" content="#f7931a">
-  <link rel="canonical" href="http://127.0.0.1:8080/api.html">
-  <meta property="og:type" content="website">
-  <meta property="og:title" content="Alpha Blockchain API">
-  <meta property="og:description" content="bitcoind-compatible RPC + REST + token APIs.">
-  <meta property="og:image" content="http://127.0.0.1:8080/logo.svg">
   <link rel="icon" type="image/svg+xml" href="coin.svg">
-  <link rel="apple-touch-icon" href="coin.svg">
-  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="coin.svg"><link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
+  <style>
+    .method { border-bottom: 1px solid var(--border); padding: 16px 0; }
+    .method:last-child { border-bottom: none; }
+    .mname { font-family: var(--mono); color: var(--gold); font-size: 15px; font-weight: 700; }
+    .mdesc { color: var(--dim); font-size: 14px; margin: 6px 0 10px; }
+    .method pre { font-size: 12.5px; margin-top: 8px; }
+    .sect { margin: 34px 0 14px; padding-bottom: 8px; border-bottom: 2px solid var(--border); }
+    .toc a { display: inline-block; margin: 4px 10px 4px 0; font-size: 13.5px; }
+  </style>
 </head>
 <body>
 <nav></nav>
 <section><div class="wrap">
-  <h2 class="title">Developer API</h2>
-  <p class="sub">JSON-RPC (bitcoind-compatible) on <code>:18443</code> · REST on
-     <code>:18443/rest/…</code> · web API on <code>:8080/api/…</code></p>
+  <h2 class="title">Developer API Reference</h2>
+  <p class="sub">bitcoind-compatible JSON-RPC + REST + token APIs — full usage guide.</p>
 
-  <h3 style="margin:26px 0 12px">JSON-RPC — <span class="tag">POST /</span></h3>
+  <div class="toc" style="margin-bottom:30px">
+    <a class="tag" href="#basics">Basics</a>
+    <a class="tag" href="#chain">Chain</a>
+    <a class="tag" href="#wallet">Wallet</a>
+    <a class="tag" href="#mining">Mining</a>
+    <a class="tag" href="#rawtx">Raw Tx + PSBT</a>
+    <a class="tag" href="#tokens-api">Tokens</a>
+    <a class="tag" href="#proofs">Proofs + Filters</a>
+    <a class="tag" href="#msgs">Messages + Descriptors</a>
+    <a class="tag" href="#rest">REST</a>
+    <a class="tag" href="#webapi">Web API</a>
+    <a class="tag" href="#publish">Publish / Run a node</a>
+  </div>
+
+  <h3 class="sect" id="basics">1. Connecting</h3>
+  <p style="color:var(--dim);margin-bottom:14px">All JSON-RPC calls are HTTP <code>POST</code> to your node's RPC port
+     (default <code>:18443</code> for regtest) with <code>Authorization: Basic &lt;cookie&gt;</code>
+     — read it from <code>&lt;datadir&gt;/.cookie</code>.</p>
+  <pre># any JSON-RPC call
+curl -u __cookie__:&lt;cookie-token&gt; -X POST http://127.0.0.1:18443 \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"getblockchaininfo","params":[]}'
+
+# or via the CLI (it reads .cookie automatically)
+python alpha_cli.py --datadir ./data-regtest getblockchaininfo</pre>
+
+  <h3 class="sect" id="chain">2. Chain data</h3>
+  <div class="method"><div class="mname">getblockcount</div>
+    <div class="mdesc">Current block height.</div>
+    <pre>alpha_cli.py getblockcount  → 111</pre></div>
+  <div class="method"><div class="mname">getblockchaininfo</div>
+    <div class="mdesc">Chain summary: height, supply, difficulty, chainwork.</div>
+    <pre>alpha_cli.py getblockchaininfo</pre></div>
+  <div class="method"><div class="mname">getblock &lt;hash&gt; [verbosity]</div>
+    <div class="mdesc">Full block (verbosity 2 = with decoded txs).</div>
+    <pre>alpha_cli.py getblock $(alpha_cli.py getbestblockhash) 2</pre></div>
+  <div class="method"><div class="mname">getblockheader / getblockhash / getchaintips / getdifficulty</div>
+    <div class="mdesc">Header, height→hash, competing tips, current difficulty.</div></div>
+  <div class="method"><div class="mname">getblockstats &lt;hash_or_height&gt;</div>
+    <div class="mdesc">Per-block stats (fees, sizes, outputs).</div></div>
+
+  <h3 class="sect" id="wallet">3. Wallet</h3>
+  <div class="method"><div class="mname">getnewaddress [type]</div>
+    <div class="mdesc">New receive address. type: legacy | p2sh-segwit | bech32 | taproot.</div>
+    <pre>alpha_cli.py getnewaddress taproot  → alphart1p...</pre></div>
+  <div class="method"><div class="mname">getbalance / listunspent / listtransactions</div>
+    <div class="mdesc">Balance, spendable UTXOs, transaction history.</div></div>
+  <div class="method"><div class="mname">sendtoaddress &lt;addr&gt; &lt;amount&gt;</div>
+    <div class="mdesc">Send ALPHA. Returns txid.</div>
+    <pre>alpha_cli.py sendtoaddress alphart1q... 1.5</pre></div>
+  <div class="method"><div class="mname">sendmany '{"addr":amt,...}'</div>
+    <div class="mdesc">Batch sends in one transaction.</div></div>
+  <div class="method"><div class="mname">encryptwallet &lt;pass&gt; / walletpassphrase &lt;pass&gt; &lt;sec&gt; / walletlock</div>
+    <div class="mdesc">Encrypt the wallet / unlock it for signing / lock.</div>
+    <pre>alpha_cli.py encryptwallet mypass
+alpha_cli.py walletpassphrase mypass 300   # unlock 5 min</pre></div>
+  <div class="method"><div class="mname">dumpprivkey &lt;addr&gt; / importprivkey &lt;wif&gt;</div>
+    <div class="mdesc">Export / import a private key (WIF).</div></div>
+  <div class="method"><div class="mname">getreceivedbyaddress &lt;addr&gt; / listreceivedbyaddress</div>
+    <div class="mdesc">Totals received at an address / per-address table.</div></div>
+
+  <h3 class="sect" id="mining">4. Mining</h3>
+  <div class="method"><div class="mname">generatetoaddress &lt;n&gt; &lt;addr&gt;</div>
+    <div class="mdesc">Mine n blocks to an address (regtest).</div>
+    <pre>alpha_cli.py generatetoaddress 101 $(alpha_cli.py getnewaddress bech32)</pre></div>
+  <div class="method"><div class="mname">getmininginfo / getnetworkhashps</div>
+    <div class="mdesc">Mining status, network hashrate estimate.</div></div>
+
+  <h3 class="sect" id="rawtx">5. Raw transactions + PSBT</h3>
+  <div class="method"><div class="mname">createrawtransaction [{txid,vout}] {addr:amt}</div>
+    <div class="mdesc">Build an unsigned raw tx hex.</div></div>
+  <div class="method"><div class="mname">signrawtransactionwithwallet &lt;hex&gt;</div>
+    <div class="mdesc">Sign a raw tx with wallet keys.</div></div>
+  <div class="method"><div class="mname">sendrawtransaction &lt;hex&gt;</div>
+    <div class="mdesc">Broadcast a signed tx.</div></div>
+  <div class="method"><div class="mname">decoderawtransaction &lt;hex&gt;</div>
+    <div class="mdesc">Decode a raw tx hex.</div></div>
+  <div class="method"><div class="mname">walletcreatefundedpsbt {addr:amt} → walletprocesspsbt &lt;psbt&gt; → finalizepsbt &lt;psbt&gt;</div>
+    <div class="mdesc">BIP174 PSBT workflow: fund → sign → finalize → send.</div></div>
+  <div class="method"><div class="mname">sendopreturn &lt;hex_data&gt;</div>
+    <div class="mdesc">Embed arbitrary data on-chain (for your own projects).</div></div>
+
+  <h3 class="sect" id="tokens-api">6. Tokens (ALP protocol)</h3>
+  <div class="method"><div class="mname">createtoken &lt;name&gt; &lt;decimals&gt; &lt;supply&gt;</div>
+    <div class="mdesc">Issue a new token. Returns token_id = issuance txid.</div>
+    <pre>alpha_cli.py createtoken MyToken 8 1000000</pre></div>
+  <div class="method"><div class="mname">sendtoken &lt;token_id&gt; &lt;addr&gt; &lt;amount&gt;</div>
+    <div class="mdesc">Transfer tokens to an address.</div></div>
+  <div class="method"><div class="mname">minttoken / burntoken &lt;token_id&gt; &lt;amount&gt;</div>
+    <div class="mdesc">Issuer-only mint / burn supply.</div></div>
+  <div class="method"><div class="mname">listtokens / gettokeninfo / gettokenbalance / listtokenbalances / gettokenholders</div>
+    <div class="mdesc">Registry, info, balances and holder lists.</div></div>
+
+  <h3 class="sect" id="proofs">7. Proofs + filters</h3>
+  <div class="method"><div class="mname">gettxout / scantxoutset</div>
+    <div class="mdesc">UTXO lookup / scan all unspents.</div></div>
+  <div class="method"><div class="mname">gettxoutproof / verifytxoutproof</div>
+    <div class="mdesc">SPV merkle proofs for tx confirmation.</div></div>
+  <div class="method"><div class="mname">getblockfilter &lt;hash&gt;</div>
+    <div class="mdesc">BIP158 compact filter for a block.</div></div>
+
+  <h3 class="sect" id="msgs">8. Messages + descriptors + misc</h3>
+  <div class="method"><div class="mname">signmessage &lt;addr&gt; &lt;msg&gt; / verifymessage &lt;addr&gt; &lt;sig&gt; &lt;msg&gt;</div>
+    <div class="mdesc">Bitcoin compact signed messages.</div></div>
+  <div class="method"><div class="mname">getdescriptorinfo / deriveaddresses</div>
+    <div class="mdesc">BIP380 descriptor expand + derive.</div>
+    <pre>alpha_cli.py getdescriptorinfo "wpkh(&lt;pubkey_hex&gt;)"</pre></div>
+  <div class="method"><div class="mname">estimatesmartfee &lt;conf_target&gt;</div>
+    <div class="mdesc">Fee estimate to confirm in N blocks.</div></div>
+  <div class="method"><div class="mname">validateaddress / decodescript / uptime / stop</div>
+    <div class="mdesc">Address validation, script decode, node uptime, shutdown.</div></div>
+
+  <h3 class="sect" id="rest">9. REST API (bitcoind-compatible)</h3>
   <div class="tbl-wrap"><table>
-    <tr><th>Method</th><th>Description</th></tr><tbody id="rpc"></tbody>
-  </table></div>
-
-  <h3 style="margin:26px 0 12px">REST — <span class="tag">GET</span></h3>
-  <div class="tbl-wrap"><table><tbody>
-    <tr><td class="hash">/rest/chaininfo.json</td><td>blockchain summary</td></tr>
-    <tr><td class="hash">/rest/block/&lt;hash&gt;.json</td><td>full block with txs</td></tr>
+    <tr><th>Endpoint</th><th>Returns</th></tr>
+    <tr><td class="hash">/rest/chaininfo.json</td><td>chain summary</td></tr>
+    <tr><td class="hash">/rest/block/&lt;hash&gt;.json</td><td>full block</td></tr>
     <tr><td class="hash">/rest/block/notxdetails/&lt;hash&gt;.json</td><td>block without txs</td></tr>
-    <tr><td class="hash">/rest/tx/&lt;txid&gt;.json</td><td>transaction detail</td></tr>
+    <tr><td class="hash">/rest/tx/&lt;txid&gt;.json</td><td>transaction</td></tr>
     <tr><td class="hash">/rest/headers/&lt;n&gt;/&lt;hash&gt;.json</td><td>block headers</td></tr>
     <tr><td class="hash">/rest/mempool/info.json</td><td>mempool stats</td></tr>
     <tr><td class="hash">/rest/mempool/contents.json</td><td>mempool txids</td></tr>
     <tr><td class="hash">/rest/utxo/&lt;txid&gt;-&lt;n&gt;.json</td><td>UTXO lookup</td></tr>
-    <tr><td class="hash">/rest/tokens.json</td><td>token registry</td></tr>
-    <tr><td class="hash">/rest/token/&lt;id&gt;.json</td><td>token info</td></tr>
-  </tbody></table></div>
+    <tr><td class="hash">/rest/tokens.json / /rest/token/&lt;id&gt;.json</td><td>token registry / info</td></tr>
+  </table></div>
 
-  <h3 style="margin:26px 0 12px">Example</h3>
-  <pre>curl -X POST http://127.0.0.1:18443 \
-  -d '{"jsonrpc":"2.0","id":1,"method":"getblockchaininfo","params":[]}'</pre>
+  <h3 class="sect" id="webapi">10. Explorer Web API (this site)</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>Endpoint</th><th>Returns</th></tr>
+    <tr><td class="hash">/api/stats</td><td>live network stats</td></tr>
+    <tr><td class="hash">/api/blocks?n=20</td><td>latest block summaries</td></tr>
+    <tr><td class="hash">/api/block/&lt;hash|height&gt;</td><td>block + txs</td></tr>
+    <tr><td class="hash">/api/tx/&lt;txid&gt;</td><td>transaction detail</td></tr>
+    <tr><td class="hash">/api/address/&lt;addr&gt;</td><td>balance + utxos + tokens</td></tr>
+    <tr><td class="hash">/api/mempool</td><td>mempool txids + info</td></tr>
+    <tr><td class="hash">/api/tokens / /api/token/&lt;id&gt;</td><td>registry / holders</td></tr>
+    <tr><td class="hash">/api/search?q=</td><td>detect block/tx/address</td></tr>
+  </table></div>
+
+  <h3 class="sect" id="publish">11. Publish / run your own node</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>Step</th><th>Command</th></tr>
+    <tr><td>Start a node</td><td><code>python alphad.py --chain regtest --datadir ./data</code></td></tr>
+    <tr><td>Mainnet</td><td><code>python alphad.py --chain main --datadir ./mainnet</code></td></tr>
+    <tr><td>Mine</td><td><code>alpha_cli.py generatetoaddress 101 &lt;addr&gt;</code></td></tr>
+    <tr><td>Website</td><td><code>python alphaweb.py --port 8080</code></td></tr>
+    <tr><td>Tor hidden service</td><td><code>alphad --onion --proxy 127.0.0.1:9050</code></td></tr>
+    <tr><td>Connect peers</td><td><code>alphad --connect ip:port --connect ip2:port</code></td></tr>
+    <tr><td>Prune</td><td><code>alphad --prune 1000</code> (keep last 1000 blocks)</td></tr>
+  </table></div>
 </div></section>
-<footer>Alpha Blockchain API</footer>
-<script src="app.js"></script>
-<script>
-nav('api');
-const METHODS = [
-  ['getblockcount / getbestblockhash / getblockhash / getblock / getblockheader', 'chain data'],
-  ['getblockchaininfo / getblockstats / getchaintips / getdifficulty', 'chain state'],
-  ['getrawtransaction / getrawmempool / getmempoolinfo / getmempoolentry', 'tx + mempool'],
-  ['gettxout / scantxoutset / gettxoutproof / verifytxoutproof', 'UTXO + SPV proofs'],
-  ['createrawtransaction / signrawtransactionwithwallet / sendrawtransaction / decoderawtransaction', 'raw tx workflow'],
-  ['getnewaddress / getbalance / listunspent / sendtoaddress / sendmany / getreceivedbyaddress / listreceivedbyaddress / listtransactions / getwalletinfo / getaddresses', 'wallet'],
-  ['dumpprivkey / importprivkey / signmessage / verifymessage / validateaddress', 'keys + messages'],
-  ['generatetoaddress / generate / getmininginfo / getnetworkhashps', 'mining'],
-  ['createtoken / sendtoken / minttoken / burntoken / listtokens / gettokeninfo / gettokenbalance / listtokenbalances / gettokenholders', 'ALP tokens'],
-  ['addnode / getpeerinfo / getconnectioncount / getnetworkinfo', 'P2P network'],
-  ['sendopreturn / decodescript / estimatesmartfee / uptime / stop', 'misc'],
-];
-el('rpc').innerHTML = METHODS.map(m =>
-  `<tr><td class="hash">${m[0]}</td><td>${m[1]}</td></tr>`).join('');
-</script>
+<footer>Alpha Blockchain API reference</footer>
+<script src="app.js"></script><script>nav('api');</script>
 </body></html>
