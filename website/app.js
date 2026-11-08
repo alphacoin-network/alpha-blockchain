@@ -16,7 +16,7 @@ const ago = t => { const s = Math.max(0, Date.now() / 1000 - t);
 
 function nav(active) {
   document.querySelector('nav').innerHTML = `
-    <a class="brand" href="index.html"><img src="logo.svg" alt="alpha">Alpha Blockchain</a>
+    <a class="brand" href="index.html"><img src="coin.svg" alt="alpha">Alpha Blockchain</a>
     <a href="index.html" ${active === 'home' ? 'class="active"' : ''}>Home</a>
     <a href="explorer.html" ${active === 'expl' ? 'class="active"' : ''}>Explorer</a>
     <a href="tokens.html" ${active === 'tok' ? 'class="active"' : ''}>Tokens</a>

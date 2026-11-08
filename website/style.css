@@ -44,9 +44,9 @@ nav .spacer { flex: 1; }
 .coin .face, .coin .edge-face { position: absolute; inset: 0; border-radius: 50%;
   backface-visibility: hidden; }
 .coin .face.front { transform: translateZ(14px);
-  background: url('logo.svg') center/cover; }
+  background: url('coin.svg') center/cover; }
 .coin .face.back { transform: rotateY(180deg) translateZ(14px);
-  background: url('logo.svg') center/cover; }
+  background: url('coin.svg') center/cover; }
 .coin .rim { position: absolute; inset: -2px; border-radius: 50%;
   transform: translateZ(0); box-shadow: 0 0 0 13px #a3741f, 0 0 60px rgba(245,197,66,.35);
   border: 2px solid #5f3f0d; }
