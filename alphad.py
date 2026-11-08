@@ -29,6 +29,16 @@ def main() -> int:
                    metavar="IP:PORT", help="connect to a peer at startup")
     p.add_argument("--nolisten", action="store_true",
                    help="don't accept inbound P2P connections")
+    p.add_argument("--proxy", default=None, metavar="IP:PORT",
+                   help="route outbound through SOCKS5 proxy (Tor: 127.0.0.1:9050)")
+    p.add_argument("--onion", action="store_true",
+                   help="create a Tor hidden service via --torcontrol")
+    p.add_argument("--torcontrol", default="127.0.0.1:9051",
+                   metavar="IP:PORT", help="Tor control port")
+    p.add_argument("--torpassword", default=None,
+                   help="Tor control password (if not cookie auth)")
+    p.add_argument("--prune", type=int, default=0,
+                   help="keep only the last N block bodies (0=off)")
     args = p.parse_args()
 
     params = constants.NETWORKS[args.chain]
@@ -38,10 +48,18 @@ def main() -> int:
         "main": 8332, "test": 18332, "regtest": 18443,
     }[params.name]
 
-    node = Node(params, datadir, port=port, listen=not args.nolisten)
+    proxy = tuple(args.proxy.rsplit(":", 1)) if args.proxy else None
+    if proxy:
+        proxy = (proxy[0], int(proxy[1]))
+    tor_ctl = tuple(args.torcontrol.rsplit(":", 1))
+    tor_ctl = (tor_ctl[0], int(tor_ctl[1]))
+
+    node = Node(params, datadir, port=port, listen=not args.nolisten,
+                proxy=proxy, onion=args.onion, tor_control=tor_ctl)
     auth = rpc.make_cookie(datadir)
+    onion_msg = f" | onion={node.onion_addr}" if node.onion_addr else ""
     print(f"Alpha node started | chain={params.name} height={node.chain.height} "
-          f"| p2p=:{port} rpc=:{rpcport} datadir={datadir}")
+          f"| p2p=:{port} rpc=:{rpcport} datadir={datadir}{onion_msg}")
 
     for target in args.connect:
         if ":" in target:
@@ -54,8 +72,14 @@ def main() -> int:
     rpc.serve(node, "127.0.0.1", rpcport, auth=auth)
 
     try:
+        prune_every = 0
         while not node.stopped:
             time.sleep(1)
+            if args.prune:
+                prune_every += 1
+                if prune_every >= 60:
+                    prune_every = 0
+                    node.chain.prune(keep_blocks=args.prune)
     except KeyboardInterrupt:
         pass
     finally:

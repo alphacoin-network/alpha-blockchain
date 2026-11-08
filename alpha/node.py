@@ -20,10 +20,21 @@ from .wallet import Wallet
 
 class Node:
     def __init__(self, params=None, data_dir: str | None = None,
-                 port: int | None = None, listen: bool = True):
+                 port: int | None = None, listen: bool = True,
+                 proxy: tuple | None = None, onion: bool = False,
+                 tor_control: tuple | None = None):
         self.params = params or constants.MAINNET
         self.port = port or self.params.default_port
         self.data_dir = data_dir
+        self.proxy = proxy                    # SOCKS5 (host, port) for outbound
+        self.onion_addr = None
+        if onion:
+            from . import tor
+            ctl = tor_control or ("127.0.0.1", tor.CONTROL_PORT)
+            try:
+                self.onion_addr = tor.create_onion_service(self.port, ctl)
+            except Exception as e:
+                raise ValueError(f"tor hidden service failed: {e}")
         if data_dir:
             os.makedirs(data_dir, exist_ok=True)
         self.start_time = int(time.time())
@@ -63,7 +74,8 @@ class Node:
                 p.close()
 
     def connect(self, ip: str, port: int) -> bool:
-        return net.connect_peer(self, ip, port) is not None
+        return net.connect_peer(self, ip, port,
+                                proxy=self.proxy) is not None
 
     def register_peer(self, peer) -> None:
         with self.peers_lock:
