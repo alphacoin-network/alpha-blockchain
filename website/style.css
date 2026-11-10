@@ -119,8 +119,32 @@ td.num { text-align: right; } th.num { text-align: right; }
 .kv { display: grid; grid-template-columns: 200px 1fr; gap: 10px 20px; font-size: 14px; }
 .kv .k { color: var(--dim); } .kv .v { font-family: var(--mono); font-size: 13px; word-break: break-all; }
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+/* ---------- responsive ---------- */
+@media (max-width: 900px) {
+  .hero { flex-direction: column; text-align: center; gap: 36px;
+    padding: 50px 16px 30px; }
+  .hero h1 { font-size: 38px; }
+  .hero p { margin-left: auto; margin-right: auto; }
+  .hero-links { justify-content: center; }
+  nav { padding: 12px 16px; gap: 12px; flex-wrap: wrap; font-size: 14px; }
+  .wrap { padding: 0 14px; }
+  .eco h2 { font-size: 26px; }
+  .grid.cards { grid-template-columns: 1fr; }
+  .kv { grid-template-columns: 110px 1fr; gap: 8px 12px; }
+  .tbl-wrap { overflow-x: auto; }
+  table { font-size: 13px; }
+  .wp .toc { columns: 1; }
+  .wp .cover h1 { font-size: 30px; }
+  .wp h2 { font-size: 22px; }
+  pre, .formula { font-size: 11px; }
+}
 @media (max-width: 800px) { .two-col { grid-template-columns: 1fr; }
-  .hero { gap: 36px; } .hero h1 { font-size: 40px; } nav { padding: 14px 18px; gap: 14px; } }
+  .hero h1 { font-size: 40px; } }
+@media (max-width: 420px) {
+  .hero h1 { font-size: 30px; }
+  .eco h2 { font-size: 22px; }
+  .btn { padding: 10px 16px; font-size: 13px; }
+}
 
 /* ---------- misc ---------- */
 footer { border-top: 1px solid var(--border); padding: 40px; color: var(--dim);

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mine ALPHA — Browser Miner</title>
+  <meta name="description" content="Mine ALPHA coin right in your browser — no install needed. Works on mobile too, like early Bitcoin CPU mining.">
+  <meta name="theme-color" content="#f7931a">
+  <link rel="icon" type="image/svg+xml" href="coin.svg">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .miner-card { max-width: 720px; margin: 0 auto; }
+    .mine-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 14px; margin: 24px 0; }
+    .ms { background: var(--card2); border: 1px solid var(--border); border-radius: 12px;
+      padding: 18px; text-align: center; }
+    .ms .v { font-size: 26px; font-weight: 800; font-family: var(--mono); color: var(--gold); }
+    .ms .l { font-size: 12px; color: var(--dim); margin-top: 4px; }
+    .mine-log { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
+      padding: 16px; font-family: var(--mono); font-size: 12.5px; height: 220px;
+      overflow-y: auto; color: #a8d5ff; }
+    .mine-log .found { color: var(--green); font-weight: 700; }
+    .addr-in { width: 100%; padding: 14px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--card2); color: var(--text); font-family: var(--mono); font-size: 14px;
+      margin: 10px 0 20px; box-sizing: border-box; }
+    .mine-ctl { display: flex; gap: 12px; }
+    .mining-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+      background: var(--dim); margin-right: 8px; }
+    .mining-dot.on { background: var(--green); animation: pulse 1s infinite; }
+    @keyframes pulse { 50% { opacity: .4 } }
+    .howto { margin-top: 34px; }
+  </style>
+</head>
+<body>
+<nav></nav>
+<section><div class="wrap">
+  <div class="miner-card">
+    <h2 class="title" style="text-align:center">⛏ Mine ALPHA in your browser</h2>
+    <p class="sub" style="text-align:center">Real proof-of-work mining — your device
+      does the hashing. Works on mobile, no install. Like early Bitcoin.</p>
+
+    <div class="card">
+      <label style="font-size:13px;color:var(--dim)">Payout address (your ALPHA address)</label>
+      <input id="addr" class="addr-in" placeholder="alpha1..." spellcheck="false">
+      <div class="mine-ctl">
+        <button id="start" class="btn btn-gold" style="flex:1">▶ Start mining</button>
+        <button id="stop" class="btn btn-ghost" disabled>■ Stop</button>
+      </div>
+      <div class="mine-stats">
+        <div class="ms"><div class="v" id="hashrate">0</div><div class="l">hashes/sec</div></div>
+        <div class="ms"><div class="v" id="hashes">0</div><div class="l">total hashes</div></div>
+        <div class="ms"><div class="v" id="found">0</div><div class="l">blocks found</div></div>
+        <div class="ms"><div class="v" id="earned">0</div><div class="l">ALPHA earned</div></div>
+      </div>
+      <div style="font-size:13px;color:var(--dim)"><span class="mining-dot" id="dot"></span><span id="status">Idle — enter your address and press start</span></div>
+      <div class="mine-log" id="log" style="margin-top:14px"></div>
+    </div>
+
+    <div class="howto card">
+      <h3>How it works</h3>
+      <ol style="color:var(--dim);font-size:14px;line-height:1.8">
+        <li>Get a payout address — run <code>alpha_wallet_gen.py</code> or <code>getnewaddress</code> on your node</li>
+        <li>Paste it above and press <b>Start</b> — your browser fetches a block template and hashes it locally</li>
+        <li>When a valid hash is found, it's submitted to the network — <b>50 ALPHA reward goes to your address</b></li>
+        <li>Keep the tab open to keep mining. Slower on mobile, but it works — early difficulty is CPU-friendly</li>
+      </ol>
+    </div>
+  </div>
+</div></section>
+<footer>Mine ALPHA — proof-of-work, in your browser</footer>
+<script src="app.js"></script>
+<script>nav('mine');</script>
+<script>
+/* ---------- pure-JS SHA-256 ---------- */
+const K = new Uint32Array([
+0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2]);
+const H0 = [0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+function rotr(x,n){return (x>>>n)|(x<<(32-n));}
+function sha256(bytes){
+  const l = bytes.length, pl = ((l+9+63)>>6)<<6;
+  const b = new Uint8Array(pl); b.set(bytes); b[l]=0x80;
+  const dv = new DataView(b.buffer);
+  dv.setUint32(pl-4, l*8>>>0);
+  const H = H0.slice(), w = new Uint32Array(64);
+  for(let i=0;i<pl;i+=64){
+    for(let j=0;j<16;j++) w[j]=dv.getUint32(i+j*4);
+    for(let j=16;j<64;j++){
+      const s0=rotr(w[j-15],7)^rotr(w[j-15],18)^(w[j-15]>>>3);
+      const s1=rotr(w[j-2],17)^rotr(w[j-2],19)^(w[j-2]>>>10);
+      w[j]=(w[j-16]+s0+w[j-7]+s1)>>>0;
+    }
+    let a=H[0],b2=H[1],c=H[2],d=H[3],e=H[4],f=H[5],g=H[6],h=H[7];
+    for(let j=0;j<64;j++){
+      const S1=rotr(e,6)^rotr(e,11)^rotr(e,25);
+      const t1=(h+S1+((e&f)^(~e&g))+K[j]+w[j])>>>0;
+      const S0=rotr(a,2)^rotr(a,13)^rotr(a,22);
+      const t2=(S0+((a&b2)^(a&c)^(b2&c)))>>>0;
+      h=g;g=f;f=e;e=(d+t1)>>>0;d=c;c=b2;b2=a;a=(t1+t2)>>>0;
+    }
+    H[0]=(H[0]+a)>>>0;H[1]=(H[1]+b2)>>>0;H[2]=(H[2]+c)>>>0;H[3]=(H[3]+d)>>>0;
+    H[4]=(H[4]+e)>>>0;H[5]=(H[5]+f)>>>0;H[6]=(H[6]+g)>>>0;H[7]=(H[7]+h)>>>0;
+  }
+  const out=new Uint8Array(32), odv=new DataView(out.buffer);
+  for(let i=0;i<8;i++) odv.setUint32(i*4,H[i]);
+  return out;
+}
+function sha256d(b){ return sha256(sha256(b)); }
+function hexToBytes(h){ const a=new Uint8Array(h.length/2); for(let i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16); return a; }
+function bytesToHex(b){ return [...b].map(x=>x.toString(16).padStart(2,'0')).join(''); }
+
+/* ---------- mining loop (WebWorker inline) ---------- */
+const workerSrc = `
+${sha256.toString() ? '' : ''}
+const K=${JSON.stringify([...K])};
+const H0=${JSON.stringify(H0)};
+${rotr.toString()}
+${sha256.toString()}
+${sha256d.toString()}
+${bytesToHex.toString()}
+onmessage = function(e){
+  const {prefixHex, targetHex, startNonce} = e.data;
+  const prefix = (h=>{const a=new Uint8Array(h.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16);return a;})(prefixHex);
+  const tgt = BigInt('0x'+targetHex);
+  const hdr = new Uint8Array(80); hdr.set(prefix);
+  const dv = new DataView(hdr.buffer);
+  for(let n=startNonce;;n++){
+    dv.setUint32(76, n>>>0, true);
+    const d = sha256d(hdr);
+    // digest as little-endian uint256 → reverse to hex for compare
+    const rev = new Uint8Array(32); for(let i=0;i<32;i++) rev[i]=d[31-i];
+    if (BigInt('0x'+bytesToHex(rev)) <= tgt){ postMessage({found:n}); return; }
+    if((n & 0xFFFF)===0) postMessage({progress:n});
+    if(n>=0xFFFFFFFF){ postMessage({exhausted:true}); return; }
+  }
+};`;
+
+let worker = null, totalHashes = 0, found = 0, t0 = 0;
+const $ = id => document.getElementById(id);
+function log(msg, cls){
+  const el = $('log');
+  el.innerHTML += `<div class="${cls||''}">[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+  el.scrollTop = el.scrollHeight;
+}
+async function getWork(addr){
+  const r = await fetch('/api/minework?address='+encodeURIComponent(addr));
+  const j = await r.json();
+  if(j.error) throw new Error(j.error);
+  return j;
+}
+async function submit(workid, nonce){
+  const r = await fetch(`/api/submitwork?workid=${workid}&nonce=${nonce}`);
+  return r.json();
+}
+async function mineRound(addr){
+  let work;
+  try { work = await getWork(addr); }
+  catch(e){ log('getwork failed: '+e.message); $('status').textContent='getwork failed — retrying in 10s';
+    setTimeout(()=>{ if(worker) mineRound(addr); },10000); return; }
+  log(`new work: height ${work.height} target ${work.target.slice(0,20)}…`);
+  worker._round = true;
+  worker.postMessage({prefixHex: work.data, targetHex: work.target, startNonce: 0});
+  worker._workid = work.workid;
+}
+$('start').onclick = async () => {
+  const addr = $('addr').value.trim();
+  if(!addr || addr.length < 20){ alert('Enter a valid ALPHA payout address'); return; }
+  worker = new Worker(URL.createObjectURL(new Blob([workerSrc],{type:'text/javascript'})));
+  worker.onmessage = async e => {
+    if(e.data.found !== undefined){
+      found++; $('found').textContent = found;
+      log('VALID HASH FOUND! nonce='+e.data.found+' — submitting…','found');
+      const r = await submit(worker._workid, e.data.found);
+      if(r.accepted){
+        $('earned').textContent = (parseFloat($('earned').textContent)+50).toFixed(1);
+        log(`BLOCK ACCEPTED! ${r.hash.slice(0,20)}… +50 ALPHA → your address`,'found');
+      } else log('rejected: '+JSON.stringify(r));
+      mineRound(addr);
+    } else if(e.data.progress !== undefined){
+      totalHashes = e.data.progress;
+      $('hashes').textContent = totalHashes.toLocaleString();
+      $('hashrate').textContent = Math.round(totalHashes/((Date.now()-t0)/1000)).toLocaleString();
+    } else if(e.data.exhausted){ log('nonce space exhausted — new work'); mineRound(addr); }
+  };
+  t0 = Date.now(); totalHashes = 0;
+  $('start').disabled = true; $('stop').disabled = false;
+  $('dot').classList.add('on');
+  $('status').textContent = 'Mining…';
+  log('miner started → '+addr);
+  mineRound(addr);
+};
+$('stop').onclick = () => {
+  if(worker){ worker.terminate(); worker = null; }
+  $('start').disabled = false; $('stop').disabled = true;
+  $('dot').classList.remove('on');
+  $('status').textContent = 'Stopped';
+  log('miner stopped');
+};
+</script>
+</body></html>

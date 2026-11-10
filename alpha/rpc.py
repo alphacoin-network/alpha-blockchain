@@ -946,6 +946,43 @@ class RPCMethods:
         addr = self.node.wallet.new_address("bech32")
         return self.generatetoaddress(nblocks, addr)
 
+    # -- remote/browser mining (getwork) ----------------------------------------
+    _work_cache: dict = {}
+
+    def getwork(self, address: str):
+        """Return a block template for external/browser mining.
+        Header is 80 bytes; the caller hashes `data` + nonce (4B LE)."""
+        import secrets as _sec
+        try:
+            spk = script.script_for_address(address, self.node.params)
+        except ValueError:
+            raise RPCError(RPC_INVALID_ADDRESS_OR_KEY, "invalid address")
+        block = self.node.get_block_template(spk)
+        wid = _sec.token_hex(8)
+        self.__class__._work_cache[wid] = block
+        if len(self.__class__._work_cache) > 64:      # bound the cache
+            self.__class__._work_cache.popitem()
+        hdr = block.header.serialize()
+        return {
+            "workid": wid,
+            "data": hdr[:-4].hex(),                    # first 76 bytes
+            "target": "%064x" % compact_to_target(block.header.bits),
+            "height": block.header.__dict__.get("n", None) or self.node.chain.height + 1,
+        }
+
+    def submitwork(self, workid: str, nonce):
+        """Submit a found nonce for a getwork template."""
+        block = self.__class__._work_cache.pop(workid, None)
+        if block is None:
+            raise RPCError(RPC_INVALID_PARAMS, "unknown/expired workid")
+        block.header.nonce = int(nonce) & 0xFFFFFFFF
+        target = compact_to_target(block.header.bits)
+        if int.from_bytes(block.header.hash(), "little") > target:
+            raise RPCError(RPC_INVALID_PARAMS, "nonce does not meet target")
+        self.node.submit_block(block)
+        return {"hash": block.hash_hex(), "height": self.node.chain.height,
+                "accepted": True}
+
     def getmininginfo(self):
         return {
             "blocks": self.node.chain.height,

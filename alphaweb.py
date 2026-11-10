@@ -155,6 +155,11 @@ def make_handler(api: API):
                     out = api.token(route[6:])
                 elif route == "search":
                     out = api.search(qs.get("q", [""])[0])
+                elif route == "minework":
+                    out = api.call("getwork", qs.get("address", [""])[0])
+                elif route == "submitwork":
+                    out = api.call("submitwork", qs.get("workid", [""])[0],
+                                   int(qs.get("nonce", ["0"])[0]))
                 else:
                     self._json({"error": "not found"}, 404)
                     return
