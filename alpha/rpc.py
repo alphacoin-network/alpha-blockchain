@@ -10,7 +10,7 @@ import time
 from decimal import Decimal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import constants, crypto, ai as _ai, amm as _amm, dex as _dex, identity as _id, merkleproof, script, tokens as _tokens, wallet as _wallet, web3 as _w3
+from . import constants, crypto, ai as _ai, amm as _amm, dex as _dex, enterprise as _ent, identity as _id, merkleproof, script, tokens as _tokens, wallet as _wallet, web3 as _w3
 from .base58 import b58encode_check
 from .block import Block
 from .transaction import (
@@ -1260,6 +1260,100 @@ class RPCMethods:
 
     def paymentreceipts(self):
         return self.node.ai.list_receipts(self.node.params)
+
+    # -- Enterprise: supply chain + certificates + business registry -------------
+    def registeritem(self, name: str, sku: str = "", address: str = None):
+        """Register a product/SKU on-chain → item_id for tracking."""
+        tx = self._op(_ent.item_reg(name, sku), address)
+        return {"item_id": tx.txid_hex(), "name": name}
+
+    def supplyevent(self, item_id: str, stage: str, location: str = "",
+                    note: str = "", address: str = None):
+        """Append a shipment event — immutable supply-chain history."""
+        iid = hex_to_hash(item_id)
+        it = self.node.enterprise.items.get(iid)
+        if it is None:
+            raise RPCError(RPC_INVALID_PARAMS, "unknown item")
+        if address is None:
+            address = script.extract_destination(it["owner"],
+                                                 self.node.params)
+        return self._op(_ent.item_event(iid, stage, location, note),
+                        address).txid_hex()
+
+    def itemhistory(self, item_id: str):
+        """Full event timeline for a product (transparency)."""
+        return self.node.enterprise.events.get(hex_to_hash(item_id), [])
+
+    def listitems(self):
+        return self.node.enterprise.list_items(self.node.params)
+
+    def issuecertificate(self, hash_hex: str, ctype: str = "document",
+                         subject: str = "", address: str = None):
+        """Anchor a document/cert hash on-chain — tamper-evident proof."""
+        h = bytes.fromhex(hash_hex) if hash_hex else b""
+        tx = self._op(_ent.cert_issue(h, ctype, subject), address)
+        return {"cert_id": tx.txid_hex(), "hash": h.hex()}
+
+    def verifycertificate(self, hash_hex: str):
+        """Verify a document's hash was anchored (tamper-evident)."""
+        c = self.node.enterprise.verify_cert(bytes.fromhex(hash_hex))
+        if c is None:
+            return {"verified": False}
+        return {"verified": not c["revoked"], "revoked": c["revoked"],
+                "type": c["ctype"], "subject": c["subj"],
+                "issuer": script.extract_destination(c["issuer"],
+                           self.node.params), "height": c["height"]}
+
+    def revokecertificate(self, cert_id: str):
+        cid = hex_to_hash(cert_id)
+        c = self.node.enterprise.certs.get(cid)
+        if c is None:
+            raise RPCError(RPC_INVALID_PARAMS, "unknown cert")
+        issuer = script.extract_destination(c["issuer"], self.node.params)
+        return self._op(_ent.cert_revoke(cid), issuer).txid_hex()
+
+    def listcertificates(self):
+        return [{"cert_id": c["id"].hex(), "type": c["ctype"],
+                 "subject": c["subj"], "revoked": c["revoked"],
+                 "height": c["height"]}
+                for c in self.node.enterprise.certs.values()]
+
+    def registerbusiness(self, name: str, regnum: str, jurisdiction: str,
+                         metadata_hash: str = "", address: str = None):
+        """On-chain corporate registry entry."""
+        mh = bytes.fromhex(metadata_hash) if metadata_hash else b""
+        tx = self._op(_ent.biz_reg(name, regnum, jurisdiction, mh), address)
+        return {"biz_id": tx.txid_hex(), "name": name}
+
+    def updatebusiness(self, biz_id: str, field: str, value: str):
+        bid = hex_to_hash(biz_id)
+        b = self.node.enterprise.biz.get(bid)
+        if b is None:
+            raise RPCError(RPC_INVALID_PARAMS, "unknown business")
+        addr = script.extract_destination(b["owner"], self.node.params)
+        return self._op(_ent.biz_update(bid, field, value), addr).txid_hex()
+
+    def listbusinesses(self):
+        return self.node.enterprise.list_biz(self.node.params)
+
+    def businessinfo(self, biz_id: str):
+        b = self.node.enterprise.biz.get(hex_to_hash(biz_id))
+        if b is None:
+            return None
+        b = dict(b)
+        b["biz_id"] = b.pop("id").hex()
+        b["owner"] = script.extract_destination(b["owner"], self.node.params)
+        return b
+
+    def claimfaucet(self, address: str, amount=10):
+        """Faucet — free test coins to an address (testnet/regtest only).
+        Sends a small amount from the node's faucet balance."""
+        if self.node.params == constants.MAINNET:
+            raise RPCError(RPC_INVALID_PARAMS,
+                           "faucet only on testnet/regtest — mainnet ALPHA "
+                           "must be mined or traded")
+        amt = min(float(amount), 100.0)
+        return self.sendtoaddress(address, amt)
 
     def kycstatus(self, address: str):
         """Reusable KYC check — returns all valid 'kyc' claims for a DID,
