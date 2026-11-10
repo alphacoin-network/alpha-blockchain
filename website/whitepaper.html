@@ -191,7 +191,13 @@
     <li><b>addrv2</b> (BIP155), <b>SOCKS5</b> proxy, <b>Tor hidden service</b></li>
     <li><b>Pruning</b> (keep-N blocks) + <b>assumeutxo</b> snapshot sync</li>
     <li>24 message handlers covering the full message set</li>
+    <li><b>Seed nodes</b>: new nodes auto-connect to public seeds
+        (<code>68.178.163.58:8333</code>) — no manual peering needed, like Bitcoin's DNS seeds</li>
   </ul>
+  <div class="note"><b>Live network:</b> the public mainnet is running — explorer at
+  <code>http://68.178.163.58:8080</code>. Anyone can join:
+  <code>python alphad.py --chain main</code> auto-connects to seed nodes, and
+  <code>python mine_alpha.py</code> mines like early Bitcoin.</div>
 
   <h2 id="wallet">7. Wallet &amp; Keys</h2>
   <ul>

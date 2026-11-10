@@ -10,7 +10,7 @@
 #   5. Prints commands for continuous mining + firewall rules
 set -e
 
-REPO_URL="${REPO_URL:-https://github.com/YOUR_USER/alpha-blockchain.git}"
+REPO_URL="${REPO_URL:-https://github.com/alphacoin-network/alpha-blockchain.git}"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/alpha-blockchain}"
 DATADIR="${DATADIR:-$HOME/alpha-data}"
 WEB_PORT="${WEB_PORT:-8080}"

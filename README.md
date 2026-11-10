@@ -32,19 +32,34 @@ every 210k blocks — with a CPU-friendly launch difficulty `0x1e0fffff`),
 `--chain test`, `--chain regtest` (trivial PoW + 150-block halving like
 Bitcoin Core regtest, for local testing).
 
-## Launch (mainnet)
+## Join the live network (mainnet)
+
+The public mainnet is live — nodes auto-connect to seed nodes, and anyone
+can mine ALPHA like early Bitcoin:
 
 ```bash
-# 1. start the mainnet node
-python alphad.py --chain main --datadir ./data-mainnet --rpcport 8332
+git clone https://github.com/alphacoin-network/alpha-blockchain.git
+cd alpha-blockchain
 
-# 2. community reserve (5 members → 3-of-5 multisig, 25% = 5,250,000 ALPHA)
+# 1. run a node — auto-connects to public seed nodes
+python alphad.py --chain main --datadir ./data-mainnet
+
+# 2. mine (rewards go to your wallet)
+python mine_alpha.py --datadir ./data-mainnet
+
+# 3. public explorer: http://68.178.163.58:8080
+```
+
+### Community setup (founding members only)
+
+```bash
+# community reserve (5 members → 3-of-5 multisig, 25% = 5,250,000 ALPHA)
 python community_setup.py --chain main        # creates wallets + reserve addr
 
-# 3. mine into the reserve / your wallet
+# mine into the reserve / your wallet
 python alpha_cli.py generatetoaddress 100 <reserve_or_your_address> --rpcport 8332
 
-# 4. block explorer + website
+# block explorer + website
 python alphaweb.py --port 8080                 # http://localhost:8080
 ```
 

@@ -61,7 +61,11 @@ def main() -> int:
     print(f"Alpha node started | chain={params.name} height={node.chain.height} "
           f"| p2p=:{port} rpc=:{rpcport} datadir={datadir}{onion_msg}")
 
-    for target in args.connect:
+    # auto-connect to public seed nodes (like Bitcoin's DNS seeds), plus
+    # any explicit --connect peers
+    targets = list(args.connect) + [s for s in params.seed_nodes
+                                  if s not in args.connect]
+    for target in targets:
         if ":" in target:
             ip, prt = target.rsplit(":", 1)
             ok = node.connect(ip, int(prt))
@@ -73,8 +77,16 @@ def main() -> int:
 
     try:
         prune_every = 0
+        reconnect_every = 0
         while not node.stopped:
             time.sleep(1)
+            # if we lost all peers, retry seed nodes every ~60s
+            reconnect_every += 1
+            if reconnect_every >= 60:
+                reconnect_every = 0
+                if not node.peers:
+                    for s in params.seed_nodes:
+                        node.connect(s, params.default_port)
             if args.prune:
                 prune_every += 1
                 if prune_every >= 60:
