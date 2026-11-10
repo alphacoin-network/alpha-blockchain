@@ -16,6 +16,7 @@ from .mempool import Mempool, MempoolError
 from .tokens import TokenDB
 from .dex import DexDB
 from .amm import AmmDB
+from .identity import IdentityDB
 from .transaction import Transaction
 from .wallet import Wallet
 
@@ -44,6 +45,7 @@ class Node:
         self.tokens = TokenDB()
         self.dex = DexDB()
         self.amm = AmmDB()
+        self.identity = IdentityDB()
         self.chain = Blockchain(
             self.params,
             os.path.join(data_dir, "chain") if data_dir else None,
@@ -52,9 +54,11 @@ class Node:
             lambda b, e, lookup: (
                 self.tokens.apply_block(b, e.height, lookup),
                 self.dex.apply_block(b, e.height, self.tokens, lookup),
-                self.amm.apply_block(b, e.height, self.tokens, lookup)))
+                self.amm.apply_block(b, e.height, self.tokens, lookup),
+                self.identity.apply_block(b, e.height, lookup)))
         self.chain.on_block_disconnected = (
             lambda e: (
+                self.identity.unapply_block(e.height),
                 self.amm.unapply_block(e.height, self.tokens),
                 self.dex.unapply_block(e.height, self.tokens),
                 self.tokens.unapply_block(e.height)))

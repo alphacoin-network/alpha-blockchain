@@ -10,7 +10,7 @@ import time
 from decimal import Decimal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import constants, crypto, amm as _amm, dex as _dex, merkleproof, script, tokens as _tokens, wallet as _wallet
+from . import constants, crypto, amm as _amm, dex as _dex, identity as _id, merkleproof, script, tokens as _tokens, wallet as _wallet
 from .base58 import b58encode_check
 from .block import Block
 from .transaction import (
@@ -923,6 +923,53 @@ class RPCMethods:
         info_out = self.node.tokens.registry.get(tout)
         return {"expected_out": est / (10 ** info_out.decimals)
                 if info_out else est, "token_out": tout.hex()}
+
+    # -- Identity (DID + verifiable credentials) --------------------------------
+    def registeridentity(self, label: str, address: str = None):
+        """Anchor your DID on-chain — did:alpha:<address> gets a label."""
+        if address is None:
+            _, address = self._funded_address()
+        spk = script.script_for_address(address, self.node.params)
+        tx = self._submit_token_op(
+            _id.encode_register(label), spk, address, address)
+        return {"did": "did:alpha:" + address, "txid": tx.txid_hex()}
+
+    def issuecredential(self, subject_address: str, ctype: str,
+                        credential_hash: str = "", address: str = None):
+        """Issue a verifiable credential to a subject DID (e.g. 'kyc').
+        Only the hash is anchored on-chain — privacy-preserving."""
+        if address is None:
+            _, address = self._funded_address()
+        spk = script.script_for_address(address, self.node.params)
+        try:
+            subj = _addr_pkh(subject_address, self.node.params)
+        except ValueError as e:
+            raise RPCError(RPC_INVALID_ADDRESS_OR_KEY, str(e))
+        ch = bytes.fromhex(credential_hash) if credential_hash else b""
+        tx = self._submit_token_op(
+            _id.encode_claim(subj, ctype, ch), spk, address, address)
+        return {"claim_id": tx.txid_hex(),
+                "issuer": "did:alpha:" + address,
+                "subject": "did:alpha:" + subject_address}
+
+    def revokecredential(self, claim_id: str):
+        """Revoke a credential you issued."""
+        cid = hex_to_hash(claim_id)
+        c = self.node.identity.claims.get(cid)
+        if c is None:
+            raise RPCError(RPC_INVALID_PARAMS, "unknown claim")
+        issuer = script.extract_destination(c["issuer"], self.node.params)
+        tx = self._submit_token_op(
+            _id.encode_revoke(cid), c["issuer"], issuer, issuer)
+        return tx.txid_hex()
+
+    def resolveidentity(self, address: str):
+        """Resolve a DID — returns its on-chain document + claims."""
+        try:
+            spk = script.script_for_address(address, self.node.params)
+        except ValueError:
+            raise RPCError(RPC_INVALID_ADDRESS_OR_KEY, "invalid address")
+        return self.node.identity.resolve(spk, self.node.params)
 
     def listtokens(self):
         return self.node.tokens.list_tokens(self.node.params)
