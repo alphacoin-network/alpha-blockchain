@@ -18,6 +18,7 @@ from .dex import DexDB
 from .amm import AmmDB
 from .identity import IdentityDB
 from .web3 import Web3DB
+from .ai import AiDB
 from .transaction import Transaction
 from .wallet import Wallet
 
@@ -48,6 +49,7 @@ class Node:
         self.amm = AmmDB()
         self.identity = IdentityDB()
         self.web3 = Web3DB()
+        self.ai = AiDB()
         self.chain = Blockchain(
             self.params,
             os.path.join(data_dir, "chain") if data_dir else None,
@@ -58,9 +60,11 @@ class Node:
                 self.tokens.apply_block(b, e.height, lookup, self.identity),
                 self.dex.apply_block(b, e.height, self.tokens, lookup),
                 self.amm.apply_block(b, e.height, self.tokens, lookup),
-                self.web3.apply_block(b, e.height, lookup)))
+                self.web3.apply_block(b, e.height, lookup),
+                self.ai.apply_block(b, e.height, lookup)))
         self.chain.on_block_disconnected = (
             lambda e: (
+                self.ai.unapply_block(e.height),
                 self.web3.unapply_block(e.height),
                 self.identity.unapply_block(e.height),
                 self.amm.unapply_block(e.height, self.tokens),

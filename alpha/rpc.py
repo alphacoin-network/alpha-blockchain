@@ -10,7 +10,7 @@ import time
 from decimal import Decimal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import constants, crypto, amm as _amm, dex as _dex, identity as _id, merkleproof, script, tokens as _tokens, wallet as _wallet, web3 as _w3
+from . import constants, crypto, ai as _ai, amm as _amm, dex as _dex, identity as _id, merkleproof, script, tokens as _tokens, wallet as _wallet, web3 as _w3
 from .base58 import b58encode_check
 from .block import Block
 from .transaction import (
@@ -1212,6 +1212,54 @@ class RPCMethods:
                  "achievement": r["ach"], "height": r["height"]}
                 for r in self.node.web3.game_records
                 if game is None or r["game"] == game]
+
+    # -- AI: oracle feeds + agents + M2M receipts ---------------------------------
+    def oraclecreate(self, name: str, meta: str = "", address: str = None):
+        """Create a data feed — you become its verified publisher."""
+        tx = self._op(_ai.feed_reg(name, meta), address)
+        return {"feed_id": tx.txid_hex(), "name": name}
+
+    def oraclepublish(self, feed_id: str, value: str, timestamp: int = 0,
+                      address: str = None):
+        """Publish a data point to YOUR feed — verifiably signed by the
+        publisher's key (the verified source)."""
+        fid = hex_to_hash(feed_id)
+        f = self.node.ai.feeds.get(fid)
+        if f is None:
+            raise RPCError(RPC_INVALID_PARAMS, "unknown feed")
+        if address is None:
+            address = script.extract_destination(f["pub"], self.node.params)
+        return self._op(_ai.feed_pub(fid, str(value), int(timestamp)),
+                        address).txid_hex()
+
+    def oraclefeeds(self):
+        return self.node.ai.list_feeds(self.node.params)
+
+    def oraclelatest(self, feed_id: str):
+        f = self.node.ai.feeds.get(hex_to_hash(feed_id))
+        return None if f is None else f.get("latest")
+
+    def oraclehistory(self, feed_id: str):
+        fid = hex_to_hash(feed_id)
+        return [{"value": p["value"], "ts": p["ts"], "height": p["height"]}
+                for p in self.node.ai.datapoints.get(fid, [])]
+
+    def agentregister(self, name: str, endpoint: str = "",
+                      address: str = None):
+        """Register an AI/machine agent — did:alpha-controlled service."""
+        tx = self._op(_ai.agent_reg(name, endpoint), address)
+        return {"agent_id": tx.txid_hex(), "name": name}
+
+    def listagents(self):
+        return self.node.ai.list_agents(self.node.params)
+
+    def agentreceipt(self, tag: str, address: str = None):
+        """Record an M2M payment receipt on-chain — the tx's payment output
+        is the payment; the OP_RETURN tag is the invoice/job reference."""
+        return self._op(_ai.agent_receipt(tag), address).txid_hex()
+
+    def paymentreceipts(self):
+        return self.node.ai.list_receipts(self.node.params)
 
     def kycstatus(self, address: str):
         """Reusable KYC check — returns all valid 'kyc' claims for a DID,
