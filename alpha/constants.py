@@ -106,7 +106,9 @@ class ChainParams:
 # ---------------------------------------------------------------------------
 MAINNET = ChainParams(
     name="main",
-    pow_limit_bits=0x1D00FFFF,                       # same pow limit as Bitcoin
+    pow_limit_bits=0x1E0FFFFF,                       # CPU-friendly launch diff
+                                                   # (~2^20 avg hashes; Bitcoin's
+                                                   # own pow limit is 0x1D00FFFF)
     pow_target_spacing=POW_TARGET_SPACING,           # 10 minutes
     pow_target_timespan=POW_TARGET_TIMESPAN,         # 2 weeks
     halving_interval=HALVING_INTERVAL,               # 210,000

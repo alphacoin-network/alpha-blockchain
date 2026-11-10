@@ -27,9 +27,42 @@ python alphad.py --chain regtest --datadir ./data2 --rpcport 19443 --port 18445
 python alpha_cli.py --rpcport 19443 addnode 127.0.0.1:18444
 ```
 
-Networks: `--chain main` (Bitcoin-identical economics, difficulty-1 genesis),
+Networks: `--chain main` (Bitcoin-identical economics — 21M supply, 50→halving
+every 210k blocks — with a CPU-friendly launch difficulty `0x1e0fffff`),
 `--chain test`, `--chain regtest` (trivial PoW + 150-block halving like
 Bitcoin Core regtest, for local testing).
+
+## Launch (mainnet)
+
+```bash
+# 1. start the mainnet node
+python alphad.py --chain main --datadir ./data-mainnet --rpcport 8332
+
+# 2. community reserve (5 members → 3-of-5 multisig, 25% = 5,250,000 ALPHA)
+python community_setup.py --chain main        # creates wallets + reserve addr
+
+# 3. mine into the reserve / your wallet
+python alpha_cli.py generatetoaddress 100 <reserve_or_your_address> --rpcport 8332
+
+# 4. block explorer + website
+python alphaweb.py --port 8080                 # http://localhost:8080
+```
+
+### VPS / AWS deployment
+
+```bash
+# on Ubuntu/Debian server:
+bash deploy_vps.sh
+```
+
+### Community & tokenomics
+
+- **25% community reserve** — 5,250,000 ALPHA in a 3-of-5 multisig (any 3 of 5
+  members must sign; no single member controls the fund)
+- **75% mined** — 15,750,000 ALPHA released by the Bitcoin-style schedule
+- **Provable burn** — `burnalpha <amount>` destroys coins via OP_RETURN
+- **Atomic swaps** — `createswap/redeemswap/refundswap` HTLC contracts for
+  trustless exchange with Bitcoin-family chains
 
 ## Bitcoin equivalence
 
