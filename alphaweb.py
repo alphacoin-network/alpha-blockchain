@@ -160,6 +160,17 @@ def make_handler(api: API):
                 elif route == "submitwork":
                     out = api.call("submitwork", qs.get("workid", [""])[0],
                                    int(qs.get("nonce", ["0"])[0]))
+                elif route.startswith("utxos/"):
+                    # unspent outputs for one address (for the web wallet)
+                    addr = route[6:]
+                    scan = api.call("scantxoutset", "start")
+                    tip = api.call("getblockcount")
+                    out = {"address": addr, "height": tip,
+                           "utxos": [u for u in scan.get("unspents", [])
+                                     if u.get("address") == addr]}
+                elif route == "broadcast":
+                    out = api.call("sendrawtransaction",
+                                   qs.get("hex", [""])[0])
                 else:
                     self._json({"error": "not found"}, 404)
                     return
