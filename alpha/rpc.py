@@ -1096,6 +1096,24 @@ class RPCMethods:
         return {"txid": tx.txid_hex(), "paid_alpha": paid / 1e8,
                 "holders_paid": len(outs)}
 
+    def rwabacking(self, token_id: str, asset_class: str, custodian: str,
+                   audit_hash_hex: str = "", address: str = None):
+        """Anchor physical-backing provenance — issuer records the asset's
+        class (real_estate/gold/...), custodian and audit/appraisal hash."""
+        tid = hex_to_hash(token_id)
+        info = self.node.tokens.registry.get(tid)
+        if info is None:
+            raise RPCError(RPC_INVALID_PARAMS, "unknown token")
+        if address is None:
+            address = script.extract_destination(info.issuer_script,
+                                                 self.node.params)
+        spk = script.script_for_address(address, self.node.params)
+        ah = bytes.fromhex(audit_hash_hex) if audit_hash_hex else b""
+        tx = self._submit_token_op(
+            _tokens.encode_assetmeta(tid, asset_class, custodian, ah),
+            spk, address, address)
+        return tx.txid_hex()
+
     def retirementcerts(self):
         return [{"txid": c["txid"].hex(), "amount": c["amount"],
                  "beneficiary": c["beneficiary"], "height": c["height"]}

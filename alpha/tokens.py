@@ -40,9 +40,11 @@ OP_BURN = 0x04
 OP_ISSUE_RWA = 0x05
 OP_CLAWBACK = 0x06
 OP_RETIRE = 0x07
+OP_ASSETMETA = 0x08
 OP_NAMES = {OP_ISSUE: "issue", OP_SEND: "send", OP_MINT: "mint",
             OP_BURN: "burn", OP_ISSUE_RWA: "issue_rwa",
-            OP_CLAWBACK: "clawback", OP_RETIRE: "retire"}
+            OP_CLAWBACK: "clawback", OP_RETIRE: "retire",
+            OP_ASSETMETA: "assetmeta"}
 
 FLAG_KYC_REQUIRED = 0x01      # only claim-holders may receive
 FLAG_CLAWBACK = 0x02          # issuer may seize (compliance)
@@ -92,6 +94,14 @@ def encode_retire(token_id: bytes, amount: int, beneficiary: str) -> bytes:
             + struct.pack("<Q", amount) + bytes([len(b)]) + b)
 
 
+def encode_assetmeta(token_id: bytes, asset_class: str,
+                     custodian: str, audit_hash: bytes) -> bytes:
+    a = asset_class.encode()[:24]; c = custodian.encode()[:64]
+    return (MAGIC + bytes([VERSION, OP_ASSETMETA]) + token_id
+            + bytes([len(a)]) + a + bytes([len(c)]) + c
+            + audit_hash[:32].ljust(32, b"\x00"))
+
+
 def parse_payload(data: bytes):
     """Returns dict describing the op, or None if not an ALP payload."""
     if not data or data[:3] != MAGIC or len(data) < 5:
@@ -129,6 +139,14 @@ def parse_payload(data: bytes):
             bl = data[45]
             return {"op": op, "token_id": data[5:37], "amount": amount,
                     "beneficiary": data[46:46 + bl].decode("utf-8")}
+        if op == OP_ASSETMETA:
+            al = data[37]
+            a = data[38:38 + al].decode("utf-8")
+            cl = data[38 + al]
+            c = data[39 + al:39 + al + cl].decode("utf-8")
+            return {"op": op, "token_id": data[5:37], "aclass": a,
+                    "custodian": c,
+                    "audit": data[39 + al + cl:71 + al + cl]}
     except (IndexError, UnicodeDecodeError, struct.error):
         return None
     return None
@@ -170,6 +188,7 @@ class TokenInfo:
     flags: int = 0              # RWA compliance flags
     kyc_issuer: bytes = b""     # required claim issuer pkh (if flag set)
     retired: int = 0            # permanently retired (carbon offset)
+    backing: dict | None = None # physical backing record (assetmeta)
 
     def to_json(self, params):
         from .utils import hash_to_hex
@@ -185,6 +204,7 @@ class TokenInfo:
             "kyc_required": bool(self.flags & FLAG_KYC_REQUIRED),
             "issuer_can_clawback": bool(self.flags & FLAG_CLAWBACK),
             "retired": self.retired,
+            "backing": self.backing,
         }
 
 
@@ -310,6 +330,15 @@ class TokenDB:
             self.retirements.append(cert)
             j.append(("supply", token_id, -p["amount"]))
             j.append(("retire", cert))
+        elif op == OP_ASSETMETA:
+            info = self.registry.get(p["token_id"])
+            if (info is None or sender is None
+                    or sender != info.issuer_script):
+                return  # only issuer anchors backing
+            prev = info.backing
+            info.backing = {"class": p["aclass"], "custodian": p["custodian"],
+                            "audit": p["audit"].hex(), "height": height}
+            j.append(("backing", info, prev))
         elif op == OP_ISSUE:
             if (recipient is None or not p["name"]
                     or p["decimals"] > MAX_DECIMALS
@@ -371,6 +400,8 @@ class TokenDB:
                 self.balances[key] = self.balances.get(key, 0) - delta
                 if not self.balances[key]:
                     self.balances.pop(key, None)
+            elif rec[0] == "backing":
+                rec[1].backing = rec[2]
             elif rec[0] == "retire":
                 cert = rec[1]
                 info = self.registry.get(cert["token_id"])
