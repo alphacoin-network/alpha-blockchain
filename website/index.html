@@ -2,35 +2,47 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Alpha Blockchain — The Bitcoin-Grade Network &amp; ALPHA Coin</title>
-  <meta name="description" content="Alpha Blockchain: a decentralized network engineered to Bitcoin's exact specification — 21M ALPHA coins, proof-of-work, 10-min blocks, UTXO, segwit+taproot, tokens, explorer and full APIs.">
-  <meta name="keywords" content="alpha blockchain, alpha coin, ALPHA, cryptocurrency, bitcoin, blockchain, mining, tokens, decentralized, UTXO, proof of work">
-  <meta name="author" content="Alpha Blockchain">
-  <meta name="robots" content="index, follow">
+  <title>Alpha Blockchain — Build. Own. Participate.</title>
+  <meta name="description" content="Alpha Blockchain: a Bitcoin-grade decentralized ecosystem — ALPHA coin, tokens, explorer, wallet, APIs and the platform for DeFi, payments, identity, RWA, Web3 and enterprise.">
   <meta name="theme-color" content="#f7931a">
-  <link rel="canonical" href="http://127.0.0.1:8080/">
-  <meta property="og:type" content="website">
-  <meta property="og:title" content="Alpha Blockchain — The Bitcoin-Grade Network">
-  <meta property="og:description" content="21M ALPHA · PoW · UTXO · segwit+taproot · tokens · explorer · full Bitcoin-style APIs.">
-  <meta property="og:image" content="http://127.0.0.1:8080/logo.svg">
-  <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="Alpha Blockchain">
-  <meta name="twitter:description" content="Bitcoin-grade decentralized network — ALPHA coin, tokens, explorer.">
   <link rel="icon" type="image/svg+xml" href="coin.svg">
-  <link rel="apple-touch-icon" href="coin.svg">
-  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="coin.svg"><link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
+  <style>
+    .eco { padding: 30px 0 10px; }
+    .eco-num { color: var(--gold); font-family: var(--mono); font-size: 13px;
+      letter-spacing: 3px; font-weight: 700; }
+    .eco h2 { font-size: 36px; margin: 6px 0 8px; }
+    .eco .eco-sub { color: var(--dim); font-size: 16px; max-width: 640px; margin-bottom: 30px; }
+    .tag-live { display:inline-block; padding:3px 12px; border-radius:12px; font-size:11px;
+      font-weight:800; letter-spacing:.5px; }
+    .tag-live.live { background: rgba(61,220,151,.14); color: var(--green); }
+    .tag-live.coming { background: rgba(139,147,168,.14); color: var(--dim); }
+    .card .status { margin-top: 14px; }
+    .feat { padding-left: 18px; margin-top: 10px; }
+    .feat li { list-style: none; position: relative; padding-left: 16px;
+      color: var(--dim); font-size: 14px; margin-bottom: 4px; }
+    .feat li::before { content: "•"; color: var(--gold); position: absolute; left: 0; }
+    .hero-links { display:flex; gap:14px; flex-wrap:wrap; margin-top:6px; }
+    .cta-banner { text-align:center; padding:70px 20px 50px; }
+    .cta-banner h2 { font-size:36px; margin-bottom:10px; }
+    .cta-banner p { color:var(--dim); margin-bottom:28px; max-width:520px; margin-left:auto;margin-right:auto;}
+  </style>
 </head>
 <body>
 <nav></nav>
+
 <div class="hero">
   <div>
-    <h1>Sound money,<br><span class="g">rebuilt faithfully.</span></h1>
-    <p>Alpha Blockchain is a decentralized network engineered to Bitcoin's exact
-       specification — 21,000,000 coins, 10-minute blocks, proof-of-work, UTXO,
-       halvings — plus a native token layer for building your own projects.</p>
-    <a class="btn btn-gold" href="explorer.html">Open Explorer</a>
-    <a class="btn btn-ghost" href="api.html">Developer API</a>
+    <h1>The Future of<br><span class="g">Decentralized Ecosystem</span></h1>
+    <p>A comprehensive blockchain engineered to the Bitcoin specification —
+       powering DeFi, payments, identity, Web3, AI and enterprise on one secure
+       proof-of-work network. <b style="color:var(--green)">Core network: LIVE.</b></p>
+    <div class="hero-links">
+      <a class="btn btn-gold" href="explorer.html">Explore Alpha</a>
+      <a class="btn btn-ghost" href="whitepaper.html">Whitepaper</a>
+      <a class="btn btn-ghost" href="roadmap.html">Roadmap</a>
+    </div>
   </div>
   <div class="coin-scene">
     <div class="coin-glow"></div>
@@ -44,37 +56,265 @@
 </div>
 
 <section><div class="wrap">
-  <h2 class="title">Live network</h2><p class="sub">Real-time stats from your node.</p>
   <div class="grid stats" id="stats"><div class="loading">loading…</div></div>
 </div></section>
 
-<section><div class="wrap">
-  <h2 class="title">Built like Bitcoin. Nothing less.</h2>
-  <p class="sub">Every consensus rule, wire format and cryptographic primitive
-     mirrors Bitcoin — audited against its real known-answer vectors.</p>
+<!-- 01 ALPHA CORE -->
+<section class="eco"><div class="wrap">
+  <div class="eco-num">01</div>
+  <h2>ALPHA CORE</h2>
+  <p class="eco-sub">The foundation — a Bitcoin-grade decentralized network with
+     proof-of-work consensus, a full Script engine and every developer tool.</p>
   <div class="grid cards">
-    <div class="card"><div class="icon">₿</div><h3>Bitcoin-grade consensus</h3>
-      <p>SHA-256d proof-of-work, 2016-block retargets, 10-minute spacing, median-time-past — byte-identical headers and difficulty math.</p></div>
-    <div class="card"><div class="icon">α</div><h3>21,000,000 ALPHA</h3>
-      <p>50-coin subsidy halving every 210,000 blocks to exactly 20,999,999.9769 total — the same scarcity curve as Bitcoin.</p></div>
-    <div class="card"><div class="icon">⛓</div><h3>UTXO + Script</h3>
-      <p>Full stack-machine interpreter: P2PKH, P2SH, multisig, CLTV/CSV timelocks, segwit v0 witness programs.</p></div>
-    <div class="card"><div class="icon">◈</div><h3>Tokens on-chain</h3>
-      <p>The ALP protocol lets anyone issue, mint, send and burn tokens secured by the same proof-of-work — like Omni on Bitcoin.</p></div>
-    <div class="card"><div class="icon">⇄</div><h3>Real P2P network</h3>
-      <p>Bitcoin's exact wire protocol — version/verack handshake, inv/getdata relay, headers-first sync, block+tx propagation.</p></div>
-    <div class="card"><div class="icon">⌬</div><h3>Decentralized by design</h3>
-      <p>Anyone can mine, run a node, build projects or issue tokens. No permission, no center — just consensus.</p></div>
+    <div class="card"><div class="icon">⛓</div><h3>Alpha Blockchain</h3>
+      <ul class="feat"><li>Decentralized PoW network</li><li>SHA-256d consensus</li>
+        <li>UTXO + reorgs</li><li>Fast transactions</li></ul>
+      <div class="status"><span class="tag-live live">LIVE</span></div></div>
+    <div class="card"><div class="icon">◈</div><h3>Alpha Coin</h3>
+      <ul class="feat"><li>21M supply</li><li>Network fees</li>
+        <li>Miner rewards</li><li>Ecosystem utility</li></ul>
+      <div class="status"><span class="tag-live live">LIVE</span></div></div>
+    <div class="card"><div class="icon">◉</div><h3>Alpha Explorer</h3>
+      <ul class="feat"><li>Block explorer</li><li>Tx + address search</li>
+        <li>Token views</li><li>Live network stats</li></ul>
+      <div class="status"><span class="tag-live live">LIVE</span></div></div>
+    <div class="card"><div class="icon">⌘</div><h3>Alpha RPC & API</h3>
+      <ul class="feat"><li>65+ JSON-RPC methods</li><li>REST API</li>
+        <li>SPV proofs</li><li>Full docs</li></ul>
+      <div class="status"><span class="tag-live live">LIVE</span></div></div>
+    <div class="card"><div class="icon">⌘</div><h3>Alpha SDK</h3>
+      <ul class="feat"><li>alpha_cli client</li><li>JSON-RPC helper</li>
+        <li>PSBT + descriptors</li><li>Documentation</li></ul>
+      <div class="status"><span class="tag-live live">LIVE</span></div></div>
+    <div class="card"><div class="icon">◆</div><h3>Alpha Validators</h3>
+      <ul class="feat"><li>PoW miner network</li><li>Consensus participation</li>
+        <li>Reward distribution</li><li>Network security</li></ul>
+      <div class="status"><span class="tag-live live">LIVE (mining)</span></div></div>
   </div>
 </div></section>
 
-<section><div class="wrap">
-  <h2 class="title">Start building</h2><p class="sub">Three commands and you're mining.</p>
-  <pre>python alphad.py --chain regtest --datadir ./data
-python alpha_cli.py generatetoaddress 101 $(python alpha_cli.py getnewaddress bech32)
-python alpha_cli.py createtoken MyToken 8 1000000</pre>
+<!-- 02 WALLET -->
+<section class="eco"><div class="wrap">
+  <div class="eco-num">02</div>
+  <h2>ALPHA WALLET</h2>
+  <p class="eco-sub">Your gateway — a secure, non-custodial wallet for managing
+     assets and interacting with the Alpha ecosystem.</p>
+  <div class="grid cards">
+    <div class="card"><div class="icon">◈</div><h3>Alpha Wallet</h3>
+      <ul class="feat"><li>Send &amp; receive</li><li>Multi-address (legacy→taproot)</li>
+        <li>Tx history</li><li>AES-256 encryption</li><li>BIP32 HD</li></ul>
+      <div class="status"><span class="tag-live live">LIVE</span></div></div>
+    <div class="card"><div class="icon">◈</div><h3>Web Wallet</h3>
+      <ul class="feat"><li>Browser wallet UI</li><li>QR payments</li>
+        <li>dApp connectivity</li><li>Secure key mgmt</li></ul>
+      <div class="status"><span class="tag-live coming">IN PROGRESS</span></div></div>
+    <div class="card"><div class="icon">◈</div><h3>Mobile Wallet</h3>
+      <ul class="feat"><li>iOS / Android</li><li>Push notifications</li>
+        <li>Biometric lock</li></ul>
+      <div class="status"><span class="tag-live coming">COMING SOON</span></div></div>
+  </div>
 </div></section>
 
-<footer>Alpha Blockchain · ALPHA coin · engineered to the Bitcoin specification</footer>
+<!-- 03 DEFI -->
+<section class="eco"><div class="wrap">
+  <div class="eco-num">03</div>
+  <h2>ALPHA DEFI</h2>
+  <p class="eco-sub">Decentralized finance built on Alpha — the token layer is
+     live, the rest of DeFi is next.</p>
+  <div class="grid cards">
+    <div class="card"><div class="icon">₳</div><h3>Alpha Tokens (ALP)</h3>
+      <ul class="feat"><li>Issue / send / mint / burn</li><li>On-chain registry</li>
+        <li>Holder lists</li><li>Omni-style protocol</li></ul>
+      <div class="status"><span class="tag-live live">LIVE</span></div></div>
+    <div class="card"><div class="icon">⇄</div><h3>Alpha Swap / DEX</h3>
+      <ul class="feat"><li>Token trading</li><li>Liquidity pools</li>
+        <li>Atomic swaps</li><li>Low fees</li></ul>
+      <div class="status"><span class="tag-live coming">COMING SOON</span></div></div>
+    <div class="card"><div class="icon">◇</div><h3>Alpha Staking</h3>
+      <ul class="feat"><li>Network security</li><li>Staking rewards</li>
+        <li>Flexible lock</li><li>Reward tracking</li></ul>
+      <div class="status"><span class="tag-live coming">COMING SOON</span></div></div>
+    <div class="card"><div class="icon">$</div><h3>Alpha Stablecoin</h3>
+      <ul class="feat"><li>Fiat-backed asset</li><li>Payment infra</li>
+        <li>DeFi integration</li><li>Settlement</li></ul>
+      <div class="status"><span class="tag-live coming">COMING SOON</span></div></div>
+    <div class="card"><div class="icon">₳</div><h3>Alpha Lending & Escrow</h3>
+      <ul class="feat"><li>On-chain collateral</li><li>Escrow contracts</li>
+        <li>Interest rates</li><li>Auto release</li></ul>
+      <div class="status"><span class="tag-live coming">COMING SOON</span></div></div>
+  </div>
+</div></section>
+
+<!-- 04 PAY -->
+<section class="eco"><div class="wrap">
+  <div class="eco-num">04</div>
+  <h2>ALPHA PAY</h2>
+  <p class="eco-sub">Payments without borders — blockchain-powered payments for
+     individuals, businesses and merchants.</p>
+  <div class="grid cards">
+    <div class="card"><div class="icon">₳</div><h3>Alpha Pay</h3>
+      <ul class="feat"><li>P2P payments</li><li>Merchant API</li>
+        <li>Payment links</li><li>Tx tracking</li></ul>
+      <div class="status"><span class="tag-live live">LIVE (core)</span></div></div>
+    <div class="card"><div class="icon">↗</div><h3>QR & Merchant</h3>
+      <ul class="feat"><li>QR payments</li><li>Invoice links</li>
+        <li>Checkout API</li><li>Merchant tools</li></ul>
+      <div class="status"><span class="tag-live coming">IN PROGRESS</span></div></div>
+    <div class="card"><div class="icon">↗</div><h3>Alpha Remittance</h3>
+      <ul class="feat"><li>Cross-border payments</li><li>International settlement</li>
+        <li>Low fees</li><li>Fast transfers</li></ul>
+      <div class="status"><span class="tag-live coming">COMING SOON</span></div></div>
+    <div class="card"><div class="icon">🔒</div><h3>Alpha Escrow</h3>
+      <ul class="feat"><li>Secure P2P escrow</li><li>Business transactions</li>
+        <li>Automated release</li><li>Dispute handling</li></ul>
+      <div class="status"><span class="tag-live coming">COMING SOON</span></div></div>
+  </div>
+</div></section>
+
+<!-- 05 IDENTITY -->
+<section class="eco"><div class="wrap">
+  <div class="eco-num">05</div>
+  <h2>ALPHA IDENTITY</h2>
+  <p class="eco-sub">Your identity, your control — decentralized identity and
+     verifiable credentials.</p>
+  <div class="grid cards">
+    <div class="card"><div class="icon">◎</div><h3>Alpha ID</h3>
+      <ul class="feat"><li>Portable identity</li><li>User-controlled</li>
+        <li>Privacy-first</li><li>Alpha apps</li></ul>
+      <div class="status"><span class="tag-live coming">COMING SOON</span></div></div>
+    <div class="card"><div class="icon">ID</div><h3>Alpha DID</h3>
+      <ul class="feat"><li>Decentralized ID</li><li>Verifiable credentials</li>
+        <li>Self-sovereign</li><li>DID infra</li></ul>
+      <div class="status"><span class="tag-live coming">COMING SOON</span></div></div>
+    <div class="card"><div class="icon">✓</div><h3>Alpha KYC</h3>
+      <ul class="feat"><li>Reusable verification</li><li>Business integration</li>
+        <li>Privacy-preserving</li><li>Compliance</li></ul>
+      <div class="status"><span class="tag-live coming">COMING SOON</span></div></div>
+  </div>
+</div></section>
+
+<!-- 06 RWA -->
+<section class="eco"><div class="wrap">
+  <div class="eco-num">06</div>
+  <h2>ALPHA RWA</h2>
+  <p class="eco-sub">Bringing real-world assets on-chain — tokenization of
+     eligible real-world assets.</p>
+  <div class="grid cards">
+    <div class="card"><div class="icon">◈</div><h3>Alpha RWA</h3>
+      <ul class="feat"><li>Asset tokenization</li><li>Compliance-ready</li>
+        <li>Fractional ownership</li><li>ALP-powered</li></ul>
+      <div class="status"><span class="tag-live coming">COMING SOON</span></div></div>
+    <div class="card"><div class="icon">⌂</div><h3>Real Estate & Gold</h3>
+      <ul class="feat"><li>Property tokens</li><li>Gold-backed assets</li>
+        <li>Rental income</li><li>Physical backing</li></ul>
+      <div class="status"><span class="tag-live coming">COMING SOON</span></div></div>
+    <div class="card"><div class="icon">♻</div><h3>Alpha Carbon</h3>
+      <ul class="feat"><li>Carbon credits</li><li>Verification</li>
+        <li>Sustainability</li><li>Impact tracking</li></ul>
+      <div class="status"><span class="tag-live coming">COMING SOON</span></div></div>
+  </div>
+</div></section>
+
+<!-- 07 WEB3 -->
+<section class="eco"><div class="wrap">
+  <div class="eco-num">07</div>
+  <h2>ALPHA WEB3</h2>
+  <p class="eco-sub">Build, own, participate — NFTs, gaming, marketplaces and
+     domains on Alpha.</p>
+  <div class="grid cards">
+    <div class="card"><div class="icon">◆</div><h3>Alpha NFT</h3>
+      <ul class="feat"><li>Create &amp; manage</li><li>Digital collectibles</li>
+        <li>On-chain ownership</li><li>Transfer assets</li></ul>
+      <div class="status"><span class="tag-live coming">COMING SOON</span></div></div>
+    <div class="card"><div class="icon">🎮</div><h3>Alpha Gaming</h3>
+      <ul class="feat"><li>Blockchain games</li><li>Digital ownership</li>
+        <li>Game economies</li><li>Play-to-earn</li></ul>
+      <div class="status"><span class="tag-live coming">COMING SOON</span></div></div>
+    <div class="card"><div class="icon">◇</div><h3>Alpha Marketplace</h3>
+      <ul class="feat"><li>Decentralized market</li><li>Digital assets</li>
+        <li>Web3 products</li><li>P2P trading</li></ul>
+      <div class="status"><span class="tag-live coming">COMING SOON</span></div></div>
+    <div class="card"><div class="icon">🌐</div><h3>Alpha Domains</h3>
+      <ul class="feat"><li>Blockchain domains</li><li>Decentralized naming</li>
+        <li>e.g. vikas.alpha</li><li>Web3 identity</li></ul>
+      <div class="status"><span class="tag-live coming">COMING SOON</span></div></div>
+  </div>
+</div></section>
+
+<!-- 08 AI -->
+<section class="eco"><div class="wrap">
+  <div class="eco-num">08</div>
+  <h2>ALPHA AI</h2>
+  <p class="eco-sub">Where artificial intelligence meets blockchain.</p>
+  <div class="grid cards">
+    <div class="card"><div class="icon">✦</div><h3>Alpha AI Agents</h3>
+      <ul class="feat"><li>Autonomous payments</li><li>AI trading</li>
+        <li>Business automation</li><li>M2M payments</li></ul>
+      <div class="status"><span class="tag-live coming">COMING SOON</span></div></div>
+    <div class="card"><div class="icon">◉</div><h3>Alpha Oracle</h3>
+      <ul class="feat"><li>External data feeds</li><li>Verified sources</li>
+        <li>Real-time updates</li><li>On-chain apps</li></ul>
+      <div class="status"><span class="tag-live coming">COMING SOON</span></div></div>
+  </div>
+</div></section>
+
+<!-- 09 ENTERPRISE -->
+<section class="eco"><div class="wrap">
+  <div class="eco-num">09</div>
+  <h2>ALPHA ENTERPRISE</h2>
+  <p class="eco-sub">Blockchain for real-world businesses — supply chain,
+     certificates, audit and registry.</p>
+  <div class="grid cards">
+    <div class="card"><div class="icon">📦</div><h3>Supply Chain</h3>
+      <ul class="feat"><li>Product tracking</li><li>Shipment verification</li>
+        <li>Transparency</li><li>Event history</li></ul>
+      <div class="status"><span class="tag-live coming">COMING SOON</span></div></div>
+    <div class="card"><div class="icon">✓</div><h3>Certificates & Audit</h3>
+      <ul class="feat"><li>Digital certificates</li><li>Tamper-evident</li>
+        <li>Verifiable records</li><li>Immutable logs</li></ul>
+      <div class="status"><span class="tag-live coming">COMING SOON</span></div></div>
+    <div class="card"><div class="icon">🏢</div><h3>Business Registry</h3>
+      <ul class="feat"><li>Corporate registry</li><li>Verifiable records</li>
+        <li>On-chain info</li><li>Compliance</li></ul>
+      <div class="status"><span class="tag-live coming">COMING SOON</span></div></div>
+  </div>
+</div></section>
+
+<!-- 10 DEVELOPERS -->
+<section class="eco"><div class="wrap">
+  <div class="eco-num">10</div>
+  <h2>ALPHA DEVELOPERS</h2>
+  <p class="eco-sub">Everything developers need to build the next generation
+     of decentralized applications.</p>
+  <div class="grid cards">
+    <div class="card"><div class="icon">⌘</div><h3>Developer Portal</h3>
+      <ul class="feat"><li>Documentation</li><li>APIs</li>
+        <li>Tutorials</li><li>Network resources</li></ul>
+      <div class="status"><span class="tag-live live">LIVE</span></div></div>
+    <div class="card"><div class="icon">🧪</div><h3>Alpha Testnet</h3>
+      <ul class="feat"><li>Regtest environment</li><li>App testing</li>
+        <li>Mainnet prep</li><li>Dev tools</li></ul>
+      <div class="status"><span class="tag-live live">LIVE</span></div></div>
+    <div class="card"><div class="icon">💧</div><h3>Alpha Faucet</h3>
+      <ul class="feat"><li>Testnet assets</li><li>Dev support</li>
+        <li>Free coins</li><li>Testing resources</li></ul>
+      <div class="status"><span class="tag-live coming">COMING SOON</span></div></div>
+    <div class="card"><div class="icon">📊</div><h3>Alpha Status</h3>
+      <ul class="feat"><li>Real-time status</li><li>Network monitoring</li>
+        <li>Uptime tracking</li><li>Infra health</li></ul>
+      <div class="status"><span class="tag-live live">LIVE (stats API)</span></div></div>
+  </div>
+</div></section>
+
+<div class="cta-banner wrap">
+  <h2>The Alpha Ecosystem Is Just Beginning</h2>
+  <p>From decentralized finance and payments to AI, Web3, identity and real-world
+     assets — Alpha Blockchain is building the infrastructure for the next
+     generation of decentralized applications.</p>
+  <a class="btn btn-gold" href="explorer.html">Explore Alpha Blockchain</a>
+  <a class="btn btn-ghost" href="roadmap.html" style="margin-left:12px">View Roadmap</a>
+</div>
+
+<footer>Alpha Blockchain · Build on Alpha. Connect to the Future.</footer>
 <script src="app.js"></script><script>nav('home'); loadStats('stats');</script>
 </body></html>

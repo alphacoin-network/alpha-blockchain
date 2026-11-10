@@ -51,7 +51,7 @@ nav('rm');
 const M = (t, d, s) => ({ t, d, s });
 
 const PHASES = [
-  { q: 'PHASE 1 — Core Foundation', name: 'Alpha Core', items: [
+  { q: '01 — ALPHA CORE', name: 'Alpha Core', items: [
     M('Blockchain consensus', 'PoW sha256d, 80B headers, nBits, retarget ±4×, MTP-11, chainwork, reorgs', 'done'),
     M('Alpha Coin & supply', '21M cap, 50→halving/210k, exact 20,999,999.9769, coinbase maturity', 'done'),
     M('UTXO model', 'Deterministic set, fee accounting, spend/undo, persistence', 'done'),
@@ -60,7 +60,7 @@ const PHASES = [
     M('Taproot + Tapscript', 'Schnorr BIP340, key+script-path, OP_CHECKSIGADD, control blocks', 'done'),
     M('Genesis & vectors', 'Bitcoin genesis reproduced, KAT vectors verified', 'done'),
   ]},
-  { q: 'PHASE 2 — Network & Infrastructure', name: 'Networking', items: [
+  { q: '02 — ALPHA NETWORK', name: 'Networking', items: [
     M('P2P wire protocol', 'magic+command+checksum, version/verack, inv/getdata/tx/block/headers', 'done'),
     M('Sync & relay', 'headers-first, block+tx relay, 2-node live sync verified', 'done'),
     M('Compact blocks', 'BIP152 siphash short-IDs, mempool reconstruction, blocktxn', 'done'),
@@ -70,7 +70,7 @@ const PHASES = [
     M('Tor / I2P', 'SOCKS5 proxy, .onion hidden-service hosting', 'done'),
     M('Pruning & assumeutxo', 'keep-N block pruning + UTXO snapshot fast-sync', 'done'),
   ]},
-  { q: 'PHASE 3 — Wallet & Signing', name: 'Wallet', items: [
+  { q: '03 — ALPHA WALLET', name: 'Wallet', items: [
     M('Wallet core', 'WIF keys, coin-select, change, largest-first', 'done'),
     M('Encryption', 'AES-256-CBC + SHA-512×25000, encryptwallet/passphrase/lock', 'done'),
     M('HD wallets', 'BIP32 xprv/xpub, hardened/normal, BIP39 seed', 'done'),
@@ -79,14 +79,14 @@ const PHASES = [
     M('PSBT', 'BIP174 create/fund/sign/combine/finalize', 'done'),
     M('Descriptors', 'BIP380 pkh/wpkh/tr/sh/wsh/multi/sortedmulti', 'done'),
   ]},
-  { q: 'PHASE 4 — Tokens & Assets', name: 'ALP Tokens', items: [
+  { q: '04 — ALPHA DEFI', name: 'DeFi & Tokens', items: [
     M('Token protocol', 'ALP OP_RETURN issue/send/mint/burn (Omni-style)', 'done'),
     M('Token indexer', 'Deterministic balances + registry + reorg undo', 'done'),
     M('Token explorer', 'Token list, holders, balances on the site', 'done'),
     M('OP_RETURN projects', 'Embed arbitrary project data on-chain', 'done'),
     M('Stablecoin', 'Fiat-backed asset on ALP', 'todo'),
   ]},
-  { q: 'PHASE 5 — APIs & Developer Tools', name: 'APIs', items: [
+  { q: '05 — ALPHA DEVELOPERS', name: 'APIs & Dev Tools', items: [
     M('JSON-RPC', '~65 bitcoind-compatible methods', 'done'),
     M('REST API', '/rest/chaininfo|block|tx|headers|mempool|utxo|tokens', 'done'),
     M('Explorer + web API', 'blocks/tx/address/tokens/search + landing + docs', 'done'),
@@ -94,14 +94,14 @@ const PHASES = [
     M('Fee estimation', 'estimatesmartfee (CPFP package feerates)', 'done'),
     M('SDK / client libs', 'alpha_cli + JSON client helper', 'done'),
   ]},
-  { q: 'PHASE 6 — Security', name: 'Security', items: [
+  { q: '06 — ALPHA SECURITY', name: 'Security', items: [
     M('RPC authentication', 'bitcoind-style .cookie auth (401 without)', 'done'),
     M('Wallet encryption', 'AES-256 + passphrase, owner-only files', 'done'),
     M('Consensus hardening', 'all bounds enforced, all attack vectors tested', 'done'),
     M('Signature safety', 'RFC6979, strict DER, low-S, curve checks', 'done'),
     M('Audit & tests', '40/40 tests — vectors, consensus, integration, attacks', 'done'),
   ]},
-  { q: 'PHASE 7 — Ecosystem (next)', name: 'Ecosystem', items: [
+  { q: '07 — ALPHA ECOSYSTEM', name: 'Pay · Identity · RWA · Web3 · AI · Enterprise', items: [
     M('Web wallet UI', 'Browser wallet on top of alphaweb', 'wip'),
     M('Merchant & payments', 'Invoices, QR pay, payment links', 'todo'),
     M('Alpha Swap / DEX', 'AMM + atomic swaps on ALP', 'todo'),
