@@ -26,6 +26,21 @@ class RPCError(Exception):
         self.code = code
 
 
+def _addr_pkh(address: str, params) -> bytes:
+    """Extract the 20-byte pubkey-hash from a P2PKH/bech32 address."""
+    from .base58 import b58decode_check
+    from .bech32 import decode_segwit_address
+    if address.startswith(params.bech32_hrp + "1"):
+        ver, prog = decode_segwit_address(params.bech32_hrp, address)
+        if ver == 0 and len(prog) == 20:
+            return bytes(prog)
+        raise ValueError("bech32 address must be v0 P2WPKH for swaps")
+    raw = b58decode_check(address)
+    if raw[0] == params.base58_pubkey_address and len(raw) == 21:
+        return raw[1:]
+    raise ValueError("address must be P2PKH or P2WPKH for swaps")
+
+
 RPC_PARSE_ERROR = -32700
 RPC_INVALID_REQUEST = -32600
 RPC_METHOD_NOT_FOUND = -32601
@@ -450,13 +465,93 @@ class RPCMethods:
             pubs.append(crypto.serialize_pubkey(pk, True))
         n = int(nrequired)
         if n < 1 or n > len(pubs) or len(pubs) > 15:
-            raise RPCError(RPC_INVALID_PARAMETER,
+            raise RPCError(RPC_INVALID_PARAMS,
                            "need 1 <= nrequired <= len(keys) <= 15")
         redeem = script.script_multisig(n, pubs)
         addr = b58encode_check(
             bytes([self.node.params.base58_script_address])
             + hash160(redeem))
         return {"address": addr, "redeemScript": redeem.hex()}
+
+    # -- atomic swaps (HTLC) ---------------------------------------------------
+    def createswap(self, amount, claim_address: str, refund_address: str,
+                   locktime: int):
+        """Initiate an atomic swap: creates an HTLC and funds it.
+
+        claim_address  — counterparty claims with the secret
+        refund_address — you get coins back after locktime if unclaimed"""
+        from . import atomicswap
+        params = self.node.params
+        secret, secret_hash = atomicswap.make_secret()
+        try:
+            claim_pkh = _addr_pkh(claim_address, params)
+            refund_pkh = _addr_pkh(refund_address, params)
+        except ValueError as e:
+            raise RPCError(RPC_INVALID_ADDRESS_OR_KEY, str(e))
+        redeem = atomicswap.htlc_script(secret_hash, claim_pkh, refund_pkh,
+                                        int(locktime))
+        htlc_addr = atomicswap.htlc_address(redeem, params)
+        txid = self.sendtoaddress(htlc_addr, amount)
+        return {
+            "contract_address": htlc_addr,
+            "redeem_script": redeem.hex(),
+            "secret": secret.hex(),
+            "secret_hash": secret_hash.hex(),
+            "locktime": int(locktime),
+            "funding_txid": txid,
+            "amount": float(amount),
+            "warning": "share secret_hash+redeem with counterparty; "
+                       "keep 'secret' until they lock their side",
+        }
+
+    def decodeswap(self, redeem_hex: str):
+        """Decode a swap contract (redeem script)."""
+        from . import atomicswap
+        try:
+            return atomicswap.decode_htlc(bytes.fromhex(redeem_hex))
+        except Exception as e:
+            raise RPCError(RPC_INVALID_PARAMS, str(e))
+
+    def redeemswap(self, txid: str, vout: int, value, redeem_hex: str,
+                   secret_hex: str, dest_address: str, fee=1000):
+        """Claim the contract using the secret (counterparty side)."""
+        from . import atomicswap
+        key = self.node.wallet._key_for_address(dest_address)
+        if key is None:
+            raise RPCError(RPC_INVALID_ADDRESS_OR_KEY,
+                           "dest_address not in this wallet")
+        try:
+            tx = atomicswap.build_redeem(
+                OutPoint(hex_to_hash(txid), int(vout)), sats(value),
+                bytes.fromhex(redeem_hex), bytes.fromhex(secret_hex),
+                key, script.script_for_address(dest_address,
+                                               self.node.params),
+                int(fee))
+        except Exception as e:
+            raise RPCError(RPC_MISC_ERROR, str(e))
+        self.node.submit_tx(tx)
+        return tx.txid_hex()
+
+    def refundswap(self, txid: str, vout: int, value, redeem_hex: str,
+                   dest_address: str, fee=1000):
+        """Refund the contract after the locktime has passed."""
+        from . import atomicswap
+        key = self.node.wallet._key_for_address(dest_address)
+        if key is None:
+            raise RPCError(RPC_INVALID_ADDRESS_OR_KEY,
+                           "dest_address not in this wallet")
+        info = atomicswap.decode_htlc(bytes.fromhex(redeem_hex))
+        try:
+            tx = atomicswap.build_refund(
+                OutPoint(hex_to_hash(txid), int(vout)), sats(value),
+                bytes.fromhex(redeem_hex), key,
+                script.script_for_address(dest_address,
+                                          self.node.params),
+                info["locktime"], int(fee))
+        except Exception as e:
+            raise RPCError(RPC_MISC_ERROR, str(e))
+        self.node.submit_tx(tx)
+        return tx.txid_hex()
 
     # -- wallet encryption (bitcoind encryptwallet/walletpassphrase/walletlock) --
     def encryptwallet(self, passphrase: str):
