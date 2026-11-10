@@ -971,6 +971,57 @@ class RPCMethods:
             raise RPCError(RPC_INVALID_ADDRESS_OR_KEY, "invalid address")
         return self.node.identity.resolve(spk, self.node.params)
 
+    def updateidentity(self, label: str, doc_hash_hex: str = "",
+                       address: str = None):
+        """Update your DID profile — label + metadata/document hash."""
+        if address is None:
+            _, address = self._funded_address()
+        spk = script.script_for_address(address, self.node.params)
+        dh = bytes.fromhex(doc_hash_hex) if doc_hash_hex else b""
+        tx = self._submit_token_op(
+            _id.encode_register(label, dh), spk, address, address)
+        return {"did": "did:alpha:" + address, "txid": tx.txid_hex()}
+
+    def alphaidchallenge(self, address: str, domain: str,
+                         nonce: str = None):
+        """Alpha ID sign-in challenge — a canonical message the wallet signs
+        to prove DID control to an app (verify with verifymessage)."""
+        import secrets as _s
+        nonce = nonce or _s.token_hex(8)
+        msg = (f"Sign in to {domain} with Alpha ID\n"
+               f"Address: {address}\nNonce: {nonce}")
+        return {"message": msg, "sign_with": "signmessage",
+                "verify_with": "verifymessage"}
+
+    def verifycredential(self, claim_id: str, issuer_address: str = None):
+        """Check a credential is real, unrevoked, and (optionally) issued
+        by a specific issuer — reusable verification."""
+        cid = hex_to_hash(claim_id)
+        c = self.node.identity.claims.get(cid)
+        if c is None:
+            return {"valid": False, "reason": "claim not found"}
+        issuer = script.extract_destination(c["issuer"], self.node.params)
+        if issuer_address is not None and issuer != issuer_address:
+            return {"valid": False, "reason": "issuer mismatch"}
+        return {"valid": not c["revoked"], "revoked": c["revoked"],
+                "type": c["ctype"], "hash": c["chash"].hex(),
+                "issuer": issuer, "height": c["height"]}
+
+    def kycstatus(self, address: str):
+        """Reusable KYC check — returns all valid 'kyc' claims for a DID,
+        with issuers. Apps trust whichever issuers they accept."""
+        try:
+            pkh = _addr_pkh(address, self.node.params)
+        except ValueError:
+            raise RPCError(RPC_INVALID_ADDRESS_OR_KEY, "invalid address")
+        valid = [c for c in self.node.identity.claims.values()
+                 if c["subject"] == pkh and c["ctype"] == "kyc"
+                 and not c["revoked"]]
+        return {"did": "did:alpha:" + address, "kyc_verified": bool(valid),
+                "issuers": [script.extract_destination(c["issuer"],
+                            self.node.params) for c in valid],
+                "count": len(valid)}
+
     def listtokens(self):
         return self.node.tokens.list_tokens(self.node.params)
 
