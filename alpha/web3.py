@@ -22,6 +22,7 @@ kind=0x03 GAME
 
 import struct
 from . import script as _script
+from .utils import hash_to_hex
 
 MAGIC = b"W3"
 VERSION = 1
@@ -259,12 +260,12 @@ class Web3DB:
                 "height": d["height"]}
 
     def list_nfts(self, params):
-        return [{"nft_id": n["id"].hex(), "name": n["name"], "uri": n["uri"],
+        return [{"nft_id": hash_to_hex(n["id"]), "name": n["name"], "uri": n["uri"],
                  "owner": _script.extract_destination(n["owner"], params)}
                 for n in self.nfts.values()]
 
     def list_orders(self, params):
-        return [{"order_id": o["oid"].hex(), "nft": o["nft"]["name"],
+        return [{"order_id": hash_to_hex(o["oid"]), "nft": o["nft"]["name"],
                  "price_alpha": o["price"] / 1e8,
                  "seller": _script.extract_destination(o["seller"], params)}
                 for o in self.nft_orders.values()]

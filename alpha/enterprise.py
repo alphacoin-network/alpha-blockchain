@@ -17,6 +17,7 @@ kind=0x03 BIZ — corporate registry
 
 import struct
 from . import script as _script
+from .utils import hash_to_hex
 
 MAGIC = b"ENT"
 VERSION = 1
@@ -151,7 +152,7 @@ class EntDB:
                 if it and it["owner"] == sender:
                     ev = {"stage": p["stage"], "loc": p["loc"],
                           "note": p["note"], "height": height,
-                          "txid": tx.txid().hex()}
+                          "txid": hash_to_hex(tx.txid())}
                     self.events[it["id"]].append(ev)
                     j.append(("event", it["id"], ev))
         elif k == K_CERT:
@@ -215,13 +216,13 @@ class EntDB:
         return self.certs.get(cid)
 
     def list_items(self, params):
-        return [{"item_id": i["id"].hex(), "name": i["name"], "sku": i["sku"],
+        return [{"item_id": hash_to_hex(i["id"]), "name": i["name"], "sku": i["sku"],
                  "events": len(self.events[i["id"]]),
                  "owner": _script.extract_destination(i["owner"], params)}
                 for i in self.items.values()]
 
     def list_biz(self, params):
-        return [{"biz_id": b["id"].hex(), "name": b["name"],
+        return [{"biz_id": hash_to_hex(b["id"]), "name": b["name"],
                  "reg": b["reg"], "jurisdiction": b["jur"],
                  "fields": b["fields"],
                  "owner": _script.extract_destination(b["owner"], params)}

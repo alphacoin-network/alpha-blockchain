@@ -23,6 +23,7 @@ kind=0x03 INVOICE — merchant payment links
 
 import struct
 from . import script as _script
+from .utils import hash_to_hex
 
 MAGIC = b"ESC"
 VERSION = 1
@@ -299,21 +300,21 @@ class EscrowDB:
     def list_escrows(self, params):
         out = []
         for e in self.escrows.values():
-            out.append({"escrow_id": e["id"].hex(), "open": e["open"],
+            out.append({"escrow_id": hash_to_hex(e["id"]), "open": e["open"],
                         "amount": e["amt"], "disputed": e["disputed"],
                         "expiry": e["expiry"],
                         "depositor": _script.extract_destination(e["dep"], params)})
         return out
 
     def list_loans(self, params):
-        return [{"loan_id": l["id"].hex(), "state": l["state"],
+        return [{"loan_id": hash_to_hex(l["id"]), "state": l["state"],
                  "collateral": l["camt"],
                  "principal_alpha": l["pamt"] / 1e8 if l["ptid"] == ZERO32 else l["pamt"],
                  "interest_bps": l["bps"], "due_height": l["due"]}
                 for l in self.loans.values()]
 
     def list_invoices(self, params):
-        return [{"invoice_id": i["id"].hex(), "label": i["label"],
+        return [{"invoice_id": hash_to_hex(i["id"]), "label": i["label"],
                  "amount": i["amt"] / 1e8, "paid": i["paid"],
                  "merchant": _script.extract_destination(i["merchant"], params)}
                 for i in self.invoices.values()]

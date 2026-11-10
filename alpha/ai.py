@@ -17,6 +17,7 @@ kind=0x02 AGENT — AI/machine actors + M2M payment receipts
 
 import struct
 from . import script as _script
+from .utils import hash_to_hex
 
 MAGIC = b"AI"
 VERSION = 1
@@ -140,7 +141,7 @@ class AiDB:
                 f = self.feeds.get(p["feed"])
                 if f and f["pub"] == sender:
                     pt = {"value": p["value"], "ts": p["ts"],
-                          "height": height, "txid": tx.txid().hex()}
+                          "height": height, "txid": hash_to_hex(tx.txid())}
                     self.datapoints[f["id"]].append(pt)
                     f["latest"] = pt
                     j.append(("point", f, pt))
@@ -182,7 +183,7 @@ class AiDB:
     def list_feeds(self, params):
         out = []
         for f in self.feeds.values():
-            out.append({"feed_id": f["id"].hex(), "name": f["name"],
+            out.append({"feed_id": hash_to_hex(f["id"]), "name": f["name"],
                         "meta": f["meta"],
                         "publisher": _script.extract_destination(f["pub"], params),
                         "latest": f.get("latest"),
@@ -190,7 +191,7 @@ class AiDB:
         return out
 
     def list_agents(self, params):
-        return [{"agent_id": a["id"].hex(), "name": a["name"],
+        return [{"agent_id": hash_to_hex(a["id"]), "name": a["name"],
                  "endpoint": a["endpoint"],
                  "owner": _script.extract_destination(a["owner"], params)}
                 for a in self.agents.values()]
