@@ -60,10 +60,10 @@ def biz_update(biz_id, field, val):
 
 
 def parse_payload(data):
-    if not data or data[:3] != MAGIC or len(data) < 4 or data[3] != VERSION:
+    if not data or data[:3] != MAGIC or len(data) < 6 or data[3] != VERSION:
         return None
-    k, op = data[3], data[4]
-    d = data[5:]
+    k, op = data[4], data[5]
+    d = data[6:]
     try:
         def r(i, n=255):
             ln = d[i]

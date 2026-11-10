@@ -20,6 +20,7 @@ from .identity import IdentityDB
 from .web3 import Web3DB
 from .ai import AiDB
 from .enterprise import EntDB
+from .escrow import EscrowDB
 from .transaction import Transaction
 from .wallet import Wallet
 
@@ -52,6 +53,7 @@ class Node:
         self.web3 = Web3DB()
         self.ai = AiDB()
         self.enterprise = EntDB()
+        self.escrow = EscrowDB()
         self.chain = Blockchain(
             self.params,
             os.path.join(data_dir, "chain") if data_dir else None,
@@ -64,9 +66,11 @@ class Node:
                 self.amm.apply_block(b, e.height, self.tokens, lookup),
                 self.web3.apply_block(b, e.height, lookup),
                 self.ai.apply_block(b, e.height, lookup),
-                self.enterprise.apply_block(b, e.height, lookup)))
+                self.enterprise.apply_block(b, e.height, lookup),
+                self.escrow.apply_block(b, e.height, self.tokens, lookup)))
         self.chain.on_block_disconnected = (
             lambda e: (
+                self.escrow.unapply_block(e.height, self.tokens),
                 self.enterprise.unapply_block(e.height),
                 self.ai.unapply_block(e.height),
                 self.web3.unapply_block(e.height),

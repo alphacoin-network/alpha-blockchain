@@ -10,7 +10,7 @@ import time
 from decimal import Decimal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import constants, crypto, ai as _ai, amm as _amm, dex as _dex, enterprise as _ent, identity as _id, merkleproof, script, tokens as _tokens, wallet as _wallet, web3 as _w3
+from . import constants, crypto, ai as _ai, amm as _amm, dex as _dex, enterprise as _ent, escrow as _esc, identity as _id, merkleproof, script, tokens as _tokens, wallet as _wallet, web3 as _w3
 from .base58 import b58encode_check
 from .block import Block
 from .transaction import (
@@ -1354,6 +1354,159 @@ class RPCMethods:
                            "must be mined or traded")
         amt = min(float(amount), 100.0)
         return self.sendtoaddress(address, amt)
+
+    # -- Escrow & Lending ----------------------------------------------------------
+    def _dep(self, tid, amt):
+        spk, addr = self._find_token_address(tid, amt)
+        if spk is None:
+            raise RPCError(RPC_WALLET_INSUFFICIENT_FUNDS,
+                           "no wallet address holds enough tokens")
+        return spk, addr
+
+    def escrowopen(self, token_id: str, amount, beneficiary: str,
+                   arbiter: str, expiry_blocks: int = 1008,
+                   terms: str = "", address: str = None):
+        """Lock tokens in a 3-party escrow (depositor/beneficiary/arbiter)."""
+        tid = hex_to_hash(token_id)
+        info = self.node.tokens.registry.get(tid)
+        if info is None:
+            raise RPCError(RPC_INVALID_PARAMS, "unknown token")
+        raw = int(Decimal(str(amount)) * (10 ** info.decimals))
+        if address is None:
+            spk, address = self._dep(tid, raw)
+        else:
+            spk = script.script_for_address(address, self.node.params)
+        exp = self.node.chain.height + int(expiry_blocks)
+        tx = self._submit_token_op(
+            _esc.esc_open(tid, raw, _addr_pkh(beneficiary, self.node.params),
+                          _addr_pkh(arbiter, self.node.params), exp, terms),
+            spk, address, address)
+        return {"escrow_id": tx.txid_hex(), "expiry_height": exp}
+
+    def _escact(self, op, escrow_id):
+        e = self.node.escrow.escrows.get(hex_to_hash(escrow_id))
+        if e is None:
+            raise RPCError(RPC_INVALID_PARAMS, "unknown escrow")
+        addr = script.extract_destination(e["dep"], self.node.params)
+        return self._op(_esc.esc_op(op, e["id"]), addr).txid_hex()
+
+    def escrowrelease(self, escrow_id: str):
+        """Release escrowed tokens to the beneficiary (depositor or arbiter)."""
+        return self._escact(_esc.K_ESC * 0 + 2, escrow_id)
+
+    def escrowdispute(self, escrow_id: str):
+        """Flag a dispute — freezes until the arbiter acts."""
+        return self._escact(3, escrow_id)
+
+    def escrowclaim(self, escrow_id: str):
+        """Beneficiary auto-claims after expiry height."""
+        return self._escact(4, escrow_id)
+
+    def escrowrefund(self, escrow_id: str):
+        """Arbiter refunds the depositor."""
+        return self._escact(5, escrow_id)
+
+    def listescrows(self):
+        return self.node.escrow.list_escrows(self.node.params)
+
+    def loanopen(self, collateral_token_id: str, collateral_amount,
+                 principal_alpha, interest_bps: int = 500,
+                 due_blocks: int = 4032, address: str = None):
+        """Offer a loan: escrow collateral tokens; ask for ALPHA principal.
+        due_blocks ≈ term length (10min blocks); interest in basis points."""
+        ctid = hex_to_hash(collateral_token_id)
+        info = self.node.tokens.registry.get(ctid)
+        if info is None:
+            raise RPCError(RPC_INVALID_PARAMS, "unknown token")
+        camt = int(Decimal(str(collateral_amount)) * (10 ** info.decimals))
+        pamt = int(Decimal(str(principal_alpha)) * 10**8)
+        if address is None:
+            spk, address = self._dep(ctid, camt)
+        else:
+            spk = script.script_for_address(address, self.node.params)
+        due = self.node.chain.height + int(due_blocks)
+        tx = self._submit_token_op(
+            _esc.lend_open(ctid, camt, _esc.ZERO32, pamt,
+                           int(interest_bps), due), spk, address, address)
+        return {"loan_id": tx.txid_hex(), "due_height": due}
+
+    def loanfund(self, loan_id: str):
+        """Lender funds the loan — pays the borrower the ALPHA principal."""
+        l = self.node.escrow.loans.get(hex_to_hash(loan_id))
+        if l is None or l["state"] != "offered":
+            raise RPCError(RPC_INVALID_PARAMS, "no open loan")
+        borrower = script.extract_destination(l["borrower"], self.node.params)
+        lender = None
+        for u in self.node.wallet.list_unspent(self.node.chain, 1):
+            a = script.extract_destination(u["script"], self.node.params)
+            if a != borrower:
+                lender = a
+                break
+        if lender is None:
+            raise RPCError(RPC_WALLET_INSUFFICIENT_FUNDS,
+                           "no funded address other than borrower's")
+        tx = self.node.wallet.create_token_op_tx(
+            self.node.chain, _esc.lend_op(2, l["id"]), lender, borrower,
+            l["pamt"])
+        self.node.submit_tx(tx)
+        return {"txid": tx.txid_hex(), "paid_alpha": l["pamt"] / 1e8}
+
+    def loanrepay(self, loan_id: str):
+        """Borrower repays principal+interest — collateral returns."""
+        l = self.node.escrow.loans.get(hex_to_hash(loan_id))
+        if l is None or l["state"] != "active":
+            raise RPCError(RPC_INVALID_PARAMS, "no active loan")
+        lender = script.extract_destination(l["lender"], self.node.params)
+        borrower = script.extract_destination(l["borrower"], self.node.params)
+        repay = l["pamt"] * (10000 + l["bps"]) // 10000
+        tx = self.node.wallet.create_token_op_tx(
+            self.node.chain, _esc.lend_op(3, l["id"]), borrower, lender,
+            repay)
+        self.node.submit_tx(tx)
+        return {"txid": tx.txid_hex(), "repaid_alpha": repay / 1e8}
+
+    def loanseize(self, loan_id: str):
+        """After due height, lender claims the borrower's collateral."""
+        l = self.node.escrow.loans.get(hex_to_hash(loan_id))
+        if l is None:
+            raise RPCError(RPC_INVALID_PARAMS, "unknown loan")
+        addr = script.extract_destination(l["lender"], self.node.params) \
+            if l["lender"] else None
+        return self._op(_esc.lend_op(4, l["id"]), addr).txid_hex()
+
+    def listloans(self):
+        return self.node.escrow.list_loans(self.node.params)
+
+    def createinvoice(self, amount_alpha, label: str = "",
+                      address: str = None):
+        """Merchant invoice / payment link — share invoice_id with payer."""
+        sat = int(Decimal(str(amount_alpha)) * 10**8)
+        tx = self._op(_esc.inv_create(sat, label), address)
+        return {"invoice_id": tx.txid_hex(),
+                "uri": f"alpha:{sat} — {label}"}
+
+    def payinvoice(self, invoice_id: str):
+        """Pay a merchant invoice — sends ALPHA to the merchant."""
+        iid = hex_to_hash(invoice_id)
+        inv = self.node.escrow.invoices.get(iid)
+        if inv is None:
+            raise RPCError(RPC_INVALID_PARAMS, "unknown invoice")
+        merch = script.extract_destination(inv["merchant"], self.node.params)
+        payer = None
+        for u in self.node.wallet.list_unspent(self.node.chain, 1):
+            a = script.extract_destination(u["script"], self.node.params)
+            if a != merch:
+                payer = a
+                break
+        if payer is None:
+            raise RPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "no funded address")
+        tx = self.node.wallet.create_token_op_tx(
+            self.node.chain, _esc.inv_pay(iid), payer, merch, inv["amt"])
+        self.node.submit_tx(tx)
+        return {"txid": tx.txid_hex(), "paid_alpha": inv["amt"] / 1e8}
+
+    def listinvoices(self):
+        return self.node.escrow.list_invoices(self.node.params)
 
     def kycstatus(self, address: str):
         """Reusable KYC check — returns all valid 'kyc' claims for a DID,
