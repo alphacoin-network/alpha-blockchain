@@ -10,7 +10,7 @@ import time
 from decimal import Decimal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import constants, crypto, dex as _dex, merkleproof, script, tokens as _tokens, wallet as _wallet
+from . import constants, crypto, amm as _amm, dex as _dex, merkleproof, script, tokens as _tokens, wallet as _wallet
 from .base58 import b58encode_check
 from .block import Block
 from .transaction import (
@@ -829,6 +829,100 @@ class RPCMethods:
 
     def dexorders(self):
         return self.node.dex.list_orders(self.node.params)
+
+    # -- AMM (constant-product liquidity pools) ----------------------------------
+    def _amt_units(self, tid, amount):
+        info = self.node.tokens.registry.get(tid)
+        if info is None:
+            raise RPCError(RPC_INVALID_PARAMS, "unknown token")
+        return int(Decimal(str(amount)) * (10 ** info.decimals))
+
+    def ammcreate(self, token_a: str, token_b: str, fee_bps: int = 30):
+        """Create a liquidity pool for a token pair. pool_id = txid."""
+        ta, tb = sorted((hex_to_hash(token_a), hex_to_hash(token_b)))
+        if ta == tb:
+            raise RPCError(RPC_INVALID_PARAMS, "need two different tokens")
+        _, signer = self._funded_address()
+        tx = self._submit_token_op(
+            _amm.encode_create(ta, tb, int(fee_bps)), signer, signer, signer)
+        return {"pool_id": tx.txid_hex(), "fee_bps": int(fee_bps)}
+
+    def ammadd(self, pool_id: str, amount_a, amount_b, address: str = None):
+        """Add liquidity — deposits both tokens, mints LP shares."""
+        pid = hex_to_hash(pool_id)
+        pool = self.node.amm.pools.get(pid)
+        if pool is None:
+            raise RPCError(RPC_INVALID_PARAMS, "unknown pool")
+        ra, rb = self._amt_units(pool["ta"], amount_a), self._amt_units(pool["tb"], amount_b)
+        if address is None:
+            # need an address holding BOTH tokens — search wallet scripts
+            owned = self._wallet_scripts()
+            address = None
+            for (tid, spk), amt in self.node.tokens.balances.items():
+                if tid == pool["ta"] and spk in owned and amt >= ra \
+                        and self.node.tokens.balance(pool["tb"], spk) >= rb:
+                    address = script.extract_destination(spk, self.node.params)
+                    break
+            if address is None:
+                raise RPCError(RPC_WALLET_INSUFFICIENT_FUNDS,
+                               "no wallet address holds enough of both tokens")
+        spk = script.script_for_address(address, self.node.params)
+        tx = self._submit_token_op(_amm.encode_add(pid, ra, rb), spk, address, address)
+        return tx.txid_hex()
+
+    def ammremove(self, pool_id: str, shares: int, address: str = None):
+        """Remove liquidity — burns LP shares, returns pro-rata tokens."""
+        pid = hex_to_hash(pool_id)
+        owned = self._wallet_scripts()
+        if address is None:
+            address = next((script.extract_destination(s, self.node.params)
+                            for (p, s), v in self.node.amm.shares.items()
+                            if p == pid and s in owned and v >= int(shares)), None)
+            if address is None:
+                raise RPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "no LP shares")
+        spk = script.script_for_address(address, self.node.params)
+        tx = self._submit_token_op(_amm.encode_remove(pid, int(shares)),
+                                   spk, address, address)
+        return tx.txid_hex()
+
+    def ammswap(self, pool_id: str, token_in: str, amount_in,
+                min_out=0, address: str = None):
+        """Swap in one call — constant product, min_out = slippage cap."""
+        pid, tin = hex_to_hash(pool_id), hex_to_hash(token_in)
+        pool = self.node.amm.pools.get(pid)
+        if pool is None:
+            raise RPCError(RPC_INVALID_PARAMS, "unknown pool")
+        tout = pool["tb"] if tin == pool["ta"] else pool["ta"]
+        raw_in = self._amt_units(tin, amount_in)
+        raw_min = self._amt_units(tout, min_out) if min_out else 0
+        if address is None:
+            spk, address = self._find_token_address(tin, raw_in)
+            if spk is None:
+                raise RPCError(RPC_WALLET_INSUFFICIENT_FUNDS,
+                               "no wallet address holds enough of token_in")
+        else:
+            spk = script.script_for_address(address, self.node.params)
+        est = self.node.amm.quote(pool, tin, raw_in)
+        tx = self._submit_token_op(
+            _amm.encode_swap(pid, tin, raw_in, raw_min), spk, address, address)
+        info_out = self.node.tokens.registry.get(tout)
+        return {"txid": tx.txid_hex(), "expected_out":
+                est / (10 ** info_out.decimals) if info_out else est}
+
+    def ammpools(self):
+        return self.node.amm.list_pools(self.node.params, self.node.tokens)
+
+    def ammquote(self, pool_id: str, token_in: str, amount_in):
+        """Dry-run a swap — returns expected output (no tx)."""
+        pid, tin = hex_to_hash(pool_id), hex_to_hash(token_in)
+        pool = self.node.amm.pools.get(pid)
+        if pool is None:
+            raise RPCError(RPC_INVALID_PARAMS, "unknown pool")
+        tout = pool["tb"] if tin == pool["ta"] else pool["ta"]
+        est = self.node.amm.quote(pool, tin, self._amt_units(tin, amount_in))
+        info_out = self.node.tokens.registry.get(tout)
+        return {"expected_out": est / (10 ** info_out.decimals)
+                if info_out else est, "token_out": tout.hex()}
 
     def listtokens(self):
         return self.node.tokens.list_tokens(self.node.params)

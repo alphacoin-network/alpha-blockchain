@@ -15,6 +15,7 @@ from .blockchain import Blockchain, ChainError
 from .mempool import Mempool, MempoolError
 from .tokens import TokenDB
 from .dex import DexDB
+from .amm import AmmDB
 from .transaction import Transaction
 from .wallet import Wallet
 
@@ -42,6 +43,7 @@ class Node:
         # token + dex layers: index every connected/disconnected block
         self.tokens = TokenDB()
         self.dex = DexDB()
+        self.amm = AmmDB()
         self.chain = Blockchain(
             self.params,
             os.path.join(data_dir, "chain") if data_dir else None,
@@ -49,9 +51,11 @@ class Node:
         self.chain.on_block_connected = (
             lambda b, e, lookup: (
                 self.tokens.apply_block(b, e.height, lookup),
-                self.dex.apply_block(b, e.height, self.tokens, lookup)))
+                self.dex.apply_block(b, e.height, self.tokens, lookup),
+                self.amm.apply_block(b, e.height, self.tokens, lookup)))
         self.chain.on_block_disconnected = (
             lambda e: (
+                self.amm.unapply_block(e.height, self.tokens),
                 self.dex.unapply_block(e.height, self.tokens),
                 self.tokens.unapply_block(e.height)))
         self.chain.load()   # replay stored blocks (fires the token hook too)
