@@ -27,6 +27,13 @@
     <tbody id="tokens"><tr><td colspan="6" class="loading">loading…</td></tr></tbody>
   </table></div>
   <div id="holders" style="margin-top:24px"></div>
+
+  <h2 class="title" style="margin-top:44px">⇄ DEX — Open Orders</h2>
+  <p class="sub">On-chain order book — sell tokens for ALPHA, trustless, no middleman.</p>
+  <div class="tbl-wrap"><table>
+    <tr><th>Order</th><th>Token</th><th class="num">Amount</th><th class="num">Price (ALPHA)</th><th>Seller</th><th>Height</th></tr>
+    <tbody id="orders"><tr><td colspan="6" class="loading">loading…</td></tr></tbody>
+  </table></div>
 </div></section>
 <footer>Alpha Blockchain · ALP token protocol</footer>
 <script src="app.js"></script>
@@ -51,6 +58,17 @@ async function holders(tid) {
       : '<tr><td colspan="2" class="loading">no holders</td></tr>'}
     </table></div></div>`;
 }
-load(); setInterval(load, 20000);
+async function loadOrders() {
+  const os = await api('dexorders').catch(()=>[]);
+  const ts = await api('tokens').catch(()=>[]);
+  const names = {}; ts.forEach(t => names[t.token_id] = t.name);
+  el('orders').innerHTML = os.length ? os.map(o =>
+    `<tr><td class="hash">${short(o.order_id)}</td>
+     <td><b>${names[o.token_id]||short(o.token_id)}</b></td>
+     <td class="num">${fmt(o.amount)}</td><td class="num">${o.total_alpha.toFixed(4)}</td>
+     <td class="hash">${short(o.seller||'—')}</td><td>${o.height}</td></tr>`).join('')
+    : '<tr><td colspan="6" class="loading">no open orders</td></tr>';
+}
+load(); loadOrders(); setInterval(()=>{load();loadOrders();}, 20000);
 </script>
 </body></html>

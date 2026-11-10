@@ -171,6 +171,8 @@ def make_handler(api: API):
                 elif route == "broadcast":
                     out = api.call("sendrawtransaction",
                                    qs.get("hex", [""])[0])
+                elif route == "dexorders":
+                    out = api.call("dexorders")
                 else:
                     self._json({"error": "not found"}, 404)
                     return

@@ -10,7 +10,7 @@ import time
 from decimal import Decimal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import constants, crypto, merkleproof, script, tokens as _tokens, wallet as _wallet
+from . import constants, crypto, dex as _dex, merkleproof, script, tokens as _tokens, wallet as _wallet
 from .base58 import b58encode_check
 from .block import Block
 from .transaction import (
@@ -721,6 +721,73 @@ class RPCMethods:
         payload = _tokens.encode_burn(tid, amt)
         tx = self._submit_token_op(payload, spk, address, address)
         return tx.txid_hex()
+
+    # -- DEX (on-chain order book) ------------------------------------------------
+    def dexsell(self, token_id: str, amount, total_price_alpha,
+                address: str | None = None):
+        """Place a sell order: escrow `amount` tokens for `total_price_alpha`.
+        order_id = txid of this transaction."""
+        tid = hex_to_hash(token_id)
+        info = self.node.tokens.registry.get(tid)
+        if info is None:
+            raise RPCError(RPC_INVALID_PARAMS, "unknown token")
+        raw_amt = int(Decimal(str(amount)) * (10 ** info.decimals))
+        raw_price = int(Decimal(str(total_price_alpha)) * 10**8 // raw_amt)
+        if raw_amt <= 0 or raw_price <= 0:
+            raise RPCError(RPC_INVALID_PARAMS, "bad amount/price")
+        if address is None:
+            spk, address = self._find_token_address(tid, raw_amt)
+            if spk is None:
+                raise RPCError(RPC_WALLET_INSUFFICIENT_FUNDS,
+                               "no wallet address holds enough of this token")
+        else:
+            spk = script.script_for_address(address, self.node.params)
+        tx = self._submit_token_op(_dex.encode_sell(tid, raw_amt, raw_price),
+                                   spk, address, address)
+        return {"order_id": tx.txid_hex(), "amount": float(amount),
+                "price_alpha": float(total_price_alpha)}
+
+    def dexfill(self, order_id: str):
+        """Fill an open order: pays the seller, tokens come to your wallet."""
+        oid = hex_to_hash(order_id)
+        order = self.node.dex.orders.get(oid)
+        if order is None:
+            raise RPCError(RPC_INVALID_PARAMS, "unknown/closed order")
+        seller_addr = script.extract_destination(order["seller"],
+                                                 self.node.params)
+        if seller_addr is None:
+            raise RPCError(RPC_INVALID_PARAMS, "order has non-std seller")
+        # pick a funded address that isn't the seller's
+        buyer_addr = None
+        for u in self.node.wallet.list_unspent(self.node.chain, 1):
+            a = script.extract_destination(u["script"], self.node.params)
+            if a != seller_addr:
+                buyer_addr = a
+                break
+        if buyer_addr is None:
+            raise RPCError(RPC_WALLET_INSUFFICIENT_FUNDS,
+                           "no funded address other than the seller's")
+        need = order["amount"] * order["price"]
+        tx = self.node.wallet.create_token_op_tx(
+            self.node.chain, _dex.encode_fill(oid),
+            buyer_addr, seller_addr, need)
+        self.node.submit_tx(tx)
+        return {"txid": tx.txid_hex(), "paid_alpha": need / 1e8}
+
+    def dexcancel(self, order_id: str):
+        """Cancel your own open order; escrowed tokens return to you."""
+        oid = hex_to_hash(order_id)
+        order = self.node.dex.orders.get(oid)
+        if order is None:
+            raise RPCError(RPC_INVALID_PARAMS, "unknown/closed order")
+        seller_addr = script.extract_destination(order["seller"],
+                                                 self.node.params)
+        tx = self._submit_token_op(_dex.encode_cancel(oid),
+                                   order["seller"], seller_addr, seller_addr)
+        return tx.txid_hex()
+
+    def dexorders(self):
+        return self.node.dex.list_orders(self.node.params)
 
     def listtokens(self):
         return self.node.tokens.list_tokens(self.node.params)
