@@ -1007,6 +1007,100 @@ class RPCMethods:
                 "type": c["ctype"], "hash": c["chash"].hex(),
                 "issuer": issuer, "height": c["height"]}
 
+    # -- RWA (compliant real-world asset tokens) ---------------------------------
+    def createrwatoken(self, name: str, decimals: int = 0, supply=0,
+                       kyc_required: bool = False,
+                       issuer_can_clawback: bool = False,
+                       kyc_issuer_address: str = None,
+                       address: str = None):
+        """Issue a permissioned RWA token — whitelist KYC recipients and/or
+        issuer clawback for securities-style compliance."""
+        flags = (_tokens.FLAG_KYC_REQUIRED if kyc_required else 0) | \
+                (_tokens.FLAG_CLAWBACK if issuer_can_clawback else 0)
+        kip = b""
+        if kyc_issuer_address:
+            kip = _addr_pkh(kyc_issuer_address, self.node.params)
+        if address is None:
+            _, address = self._funded_address()
+        spk = script.script_for_address(address, self.node.params)
+        amt = int(Decimal(str(supply)) * (10 ** int(decimals)))
+        payload = _tokens.encode_issue_rwa(name, int(decimals), amt,
+                                           flags, kip)
+        tx = self._submit_token_op(payload, spk, address, address)
+        return {"token_id": tx.txid_hex(), "kyc_required": kyc_required,
+                "issuer_can_clawback": issuer_can_clawback}
+
+    def rwaclawback(self, token_id: str, holder_address: str, amount,
+                    address: str = None):
+        """Compliance seizure — issuer reclaims tokens from a holder.
+        Only valid for tokens issued with issuer_can_clawback."""
+        tid = hex_to_hash(token_id)
+        info = self.node.tokens.registry.get(tid)
+        if info is None or not (info.flags & _tokens.FLAG_CLAWBACK):
+            raise RPCError(RPC_INVALID_PARAMS,
+                           "not a clawback-enabled RWA token")
+        if address is None:
+            issuer = script.extract_destination(info.issuer_script,
+                                                self.node.params)
+            address = issuer
+        spk = script.script_for_address(address, self.node.params)
+        raw = int(Decimal(str(amount)) * (10 ** info.decimals))
+        tx = self._submit_token_op(
+            _tokens.encode_clawback(tid, _addr_pkh(holder_address,
+                                    self.node.params), raw),
+            spk, address, address)
+        return tx.txid_hex()
+
+    def rwaretire(self, token_id: str, amount, beneficiary: str = "",
+                  address: str = None):
+        """Permanently retire tokens (e.g. carbon credit offset) — public,
+        immutable retirement certificate anchored on-chain."""
+        tid = hex_to_hash(token_id)
+        info = self.node.tokens.registry.get(tid)
+        if info is None:
+            raise RPCError(RPC_INVALID_PARAMS, "unknown token")
+        if address is None:
+            spk, address = self._find_token_address(tid, 1)
+            if spk is None:
+                raise RPCError(RPC_WALLET_INSUFFICIENT_FUNDS,
+                               "no wallet address holds the token")
+        else:
+            spk = script.script_for_address(address, self.node.params)
+        raw = int(Decimal(str(amount)) * (10 ** info.decimals))
+        tx = self._submit_token_op(
+            _tokens.encode_retire(tid, raw, beneficiary), spk, address, address)
+        return {"txid": tx.txid_hex(), "beneficiary": beneficiary}
+
+    def rwadistribute(self, token_id: str, alpha_amount):
+        """Dividend/rental income — pro-rata ALPHA to all holders."""
+        tid = hex_to_hash(token_id)
+        holders = self.node.tokens.holders(tid)
+        if not holders:
+            raise RPCError(RPC_INVALID_PARAMS, "no holders")
+        total = sum(holders.values())
+        total_sat = int(Decimal(str(alpha_amount)) * 10**8)
+        outs, paid = [], 0
+        for spk, amt in holders.items():
+            share = total_sat * amt // total
+            if share > 0:
+                addr = script.extract_destination(spk, self.node.params)
+                if addr:
+                    outs.append((addr, share))
+                    paid += share
+        if not outs:
+            raise RPCError(RPC_INVALID_PARAMS, "nothing distributable")
+        outputs = [(script.script_for_address(a, self.node.params), s)
+                   for a, s in outs]
+        tx = self.node.wallet.create_transaction(self.node.chain, outputs, 1)
+        self.node.submit_tx(tx)
+        return {"txid": tx.txid_hex(), "paid_alpha": paid / 1e8,
+                "holders_paid": len(outs)}
+
+    def retirementcerts(self):
+        return [{"txid": c["txid"].hex(), "amount": c["amount"],
+                 "beneficiary": c["beneficiary"], "height": c["height"]}
+                for c in self.node.tokens.retirements]
+
     def kycstatus(self, address: str):
         """Reusable KYC check — returns all valid 'kyc' claims for a DID,
         with issuers. Apps trust whichever issuers they accept."""

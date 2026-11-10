@@ -52,10 +52,10 @@ class Node:
             autoload=False)
         self.chain.on_block_connected = (
             lambda b, e, lookup: (
-                self.tokens.apply_block(b, e.height, lookup),
+                self.identity.apply_block(b, e.height, lookup),
+                self.tokens.apply_block(b, e.height, lookup, self.identity),
                 self.dex.apply_block(b, e.height, self.tokens, lookup),
-                self.amm.apply_block(b, e.height, self.tokens, lookup),
-                self.identity.apply_block(b, e.height, lookup)))
+                self.amm.apply_block(b, e.height, self.tokens, lookup)))
         self.chain.on_block_disconnected = (
             lambda e: (
                 self.identity.unapply_block(e.height),

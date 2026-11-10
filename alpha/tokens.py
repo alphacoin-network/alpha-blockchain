@@ -37,8 +37,15 @@ OP_ISSUE = 0x01
 OP_SEND = 0x02
 OP_MINT = 0x03
 OP_BURN = 0x04
+OP_ISSUE_RWA = 0x05
+OP_CLAWBACK = 0x06
+OP_RETIRE = 0x07
 OP_NAMES = {OP_ISSUE: "issue", OP_SEND: "send", OP_MINT: "mint",
-            OP_BURN: "burn"}
+            OP_BURN: "burn", OP_ISSUE_RWA: "issue_rwa",
+            OP_CLAWBACK: "clawback", OP_RETIRE: "retire"}
+
+FLAG_KYC_REQUIRED = 0x01      # only claim-holders may receive
+FLAG_CLAWBACK = 0x02          # issuer may seize (compliance)
 
 MAX_TOKEN_NAME = 64
 MAX_DECIMALS = 8
@@ -66,6 +73,25 @@ def encode_burn(token_id: bytes, amount: int) -> bytes:
     return MAGIC + bytes([VERSION, OP_BURN]) + token_id + struct.pack("<Q", amount)
 
 
+def encode_issue_rwa(name: str, decimals: int, supply: int,
+                     flags: int, kyc_issuer_pkh: bytes) -> bytes:
+    n = name.encode("utf-8")[:MAX_TOKEN_NAME]
+    return (MAGIC + bytes([VERSION, OP_ISSUE_RWA, len(n)]) + n
+            + bytes([decimals, flags]) + struct.pack("<Q", supply)
+            + kyc_issuer_pkh[:20].ljust(20, b"\x00"))
+
+
+def encode_clawback(token_id: bytes, holder_pkh: bytes, amount: int) -> bytes:
+    return (MAGIC + bytes([VERSION, OP_CLAWBACK]) + token_id
+            + holder_pkh[:20] + struct.pack("<Q", amount))
+
+
+def encode_retire(token_id: bytes, amount: int, beneficiary: str) -> bytes:
+    b = beneficiary.encode("utf-8")[:64]
+    return (MAGIC + bytes([VERSION, OP_RETIRE]) + token_id
+            + struct.pack("<Q", amount) + bytes([len(b)]) + b)
+
+
 def parse_payload(data: bytes):
     """Returns dict describing the op, or None if not an ALP payload."""
     if not data or data[:3] != MAGIC or len(data) < 5:
@@ -85,6 +111,24 @@ def parse_payload(data: bytes):
             token_id = data[5:37]
             amount = struct.unpack_from("<Q", data, 37)[0]
             return {"op": op, "token_id": token_id, "amount": amount}
+        if op == OP_ISSUE_RWA:
+            nlen = data[5]
+            name = data[6:6 + nlen].decode("utf-8")
+            decimals, flags = data[6 + nlen], data[7 + nlen]
+            supply = struct.unpack_from("<Q", data, 8 + nlen)[0]
+            kyc_issuer = data[16 + nlen:36 + nlen]
+            return {"op": op, "name": name, "decimals": decimals,
+                    "supply": supply, "flags": flags,
+                    "kyc_issuer": kyc_issuer}
+        if op == OP_CLAWBACK:
+            return {"op": op, "token_id": data[5:37],
+                    "holder": data[37:57],
+                    "amount": struct.unpack_from("<Q", data, 57)[0]}
+        if op == OP_RETIRE:
+            amount = struct.unpack_from("<Q", data, 37)[0]
+            bl = data[45]
+            return {"op": op, "token_id": data[5:37], "amount": amount,
+                    "beneficiary": data[46:46 + bl].decode("utf-8")}
     except (IndexError, UnicodeDecodeError, struct.error):
         return None
     return None
@@ -123,6 +167,9 @@ class TokenInfo:
     supply: int                 # total outstanding (minted - burned)
     issuer_script: bytes
     created_height: int
+    flags: int = 0              # RWA compliance flags
+    kyc_issuer: bytes = b""     # required claim issuer pkh (if flag set)
+    retired: int = 0            # permanently retired (carbon offset)
 
     def to_json(self, params):
         from .utils import hash_to_hex
@@ -134,6 +181,10 @@ class TokenInfo:
             "display_supply": self.supply / (10 ** self.decimals),
             "issuer": _script.extract_destination(self.issuer_script, params),
             "created_height": self.created_height,
+            "flags": self.flags,
+            "kyc_required": bool(self.flags & FLAG_KYC_REQUIRED),
+            "issuer_can_clawback": bool(self.flags & FLAG_CLAWBACK),
+            "retired": self.retired,
         }
 
 
@@ -144,6 +195,7 @@ class TokenDB:
         self.registry: dict[bytes, TokenInfo] = {}
         self.balances: dict[tuple, int] = {}       # (token_id, script) -> amt
         self.journal: dict[int, list] = {}         # height -> undo records
+        self.retirements: list = []                # carbon retire certs
         self.needs_rebuild = False
 
     # -- balance helpers -------------------------------------------------------
@@ -170,9 +222,12 @@ class TokenDB:
         j.append(("bal", token_id, spk, -amount))
 
     # -- block application -------------------------------------------------------
-    def apply_block(self, block, height: int, lookup_script) -> None:
+    def apply_block(self, block, height: int, lookup_script,
+                    id_db=None) -> None:
         """Scan a connected block for ALP ops. `lookup_script(prevout)` must
-        return the script_pubkey of the referenced output (or None)."""
+        return the script_pubkey of the referenced output (or None).
+        `id_db` (IdentityDB) enables KYC-whitelist enforcement for RWA tokens
+        — pass the indexer's state BEFORE this block applied identity ops."""
         journal = []
         for tx in block.txs:
             p = find_token_payload(tx)
@@ -184,13 +239,78 @@ class TokenDB:
                 sender = lookup_script(tx.vin[0].prevout.key())
             self._apply_op(p, tx, sender,
                            recipient.script_pubkey if recipient else None,
-                           height, journal)
+                           height, journal, id_db)
         if journal:
             self.journal[height] = journal
 
-    def _apply_op(self, p, tx, sender, recipient, height, j) -> None:
+    def _kyc_ok(self, id_db, spk, kyc_issuer_pkh) -> bool:
+        """True if the holder's script has a valid claim from the required
+        issuer (for whitelist-enforced RWA tokens)."""
+        if id_db is None:
+            return False
+        pkh = spk[3:23] if len(spk) == 25 else (spk[2:22] if len(spk) == 22
+                                               else None)
+        if pkh is None:
+            return False
+        return any(c["subject"] == pkh and c["issuer"] == kyc_issuer_pkh
+                   and not c["revoked"] for c in id_db.claims.values())
+
+    def _apply_op(self, p, tx, sender, recipient, height, j,
+                  id_db=None) -> None:
         op = p["op"]
-        if op == OP_ISSUE:
+        if op == OP_ISSUE_RWA:
+            if (recipient is None or not p["name"]
+                    or p["decimals"] > MAX_DECIMALS
+                    or not 0 < p["supply"] <= MAX_TOKEN_SUPPLY):
+                return
+            token_id = tx.txid()
+            if token_id in self.registry:
+                return
+            self.registry[token_id] = TokenInfo(
+                token_id=token_id, name=p["name"], decimals=p["decimals"],
+                supply=p["supply"], issuer_script=recipient,
+                created_height=height, flags=p["flags"],
+                kyc_issuer=p["kyc_issuer"])
+            j.append(("reg", token_id))
+            self._credit(j, token_id, recipient, p["supply"])
+        elif op == OP_CLAWBACK:
+            token_id = p["token_id"]
+            info = self.registry.get(token_id)
+            if (info is None or sender is None or p["amount"] <= 0
+                    or not (info.flags & FLAG_CLAWBACK)
+                    or sender != info.issuer_script):
+                return
+            # find the holder's script matching the pkh
+            holder_spk = next(
+                (s for (tid, s) in self.balances
+                 if tid == token_id and len(s) == 25 and s[3:23] == p["holder"]),
+                None)
+            if holder_spk is None:
+                holder_spk = next(
+                    (s for (tid, s) in self.balances
+                     if tid == token_id and len(s) == 22 and s[2:22] == p["holder"]),
+                    None)
+            if holder_spk is None or self.balance(token_id, holder_spk) < p["amount"]:
+                return
+            self._debit(j, token_id, holder_spk, p["amount"])
+            self._credit(j, token_id, info.issuer_script, p["amount"])
+        elif op == OP_RETIRE:
+            token_id = p["token_id"]
+            info = self.registry.get(token_id)
+            if (info is None or sender is None or p["amount"] <= 0):
+                return
+            if self.balance(token_id, sender) < p["amount"]:
+                return
+            self._debit(j, token_id, sender, p["amount"])
+            info.supply -= p["amount"]
+            info.retired += p["amount"]
+            cert = {"txid": tx.txid(), "token_id": token_id,
+                    "amount": p["amount"], "beneficiary": p["beneficiary"],
+                    "retired_by": sender, "height": height}
+            self.retirements.append(cert)
+            j.append(("supply", token_id, -p["amount"]))
+            j.append(("retire", cert))
+        elif op == OP_ISSUE:
             if (recipient is None or not p["name"]
                     or p["decimals"] > MAX_DECIMALS
                     or not 0 < p["supply"] <= MAX_TOKEN_SUPPLY):
@@ -209,6 +329,10 @@ class TokenDB:
             if (token_id not in self.registry or sender is None
                     or recipient is None or p["amount"] <= 0):
                 return
+            info = self.registry[token_id]
+            if (info.flags & FLAG_KYC_REQUIRED
+                    and not self._kyc_ok(id_db, recipient, info.kyc_issuer)):
+                return  # recipient lacks required KYC claim
             if self.balance(token_id, sender) < p["amount"]:
                 return  # insufficient balance
             self._debit(j, token_id, sender, p["amount"])
@@ -247,6 +371,12 @@ class TokenDB:
                 self.balances[key] = self.balances.get(key, 0) - delta
                 if not self.balances[key]:
                     self.balances.pop(key, None)
+            elif rec[0] == "retire":
+                cert = rec[1]
+                info = self.registry.get(cert["token_id"])
+                if info:
+                    info.retired -= cert["amount"]
+                self.retirements.remove(cert)
             elif rec[0] == "reg":
                 self.registry.pop(rec[1], None)
             elif rec[0] == "supply":
