@@ -65,17 +65,20 @@ def main():
     order = rpc("nftsell", nft["nft_id"], 1.5)
     mine()
     print("   listed:", order["order_id"][:20], "@", order["price_alpha"])
+    # fund a distinct buyer for this purchase
+    nbuyer = rpc("getnewaddress")
+    rpc("sendtoaddress", nbuyer, 5)
+    mine()
     buy = rpc("nftbuy", order["order_id"])
     mine()
     print("   sold for", buy["paid_alpha"], "ALPHA ->", buy["txid"][:20])
 
     # ---- 3. Identity + KYC ---------------------------------------------------
     print("\n[3] DID + KYC SIGN-IN")
-    who = buyer                                  # funded wallet address
-    rpc("registeridentity", "DemoUser", who)
+    reg = rpc("registeridentity", "DemoUser")    # auto-funded address
+    who = reg["did"].replace("did:alpha:", "")
     mine()
-    iss = rpc("getnewaddress")
-    rpc("issuecredential", who, "kyc", "ab" * 16, iss)
+    rpc("issuecredential", who, "kyc", "ab" * 16)   # auto-funded issuer
     mine()
     ch = rpc("alphaidchallenge", who, "demo.app")
     sig = rpc("signmessage", who, ch["message"])
