@@ -3,29 +3,44 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Whitepaper — Alpha Blockchain</title>
-  <meta name="description" content="Alpha Blockchain whitepaper: a Bitcoin-grade decentralized network — consensus, monetary policy, script, tokens, network, security and the full ecosystem roadmap.">
+  <meta name="description" content="Alpha Blockchain whitepaper: a Bitcoin-grade decentralized network — consensus, monetary policy, script, tokens, network, security, tokenomics and the full ecosystem roadmap.">
   <meta name="theme-color" content="#f7931a">
   <link rel="icon" type="image/svg+xml" href="coin.svg">
   <link rel="apple-touch-icon" href="coin.svg"><link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
   <style>
-    .wp { max-width: 820px; margin: 0 auto; line-height: 1.75; }
-    .wp h2 { font-size: 30px; margin: 44px 0 12px; }
+    .wp { max-width: 860px; margin: 0 auto; line-height: 1.75; }
+    .wp h2 { font-size: 30px; margin: 46px 0 14px; padding-top: 20px;
+      border-top: 1px solid var(--border); }
+    .wp h2:first-of-type { border-top: none; }
     .wp h3 { font-size: 20px; margin: 30px 0 10px; color: var(--gold); }
+    .wp h4 { font-size: 16px; margin: 22px 0 8px; color: var(--accent); }
     .wp p, .wp li { color: #c8d0e8; font-size: 15.5px; }
-    .wp ul { padding-left: 24px; margin: 12px 0; }
-    .wp li { margin-bottom: 6px; }
+    .wp ul, .wp ol { padding-left: 26px; margin: 12px 0; }
+    .wp li { margin-bottom: 7px; }
     .wp .abs { background: var(--card); border-left: 4px solid var(--gold);
-      padding: 20px 24px; border-radius: 0 12px 12px 0; font-style: italic; color: var(--dim); }
-    .wp .kvs { display:grid; grid-template-columns: 220px 1fr; gap:8px 18px;
-      background: var(--card); padding: 20px; border-radius: 12px; font-family: var(--mono); font-size: 13.5px; }
+      padding: 22px 26px; border-radius: 0 12px 12px 0; font-style: italic; color: var(--dim); }
+    .wp .kvs { display:grid; grid-template-columns: 240px 1fr; gap:8px 20px;
+      background: var(--card); padding: 22px; border-radius: 12px; font-family: var(--mono); font-size: 13.5px; }
     .wp .k { color: var(--dim); }
-    .wp .cover { text-align: center; padding: 50px 0 30px; }
-    .wp .cover img { width: 120px; }
-    .wp .cover h1 { font-size: 42px; margin-top: 18px; }
+    .wp .cover { text-align: center; padding: 55px 0 30px; }
+    .wp .cover img { width: 128px; }
+    .wp .cover h1 { font-size: 44px; margin-top: 20px;
+      background: linear-gradient(135deg,#ffe89a,#f5c542 50%,#b87b18);
+      -webkit-background-clip: text; background-clip: text; color: transparent; }
     .wp .cover p { color: var(--dim); font-size: 17px; }
     .wp .toc { columns: 2; font-size: 14px; }
     .wp .toc a { color: var(--accent); display:block; margin-bottom:6px; }
+    .wp .formula { background: var(--bg2); border:1px solid var(--border); border-radius: 8px;
+      padding: 14px 20px; font-family: var(--mono); font-size: 13.5px; margin: 14px 0;
+      overflow-x: auto; color: #a8d5ff; }
+    .wp .note { background: rgba(61,220,151,.08); border-left: 3px solid var(--green);
+      padding: 12px 18px; border-radius: 0 8px 8px 0; font-size: 14px; color: var(--dim); }
+    .wp .warn { background: rgba(245,197,66,.08); border-left: 3px solid var(--gold);
+      padding: 12px 18px; border-radius: 0 8px 8px 0; font-size: 14px; color: var(--dim); }
+    .wp table.spec { width: 100%; font-size: 14px; }
+    .wp table.spec td { padding: 9px 14px; }
+    .wp table.spec td:first-child { color: var(--dim); }
   </style>
 </head>
 <body>
@@ -36,17 +51,26 @@
     <img src="coin.svg" alt="alpha coin">
     <h1>Alpha Blockchain</h1>
     <p>A Bitcoin-grade decentralized network — ALPHA coin, tokens and the full ecosystem.<br>
-       <b>Whitepaper v1.0</b></p>
+       <b>Whitepaper v1.0</b> · November 2026 · alpha-blockchain</p>
   </div>
 
   <h3>Contents</h3>
   <div class="toc">
-    <a href="#abs">Abstract</a><a href="#intro">1. Introduction</a>
-    <a href="#consensus">2. Consensus</a><a href="#money">3. Monetary Policy</a>
-    <a href="#script">4. Script &amp; Contracts</a><a href="#tokens">5. Tokens (ALP)</a>
-    <a href="#network">6. Network &amp; Nodes</a><a href="#wallet">7. Wallet &amp; Keys</a>
-    <a href="#security">8. Security Model</a><a href="#apis">9. APIs &amp; Interop</a>
-    <a href="#usecases">10. Use Cases</a><a href="#roadmap">11. Roadmap</a>
+    <a href="#abs">Abstract</a>
+    <a href="#intro">1. Introduction</a>
+    <a href="#consensus">2. Consensus</a>
+    <a href="#money">3. Monetary Policy</a>
+    <a href="#script">4. Script &amp; Contracts</a>
+    <a href="#tokens">5. Tokens (ALP)</a>
+    <a href="#network">6. Network &amp; Nodes</a>
+    <a href="#wallet">7. Wallet &amp; Keys</a>
+    <a href="#security">8. Security Model</a>
+    <a href="#apis">9. APIs &amp; Interop</a>
+    <a href="#governance">10. Governance &amp; Distribution</a>
+    <a href="#usecases">11. Use Cases</a>
+    <a href="#roadmap">12. Roadmap</a>
+    <a href="#tech">13. Technical Reference</a>
+    <a href="#legal">14. Disclaimer</a>
   </div>
 
   <h2 id="abs">Abstract</h2>
@@ -58,21 +82,46 @@
   with Bitcoin's well-understood security model.</p>
 
   <h2 id="intro">1. Introduction</h2>
-  <p>Alpha Blockchain re-implements Bitcoin's battle-tested design from first principles —
-  a clean-room Python implementation with zero external dependencies — and layers the
-  infrastructure needed for the next generation of applications: a deterministic token
-  protocol (ALP), a block explorer, developer APIs and the plumbing for DeFi, identity,
-  real-world assets and enterprise use. The goal: <b>the security model developers already
-  trust, with the tooling they actually need.</b></p>
+  <p>Bitcoin proved that a scarce, permissionless, censorship-resistant digital asset can be
+  secured by pure cryptography and economic incentive — without any trusted party. Alpha
+  Blockchain takes that design and rebuilds it from first principles: a clean-room,
+  dependency-free Python implementation that mirrors Bitcoin's consensus behavior bit-for-bit,
+  while adding the infrastructure modern applications actually need — a deterministic token
+  layer, a block explorer, developer APIs and the plumbing for DeFi, identity, real-world
+  assets and enterprise use.</p>
+  <p>The project has two goals:</p>
+  <ul>
+    <li><b>Faithfulness</b> — replicate Bitcoin's consensus-critical behavior exactly: the same
+        header format, difficulty math, sighash algorithms, Script semantics and monetary
+        schedule, audited against Bitcoin's real known-answer vectors.</li>
+    <li><b>Usability</b> — expose everything developers need (RPC, REST, PSBT, descriptors,
+        tokens, explorer) so the chain is a platform, not just a coin.</li>
+  </ul>
 
   <h2 id="consensus">2. Consensus</h2>
+  <p>Consensus is the set of rules every honest node independently enforces. Alpha implements
+  Bitcoin's rules end-to-end:</p>
+  <h4>2.1 Proof of Work</h4>
   <ul>
-    <li><b>Proof of Work</b>: SHA-256d header hash ≤ compact target (nBits, 80-byte headers).</li>
-    <li><b>Difficulty retarget</b>: every 2016 blocks, ±4× clamp, 10-minute spacing.</li>
-    <li><b>Median-time-past</b>: 11-block median + 2-hour future limit.</li>
-    <li><b>Chain selection</b>: most cumulative chainwork; full reorg support.</li>
-    <li><b>UTXO</b>: deterministic set with coinbase maturity (100 blocks) and unique-txid rules.</li>
-    <li><b>BIP34</b>: block height in coinbase; genesis reward unspendable (Bitcoin quirk).</li>
+    <li>80-byte block header: <code>version(4) | prev_hash(32) | merkle_root(32) |
+        time(4) | bits(4) | nonce(4)</code></li>
+    <li>Block valid iff <code>SHA256d(header) ≤ target</code> where
+        <code>target = bits_mantissa × 2^(8·(bits_exponent−3))</code> (bit-exact).</li>
+    <li>Merkle root uses Bitcoin's duplicate-last rule; witness commitments (BIP141) verified.</li>
+  </ul>
+  <h4>2.2 Difficulty retarget</h4>
+  <div class="formula">new_target = old_target × clamp(actual_timespan / 20160, ¼, 4)
+  (every 2016 blocks; target spacing = 10 minutes)</div>
+  <h4>2.3 Timestamps</h4>
+  <ul>
+    <li>Median-time-past over 11 blocks (MTP) — miners can't jump the clock arbitrarily.</li>
+    <li>Future timestamps limited to +2 hours from network time.</li>
+  </ul>
+  <h4>2.4 Chain selection</h4>
+  <ul>
+    <li>Best chain = most cumulative chainwork (not longest). Reorgs disconnect &amp; reconnect
+        blocks with full UTXO/mempool/token undo.</li>
+    <li>BIP34: block height in coinbase; genesis reward unspendable (Bitcoin quirk).</li>
   </ul>
 
   <h2 id="money">3. Monetary Policy</h2>
@@ -80,76 +129,99 @@
     <div class="k">Max supply</div><div>21,000,000 ALPHA</div>
     <div class="k">Subunit</div><div>1 ALPHA = 100,000,000 alphasats</div>
     <div class="k">Block subsidy</div><div>50 ALPHA, halving every 210,000 blocks</div>
-    <div class="k">Total issuance</div><div>20,999,999.9769 ALPHA (Bitcoin-identical)</div>
+    <div class="k">Total issuance</div><div>20,999,999.9769 ALPHA</div>
     <div class="k">Block time</div><div>10 minutes</div>
     <div class="k">Coinbase maturity</div><div>100 blocks</div>
+    <div class="k">Halvings</div><div>subsidy = 50 ÷ 2^(height/210000) until 0</div>
   </div>
+  <p>Issuance converges on the same asymptote as Bitcoin: the sum of all future block rewards
+  is a geometric series that asymptotically approaches but never reaches 21,000,000 —
+  exactly <b>20,999,999.9769 ALPHA</b>.</p>
 
   <h2 id="script">4. Script &amp; Contracts</h2>
-  <p>A complete Bitcoin-style stack interpreter supports every standard locking script:</p>
+  <p>A complete Bitcoin-style stack interpreter executes every standard locking script:</p>
   <ul>
-    <li>P2PK, P2PKH, P2SH, m-of-n multisig, OP_RETURN</li>
-    <li>CLTV (BIP65) &amp; CSV (BIP112) timelocks</li>
-    <li>SegWit v0: P2WPKH / P2WSH / P2SH-P2WPKH (BIP141/143/144)</li>
-    <li><b>Taproot (BIP340/341/342)</b>: schnorr signatures, key-path and script-path
-        spends, tapleaf merkle trees, control blocks, OP_CHECKSIGADD</li>
-    <li>Full sighash matrix: ALL/NONE/SINGLE/ANYONECANPAY (legacy + BIP143 + BIP341)</li>
+    <li><b>Legacy</b>: P2PK, P2PKH, P2SH, m-of-n multisig, OP_RETURN</li>
+    <li><b>Timelocks</b>: CLTV (BIP65), CSV (BIP112)</li>
+    <li><b>SegWit v0</b>: P2WPKH, P2WSH, P2SH-P2WPKH (BIP141/143/144)</li>
+    <li><b>Taproot (BIP340/341/342)</b>: schnorr signatures, key-path &amp; script-path spends,
+        tapleaf merkle trees, control blocks, OP_CHECKSIGADD</li>
+    <li><b>Full sighash matrix</b>: ALL/NONE/SINGLE/ANYONECANPAY across legacy, BIP143 and BIP341</li>
+    <li><b>Policy flags</b>: STRICTENC, DERSIG, LOW_S, NULLDUMMY, NULLFAIL, CLEANSTACK, MINIMALIF, MINIMALDATA, WITNESS_PUBKEYTYPE</li>
   </ul>
 
   <h2 id="tokens">5. Tokens — the ALP protocol</h2>
-  <p>Assets are issued on-chain via an <b>OP_RETURN meta-protocol</b> (Omni-style), so the
-  base consensus stays untouched while a deterministic parallel indexer tracks balances.</p>
+  <p>Assets are issued on-chain via an <b>OP_RETURN meta-protocol</b> (Omni-style), so base
+  consensus stays untouched while a deterministic parallel indexer tracks balances.</p>
+  <h4>5.1 Operations</h4>
   <ul>
-    <li><b>Issue</b>: <code>createtoken</code> — token_id = issuance txid</li>
-    <li><b>Send / transfer</b>: <code>sendtoken</code> — balance moves between addresses</li>
-    <li><b>Mint (issuer-only) &amp; burn</b>: <code>minttoken</code> / <code>burntoken</code></li>
-    <li><b>Registry &amp; holders</b>: <code>listtokens</code>, <code>gettokeninfo</code>,
-        <code>gettokenholders</code>, <code>gettokenbalance</code></li>
-    <li><b>Reorg-safe</b>: per-block undo journal rolls back token state on reorgs</li>
-    <li>Anyone can build on it — <code>sendopreturn</code> embeds arbitrary project data</li>
+    <li><b>Issue</b> — <code>createtoken</code>: defines name, decimals, supply. token_id = txid.</li>
+    <li><b>Send</b> — <code>sendtoken</code>: move balances between addresses.</li>
+    <li><b>Mint / Burn</b> — issuer-only supply changes.</li>
+    <li><b>Query</b> — registry, info, balances, holders.</li>
+  </ul>
+  <h4>5.2 Semantics</h4>
+  <ul>
+    <li>Deterministic: every node replays OP_RETURN ops in block order → same state.</li>
+    <li>Reorg-safe: per-block undo journal rolls back token state.</li>
+    <li>Validation: invalid ops (over-balance sends, non-issuer mints) are ignored.</li>
+    <li>Extensible: <code>sendopreturn</code> lets projects embed their own data.</li>
   </ul>
 
   <h2 id="network">6. Network &amp; Nodes</h2>
   <ul>
-    <li><b>Wire protocol</b>: Bitcoin-exact framing — magic, 12-byte command, sha256d checksum</li>
-    <li><b>Handshake</b>: version/verack, sendheaders, sendcmpct (BIP152)</li>
-    <li><b>Sync</b>: headers-first + getblocks + block/tx relay via inv/getdata</li>
-    <li><b>Compact blocks</b>: short-ID reconstruction from mempool (BIP152)</li>
-    <li><b>Bloom filters</b>: BIP37 filtered-block serving for light clients</li>
-    <li><b>Compact filters</b>: BIP157/158 GCS filters (getblockfilter/getcfilters)</li>
-    <li><b>addrv2 (BIP155)</b> + SOCKS5 proxy + <b>Tor hidden service</b> (.onion hosting)</li>
-    <li><b>Pruning &amp; assumeutxo</b>: keep-N block pruning + UTXO-snapshot fast sync</li>
+    <li><b>Wire protocol</b>: Bitcoin-exact framing — magic, 12-byte command, sha256d checksum, 32MB cap</li>
+    <li><b>Handshake</b>: version/verack, sendheaders, sendcmpct</li>
+    <li><b>Sync</b>: headers-first + getblocks + inv/getdata relay</li>
+    <li><b>Compact blocks</b> (BIP152): short-ID reconstruction from mempool</li>
+    <li><b>Bloom filters</b> (BIP37): filterload/add/clear + filtered-block serving</li>
+    <li><b>Compact filters</b> (BIP157/158): GCS block filters</li>
+    <li><b>addrv2</b> (BIP155), <b>SOCKS5</b> proxy, <b>Tor hidden service</b></li>
+    <li><b>Pruning</b> (keep-N blocks) + <b>assumeutxo</b> snapshot sync</li>
+    <li>24 message handlers covering the full message set</li>
   </ul>
 
   <h2 id="wallet">7. Wallet &amp; Keys</h2>
   <ul>
     <li><b>Encryption</b>: AES-256-CBC + SHA-512×25000 EVP_BytesToKey (encryptwallet/unlock/lock)</li>
     <li><b>HD</b>: BIP32 deterministic keys (xprv/xpub, hardened/normal, BIP39 seed)</li>
-    <li><b>Addresses</b>: legacy, P2SH-segwit, bech32 P2WPKH, <b>bech32m taproot</b></li>
-    <li><b>Signing</b>: coin-select + change, SIGHASH_ALL for all script types,
-        signmessage/verifymessage (ECDSA public-key recovery)</li>
-    <li><b>PSBT</b>: create/fund/sign/combine/finalize + BIP380 descriptors</li>
+    <li><b>Addresses</b>: legacy, P2SH-segwit, bech32 P2WPKH, bech32m taproot</li>
+    <li><b>Signing</b>: coin-select + change, all script types, signmessage/verifymessage</li>
+    <li><b>PSBT</b>: BIP174 fund/sign/finalize + BIP380 descriptors</li>
   </ul>
 
   <h2 id="security">8. Security Model</h2>
   <ul>
-    <li>Deterministic RFC6979 nonces (no nonce-reuse → no key leak)</li>
+    <li>RFC6979 deterministic nonces — no nonce reuse → no key leakage</li>
     <li>Strict DER (BIP66) + low-S (BIP62) — signature malleability closed</li>
-    <li>Curve-validation on all pubkeys (off-curve rejected)</li>
-    <li>Cookie-auth RPC (bitcoind model), wallet file 0600, no eval/exec/pickle</li>
-    <li>All consensus bounds enforced (MAX_MONEY, negative outputs, double-spend, fee≥0)</li>
+    <li>Curve validation on all pubkeys; off-curve keys rejected</li>
+    <li>Cookie-auth RPC (bitcoind model), wallet file 0600, no eval/exec/pickle/subprocess</li>
+    <li>All consensus bounds enforced: MAX_MONEY, negative/zero outputs, double-spend, fee≥0, maturity</li>
+    <li>Pure-Python crypto — no external dependencies to attack</li>
   </ul>
+  <div class="warn"><b>Limitations (honest):</b> wallet passphrase lives in Python memory (no
+  secure zeroing), AES is pure-Python (not timing-hardened), P2P DoS limits are basic, and
+  coin selection is largest-first (not privacy-optimal).</div>
 
   <h2 id="apis">9. APIs &amp; Interoperability</h2>
   <ul>
-    <li><b>JSON-RPC</b>: ~65 bitcoind-compatible methods (chain, wallet, mining, tx,
-        tokens, PSBT, descriptors, filters, estimatesmartfee…)</li>
+    <li><b>JSON-RPC</b>: ~65 bitcoind-compatible methods across chain/wallet/mining/tx/tokens/PSBT/descriptors/filters</li>
     <li><b>REST</b>: <code>/rest/chaininfo|block|tx|headers|mempool|utxo|tokens</code></li>
     <li><b>Web/explorer API</b>: <code>/api/stats|blocks|block|tx|address|tokens|search</code></li>
-    <li><b>SPV</b>: gettxoutproof / verifytxoutproof partial-merkle proofs</li>
+    <li><b>SPV</b>: gettxoutproof/verifytxoutproof partial-merkle proofs</li>
+    <li><b>P2P</b>: full Bitcoin message set (24 handlers)</li>
   </ul>
 
-  <h2 id="usecases">10. Use Cases</h2>
+  <h2 id="governance">10. Governance &amp; Distribution</h2>
+  <table class="spec tbl-wrap"><table>
+    <tr><th>Item</th><th>Detail</th></tr>
+    <tr><td>Issuance model</td><td>Fair launch — no premine, no ICO, no dev fee. All ALPHA is earned via mining.</td></tr>
+    <tr><td>Emission</td><td>50/block → halves every 210,000 blocks → ~20,999,999.9769 total.</td></tr>
+    <tr><td>Consensus changes</td><td>Soft-fork style: new rules tighten (never loosen) — nodes opt in.</td></tr>
+    <tr><td>Token issuance</td><td>Permissionless: any project can issue an ALP token on-chain.</td></tr>
+  </table></table>
+
+  <h2 id="usecases">11. Use Cases</h2>
   <div class="grid cards" style="margin-top:16px">
     <div class="card"><h3>Payments</h3><p>Peer-to-peer value transfer, merchant invoicing, cross-border settlement.</p></div>
     <div class="card"><h3>Tokenization</h3><p>Issue real-world and digital assets on ALP — loyalty points, game items, shares.</p></div>
@@ -159,20 +231,40 @@
     <div class="card"><h3>Developers</h3><p>Every tool Bitcoin offers plus tokens, PSBT, descriptors and a live explorer.</p></div>
   </div>
 
-  <h2 id="roadmap">11. Roadmap</h2>
-  <p>Core infrastructure is <b>complete and verified</b>. Next phases build the ecosystem on top.
-     See the live <a href="roadmap.html">roadmap page</a> for per-milestone status.</p>
+  <h2 id="roadmap">12. Roadmap</h2>
   <ul>
-    <li><b>Done</b>: full consensus, coin, script, segwit+taproot, network, wallet, tokens,
-        explorer, APIs, Tor, pruning, filters</li>
+    <li><b>Complete</b>: consensus, coin, script, segwit+taproot, network, wallet, tokens, explorer, APIs, Tor, pruning, filters</li>
     <li><b>In progress</b>: web wallet UI, merchant tools</li>
-    <li><b>Planned</b>: DEX/swap, staking, lending, stablecoin, NFT, domains, identity/KYC,
-        oracle, AI agents, enterprise suite</li>
+    <li><b>Planned</b>: DEX/swap, staking, lending, stablecoin, NFT, domains, identity/KYC, oracle, AI agents, enterprise suite</li>
+  </ul>
+  <p>See <a href="roadmap.html">roadmap.html</a> for live milestone status.</p>
+
+  <h2 id="tech">13. Technical Reference</h2>
+  <h4>13.1 Block header (80 bytes)</h4>
+  <div class="formula">version(4) | prev(32) | merkle(32) | time(4) | bits(4) | nonce(4)</div>
+  <h4>13.2 Signature hashes</h4>
+  <div class="formula">legacy  : sig_hash = SHA256d(tx_with_script_in_input)
+BIP143  : segwit v0 preimage (prevouts+sequences+outputs hashed separately)
+BIP341  : tagged("TapSighash", 0x00 || SigMsg || tapleaf_ext)</div>
+  <h4>13.3 Difficulty</h4>
+  <div class="formula">target = mantissa × 2^(8·(exponent−3))
+work   = (2^256 − target − 1) / (target + 1) + 1</div>
+  <h4>13.4 Subsidy</h4>
+  <div class="formula">subsidy(h) = 50·1e8 >> (h / 210000)</div>
+  <h4>13.5 Reference</h4>
+  <ul>
+    <li>Bitcoin whitepaper — Nakamoto 2008</li>
+    <li>BIP141/143/144 (segwit), BIP152 (compact blocks), BIP157/158 (filters),
+        BIP155 (addrv2), BIP32/39 (HD), BIP340/341/342 (taproot), BIP174/380 (PSBT/descriptors)</li>
   </ul>
 
-  <p style="color:var(--dim);margin-top:40px;font-size:13.5px">Alpha Blockchain — engineered to
-  the Bitcoin specification. This document describes the implementation as built; future
-  ecosystem components are roadmap items, not live features.</p>
+  <h2 id="legal">14. Disclaimer</h2>
+  <p class="note">This document describes the Alpha Blockchain implementation as built.
+  ALPHA is a digital asset — not legal tender, not a security, and not an investment product.
+  Cryptocurrency involves risk; do your own research. Nothing here constitutes financial advice.</p>
+
+  <p style="color:var(--dim);margin-top:44px;font-size:13.5px;text-align:center">—
+  Alpha Blockchain · engineered to the Bitcoin specification · v1.0 —</p>
 
 </div></div></section>
 <footer>Alpha Blockchain whitepaper</footer>

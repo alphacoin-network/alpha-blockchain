@@ -3,17 +3,19 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Roadmap — Alpha Blockchain</title>
-  <meta name="description" content="Alpha Blockchain roadmap: completed milestones marked green, plus the path to the full Alpha ecosystem — DeFi, identity, RWA, Web3, AI and enterprise.">
+  <meta name="description" content="Alpha Blockchain roadmap: completed milestones marked green, in-progress gold, planned gray — the path to the full Alpha ecosystem.">
   <meta name="theme-color" content="#f7931a">
   <link rel="icon" type="image/svg+xml" href="coin.svg">
   <link rel="apple-touch-icon" href="coin.svg"><link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
   <style>
-    .rm-section { margin-bottom: 40px; }
-    .rm-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+    .rm-section { margin-bottom: 44px; }
+    .rm-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; flex-wrap: wrap; }
     .rm-num { width: 46px; height: 46px; border-radius: 12px; background: linear-gradient(135deg,#ffd968,#e8a92e);
       color: #241a03; font-weight: 800; font-size: 20px; display:flex; align-items:center; justify-content:center; }
     .rm-head h3 { font-size: 22px; }
+    .rm-head .q { font-family: var(--mono); font-size: 12px; color: var(--dim);
+      border: 1px solid var(--border); border-radius: 6px; padding: 2px 10px; }
     .rm-head .prog { margin-left: auto; font-family: var(--mono); font-size: 13px; color: var(--dim); }
     .milestone { display: flex; gap: 14px; align-items: flex-start; padding: 12px 16px;
       border-left: 3px solid var(--border); margin-bottom: 10px; background: var(--card); border-radius: 0 10px 10px 0; }
@@ -27,9 +29,9 @@
     .todo .dot { background: var(--card2); color: var(--dim); }
     .milestone .mt { font-weight: 600; font-size: 15px; }
     .milestone .md { color: var(--dim); font-size: 13px; margin-top: 3px; }
-    .milestone .tag-done { color: var(--green); font-size: 11px; font-weight: 700; margin-left: auto; }
-    .milestone .tag-wip  { color: var(--gold);  font-size: 11px; font-weight: 700; margin-left: auto; }
-    .milestone .tag-todo { color: var(--dim);   font-size: 11px; font-weight: 700; margin-left: auto; }
+    .milestone .tag-done { color: var(--green); font-size: 11px; font-weight: 700; margin-left: auto; white-space: nowrap; }
+    .milestone .tag-wip  { color: var(--gold);  font-size: 11px; font-weight: 700; margin-left: auto; white-space: nowrap; }
+    .milestone .tag-todo { color: var(--dim);   font-size: 11px; font-weight: 700; margin-left: auto; white-space: nowrap; }
     .bar { height: 6px; border-radius: 4px; background: var(--card2); overflow: hidden; margin: 6px 0 18px; }
     .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--green), var(--gold)); }
   </style>
@@ -38,61 +40,80 @@
 <nav></nav>
 <section><div class="wrap">
   <h2 class="title">Roadmap</h2>
-  <p class="sub">Step-by-step progress toward the full Alpha ecosystem —
-     <b style="color:var(--green)">green = complete</b>,
-     <b style="color:var(--gold)">gold = in progress</b>,
-     <b style="color:var(--dim)">gray = planned</b>.</p>
+  <p class="sub">Step-by-step progress — <b style="color:var(--green)">green = complete</b>,
+     <b style="color:var(--gold)">gold = in progress</b>, <b style="color:var(--dim)">gray = planned</b>.</p>
   <div id="roadmap"></div>
 </div></section>
 <footer>Alpha Blockchain roadmap</footer>
 <script src="app.js"></script>
 <script>
 nav('rm');
-const M = (t, d, s) => ({ t, d, s }); // s: 'done' | 'wip' | 'todo'
+const M = (t, d, s) => ({ t, d, s });
 
 const PHASES = [
-  { name: 'Alpha Core — the foundation', items: [
-    M('Alpha Blockchain core', 'Consensus, PoW, 21M supply, UTXO, reorgs, genesis', 'done'),
-    M('Alpha Coin', 'Native asset — fees, rewards, miner incentive', 'done'),
-    M('Alpha Script engine', 'P2PK/P2PKH/P2SH/multisig, CLTV/CSV timelocks', 'done'),
-    M('SegWit v0 (BIP141-144)', 'P2WPKH/P2WSH, witness serialization, BIP143 sighash', 'done'),
-    M('Taproot + Tapscript (BIP340/341/342)', 'Schnorr sigs, key+script-path spends, OP_CHECKSIGADD', 'done'),
-    M('P2P network', 'Bitcoin wire protocol — version/inv/getdata/headers, relay, sync', 'done'),
-    M('Mempool + RBF + package limits', 'Acceptance policy, ancestor/descendant rules, CPFP', 'done'),
-    M('Alpha Explorer', 'Block explorer, search, live stats, token views', 'done'),
-    M('Alpha RPC & API', '65+ bitcoind-style methods + REST + web API', 'done'),
-    M('Alpha Wallet', 'Encryption, BIP32 HD, coin-select, signmessage, WIF', 'done'),
-    M('Compact blocks + filters', 'BIP152/158/37 — fast relay + light-client support', 'done'),
-    M('PSBT + descriptors', 'BIP174/380 — multi-party signing workflows', 'done'),
-    M('Pruning + assumeutxo + Tor', 'Storage pruning, snapshot sync, .onion hosting', 'done'),
+  { q: 'PHASE 1 — Core Foundation', name: 'Alpha Core', items: [
+    M('Blockchain consensus', 'PoW sha256d, 80B headers, nBits, retarget ±4×, MTP-11, chainwork, reorgs', 'done'),
+    M('Alpha Coin & supply', '21M cap, 50→halving/210k, exact 20,999,999.9769, coinbase maturity', 'done'),
+    M('UTXO model', 'Deterministic set, fee accounting, spend/undo, persistence', 'done'),
+    M('Script engine v1', 'P2PK, P2PKH, P2SH, multisig, OP_RETURN, CLTV/CSV timelocks', 'done'),
+    M('SegWit v0', 'P2WPKH/P2WSH/P2SH-P2WPKH, BIP141/143/144, witness commitment', 'done'),
+    M('Taproot + Tapscript', 'Schnorr BIP340, key+script-path, OP_CHECKSIGADD, control blocks', 'done'),
+    M('Genesis & vectors', 'Bitcoin genesis reproduced, KAT vectors verified', 'done'),
   ]},
-  { name: 'Alpha Tokens & Assets', items: [
-    M('ALP token protocol', 'Omni-style issue/send/mint/burn on-chain', 'done'),
-    M('Token registry + balances', 'Deterministic indexer, reorg-safe', 'done'),
-    M('Token explorer', 'Registry, holders, token pages on the site', 'done'),
-    M('OP_RETURN projects layer', 'Embed project data on-chain', 'done'),
-    M('Alpha Stablecoin', 'Fiat-backed asset issueable on ALP', 'todo'),
+  { q: 'PHASE 2 — Network & Infrastructure', name: 'Networking', items: [
+    M('P2P wire protocol', 'magic+command+checksum, version/verack, inv/getdata/tx/block/headers', 'done'),
+    M('Sync & relay', 'headers-first, block+tx relay, 2-node live sync verified', 'done'),
+    M('Compact blocks', 'BIP152 siphash short-IDs, mempool reconstruction, blocktxn', 'done'),
+    M('Bloom filters', 'BIP37 filterload/add/clear, filtered-block serving', 'done'),
+    M('Compact filters', 'BIP157/158 GCS filters, getblockfilter', 'done'),
+    M('addrv2', 'BIP155 variable-length network addresses', 'done'),
+    M('Tor / I2P', 'SOCKS5 proxy, .onion hidden-service hosting', 'done'),
+    M('Pruning & assumeutxo', 'keep-N block pruning + UTXO snapshot fast-sync', 'done'),
   ]},
-  { name: 'Alpha Wallet & DeFi', items: [
-    M('Alpha Wallet core', 'Keys, addresses, encryption — done', 'done'),
-    M('Wallet GUI / web wallet', 'Browser wallet UI', 'wip'),
-    M('Alpha Swap / DEX', 'Atomic swaps + AMM on ALP', 'todo'),
-    M('Staking & validator rewards', 'PoS-style reward layer (future)', 'todo'),
-    M('Lending & escrow', 'On-chain collateral + escrow contracts', 'todo'),
+  { q: 'PHASE 3 — Wallet & Signing', name: 'Wallet', items: [
+    M('Wallet core', 'WIF keys, coin-select, change, largest-first', 'done'),
+    M('Encryption', 'AES-256-CBC + SHA-512×25000, encryptwallet/passphrase/lock', 'done'),
+    M('HD wallets', 'BIP32 xprv/xpub, hardened/normal, BIP39 seed', 'done'),
+    M('Addresses', 'legacy, P2SH-segwit, bech32, bech32m taproot', 'done'),
+    M('Signed messages', 'signmessage/verifymessage with pubkey recovery', 'done'),
+    M('PSBT', 'BIP174 create/fund/sign/combine/finalize', 'done'),
+    M('Descriptors', 'BIP380 pkh/wpkh/tr/sh/wsh/multi/sortedmulti', 'done'),
   ]},
-  { name: 'Alpha Pay & Identity', items: [
-    M('Payments', 'send/receive, payment links (base exists)', 'done'),
-    M('Merchant API + QR pay', 'Invoice + QR payment flow', 'todo'),
+  { q: 'PHASE 4 — Tokens & Assets', name: 'ALP Tokens', items: [
+    M('Token protocol', 'ALP OP_RETURN issue/send/mint/burn (Omni-style)', 'done'),
+    M('Token indexer', 'Deterministic balances + registry + reorg undo', 'done'),
+    M('Token explorer', 'Token list, holders, balances on the site', 'done'),
+    M('OP_RETURN projects', 'Embed arbitrary project data on-chain', 'done'),
+    M('Stablecoin', 'Fiat-backed asset on ALP', 'todo'),
+  ]},
+  { q: 'PHASE 5 — APIs & Developer Tools', name: 'APIs', items: [
+    M('JSON-RPC', '~65 bitcoind-compatible methods', 'done'),
+    M('REST API', '/rest/chaininfo|block|tx|headers|mempool|utxo|tokens', 'done'),
+    M('Explorer + web API', 'blocks/tx/address/tokens/search + landing + docs', 'done'),
+    M('SPV proofs', 'gettxoutproof/verifytxoutproof partial merkle trees', 'done'),
+    M('Fee estimation', 'estimatesmartfee (CPFP package feerates)', 'done'),
+    M('SDK / client libs', 'alpha_cli + JSON client helper', 'done'),
+  ]},
+  { q: 'PHASE 6 — Security', name: 'Security', items: [
+    M('RPC authentication', 'bitcoind-style .cookie auth (401 without)', 'done'),
+    M('Wallet encryption', 'AES-256 + passphrase, owner-only files', 'done'),
+    M('Consensus hardening', 'all bounds enforced, all attack vectors tested', 'done'),
+    M('Signature safety', 'RFC6979, strict DER, low-S, curve checks', 'done'),
+    M('Audit & tests', '40/40 tests — vectors, consensus, integration, attacks', 'done'),
+  ]},
+  { q: 'PHASE 7 — Ecosystem (next)', name: 'Ecosystem', items: [
+    M('Web wallet UI', 'Browser wallet on top of alphaweb', 'wip'),
+    M('Merchant & payments', 'Invoices, QR pay, payment links', 'todo'),
+    M('Alpha Swap / DEX', 'AMM + atomic swaps on ALP', 'todo'),
+    M('Staking & validators', 'Reward layer on PoW', 'todo'),
+    M('Lending & escrow', 'On-chain collateral + escrow', 'todo'),
     M('Remittance', 'Cross-border settlement rail', 'todo'),
-    M('Alpha ID / DID', 'Self-sovereign identity + credentials', 'todo'),
-    M('Alpha KYC', 'Reusable verification for businesses', 'todo'),
-  ]},
-  { name: 'Alpha Web3, AI & Enterprise', items: [
-    M('NFT layer', 'Digital collectibles on ALP', 'todo'),
-    M('Gaming & marketplace', 'Web3 economies + domains (vikas.alpha)', 'todo'),
-    M('Alpha Oracle', 'External data feeds on-chain', 'todo'),
-    M('AI agents + M2M pay', 'Autonomous transactions layer', 'todo'),
+    M('Identity & KYC', 'DID, credentials, reusable verification', 'todo'),
+    M('NFT & domains', 'Collectibles + vikas.alpha naming', 'todo'),
+    M('Oracle', 'External data feeds on-chain', 'todo'),
+    M('AI agents & M2M pay', 'Autonomous transactions', 'todo'),
     M('Enterprise suite', 'Supply-chain, certificates, audit, registry', 'todo'),
+    M('Mobile wallet', 'iOS/Android app', 'todo'),
   ]},
 ];
 
@@ -104,7 +125,7 @@ function render() {
     const pct = Math.round(d / p.items.length * 100);
     return `<div class="rm-section">
       <div class="rm-head"><div class="rm-num">${String(pi+1).padStart(2,'0')}</div>
-        <h3>${p.name}</h3><div class="prog">${d}/${p.items.length}</div></div>
+        <h3>${p.name}</h3><span class="q">${p.q}</span><div class="prog">${d}/${p.items.length}</div></div>
       <div class="bar"><i style="width:${pct}%"></i></div>
       ${p.items.map(i => `
         <div class="milestone ${i.s}">
@@ -115,8 +136,11 @@ function render() {
     </div>`;
   }).join('');
   document.getElementById('roadmap').innerHTML = html +
-    `<div class="detail"><h3>Overall progress: ${done}/${total} milestones complete</h3>
-       <div class="bar"><i style="width:${Math.round(done/total*100)}%"></i></div></div>`;
+    `<div class="detail"><h3>Overall: ${done}/${total} milestones complete
+       (${Math.round(done/total*100)}%)</h3>
+       <div class="bar"><i style="width:${Math.round(done/total*100)}%"></i></div>
+       <p style="color:var(--dim);font-size:13.5px;margin-top:8px">Core network is production-ready;
+       ecosystem items are next-phase work.</p></div>`;
 }
 render();
 </script>
