@@ -180,8 +180,11 @@ class Blockchain:
             data = f.read()
         r = BytesReader(data)
         while not r.eof():
-            size = r.read_u32()
-            block = Block.deserialize(r.read(size))
+            try:
+                size = r.read_u32()
+                block = Block.deserialize(r.read(size))
+            except Exception:
+                break  # corrupt tail (e.g. crashed mid-write) — stop loading
             if block.hash() == self.active[0].hash:
                 continue
             try:
