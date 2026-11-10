@@ -10,7 +10,7 @@ import time
 from decimal import Decimal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import constants, crypto, amm as _amm, dex as _dex, identity as _id, merkleproof, script, tokens as _tokens, wallet as _wallet
+from . import constants, crypto, amm as _amm, dex as _dex, identity as _id, merkleproof, script, tokens as _tokens, wallet as _wallet, web3 as _w3
 from .base58 import b58encode_check
 from .block import Block
 from .transaction import (
@@ -1118,6 +1118,100 @@ class RPCMethods:
         return [{"txid": c["txid"].hex(), "amount": c["amount"],
                  "beneficiary": c["beneficiary"], "height": c["height"]}
                 for c in self.node.tokens.retirements]
+
+    # -- Web3: NFTs, marketplace, domains, games ---------------------------------
+    def _op(self, payload, address=None):
+        if address is None:
+            _, address = self._funded_address()
+        spk = script.script_for_address(address, self.node.params)
+        return self._submit_token_op(payload, spk, address, address)
+
+    def mintnft(self, name: str, uri: str = "", address: str = None):
+        """Mint an NFT — unique on-chain collectible owned by `address`."""
+        tx = self._op(_w3.nft_mint(name, uri), address)
+        return {"nft_id": tx.txid_hex(), "name": name}
+
+    def transfernft(self, nft_id: str, to_address: str, address: str = None):
+        nid = hex_to_hash(nft_id)
+        spk = self.node.web3.nfts.get(nid, {}).get("owner")
+        if address is None and spk:
+            address = script.extract_destination(spk, self.node.params)
+        tx = self._op(_w3.nft_transfer(nid), address)
+        return tx.txid_hex()
+
+    def burnnft(self, nft_id: str, address: str = None):
+        nid = hex_to_hash(nft_id)
+        spk = self.node.web3.nfts.get(nid, {}).get("owner")
+        if address is None and spk:
+            address = script.extract_destination(spk, self.node.params)
+        return self._op(_w3.nft_burn(nid), address).txid_hex()
+
+    def listnfts(self):
+        return self.node.web3.list_nfts(self.node.params)
+
+    def nftsell(self, nft_id: str, price_alpha, address: str = None):
+        """List your NFT on the marketplace for `price_alpha`."""
+        nid = hex_to_hash(nft_id)
+        spk = self.node.web3.nfts.get(nid, {}).get("owner")
+        if address is None and spk:
+            address = script.extract_destination(spk, self.node.params)
+        sat = int(Decimal(str(price_alpha)) * 10**8)
+        tx = self._op(_w3.nft_sell(nid, sat), address)
+        return {"order_id": tx.txid_hex(), "price_alpha": sat / 1e8}
+
+    def nftbuy(self, order_id: str):
+        """Buy a listed NFT — pays seller, NFT comes to you."""
+        oid = hex_to_hash(order_id)
+        o = self.node.web3.nft_orders.get(oid)
+        if o is None:
+            raise RPCError(RPC_INVALID_PARAMS, "unknown/closed order")
+        seller = script.extract_destination(o["seller"], self.node.params)
+        buyer = None
+        for u in self.node.wallet.list_unspent(self.node.chain, 1):
+            a = script.extract_destination(u["script"], self.node.params)
+            if a != seller:
+                buyer = a
+                break
+        if buyer is None:
+            raise RPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "no funded address")
+        tx = self.node.wallet.create_token_op_tx(
+            self.node.chain, _w3.nft_buy(oid), buyer, seller, o["price"])
+        self.node.submit_tx(tx)
+        return {"txid": tx.txid_hex(), "paid_alpha": o["price"] / 1e8}
+
+    def nftorders(self):
+        return self.node.web3.list_orders(self.node.params)
+
+    def registerdomain(self, name: str, address: str = None):
+        """Register a .alpha-style name — first-come-first-served."""
+        tx = self._op(_w3.dom_register(name), address)
+        return {"name": name, "txid": tx.txid_hex()}
+
+    def setdomainaddress(self, name: str, address: str = None):
+        """Point your domain at an address (resolution target)."""
+        return self._op(_w3.dom_setaddr(name), address).txid_hex()
+
+    def transferdomain(self, name: str, address: str = None):
+        """Transfer domain ownership to the tx's first output."""
+        return self._op(_w3.dom_transfer(name), address).txid_hex()
+
+    def resolvedomain(self, name: str):
+        """Resolve a name — owner + target address."""
+        return self.node.web3.resolve_domain(name, self.node.params)
+
+    def listdomains(self):
+        return self.node.web3.list_domains(self.node.params)
+
+    def gameachieve(self, game: str, achievement: str, address: str = None):
+        """Record an in-game achievement on-chain (play-to-earn proofs)."""
+        return self._op(_w3.game_achieve(game, achievement), address).txid_hex()
+
+    def gamerecords(self, game: str = None):
+        return [{"player": script.extract_destination(r["player"],
+                         self.node.params), "game": r["game"],
+                 "achievement": r["ach"], "height": r["height"]}
+                for r in self.node.web3.game_records
+                if game is None or r["game"] == game]
 
     def kycstatus(self, address: str):
         """Reusable KYC check — returns all valid 'kyc' claims for a DID,
