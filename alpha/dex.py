@@ -12,10 +12,12 @@ Wire format (inside an OP_RETURN output, single push):
     op=0x01 SELL   : token_id(32) | amount(u64 LE) | price_per_unit(u64 LE alphasats)
                      order_id = txid of the sell tx; tokens escrowed from
                      the first input's prevout script
-    op=0x02 FILL   : order_id(32)
+    op=0x02 FILL   : order_id(32) | max_cost(u64 LE alphasats, optional)
                      requires an output paying >= amount*price alphasats to
                      the seller's script in the same tx; tokens go to the
-                     first input's prevout script (the buyer)
+                     first input's prevout script (the buyer).
+                     If max_cost > 0 and the required payment exceeds it,
+                     the fill is rejected — slippage protection.
     op=0x03 CANCEL : order_id(32)
                      only the seller's script may cancel; escrow returns
 """
@@ -36,8 +38,8 @@ def encode_sell(token_id: bytes, amount: int, price: int) -> bytes:
             + struct.pack("<QQ", amount, price))
 
 
-def encode_fill(order_id: bytes) -> bytes:
-    return MAGIC + bytes([VERSION, OP_FILL]) + order_id
+def encode_fill(order_id: bytes, max_cost: int = 0) -> bytes:
+    return MAGIC + bytes([VERSION, OP_FILL]) + order_id + struct.pack("<Q", max_cost)
 
 
 def encode_cancel(order_id: bytes) -> bytes:
@@ -55,7 +57,10 @@ def parse_payload(data: bytes):
             return {"op": op, "token_id": data[5:37],
                     "amount": struct.unpack_from("<Q", data, 37)[0],
                     "price": struct.unpack_from("<Q", data, 45)[0]}
-        if op in (OP_FILL, OP_CANCEL):
+        if op == OP_FILL:
+            mc = struct.unpack_from("<Q", data, 37)[0] if len(data) >= 45 else 0
+            return {"op": op, "order_id": data[5:37], "max_cost": mc}
+        if op == OP_CANCEL:
             return {"op": op, "order_id": data[5:37]}
     except (IndexError, struct.error):
         return None
@@ -119,6 +124,8 @@ class DexDB:
             if order is None or sender is None or sender == order["seller"]:
                 return
             need = order["amount"] * order["price"]
+            if p.get("max_cost") and need > p["max_cost"]:
+                return  # slippage protection — price moved past buyer's cap
             paid = sum(txo.value for txo in tx.vout
                        if txo.script_pubkey == order["seller"])
             if paid < need:

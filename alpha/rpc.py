@@ -747,12 +747,15 @@ class RPCMethods:
         return {"order_id": tx.txid_hex(), "amount": float(amount),
                 "price_alpha": float(total_price_alpha)}
 
-    def dexfill(self, order_id: str):
-        """Fill an open order: pays the seller, tokens come to your wallet."""
+    def dexfill(self, order_id: str, maxalpha=None):
+        """Fill an open order: pays the seller, tokens come to your wallet.
+        maxalpha — slippage cap: fill rejected if cost exceeds it."""
         oid = hex_to_hash(order_id)
         order = self.node.dex.orders.get(oid)
         if order is None:
             raise RPCError(RPC_INVALID_PARAMS, "unknown/closed order")
+        max_cost = (int(Decimal(str(maxalpha)) * 10**8)
+                    if maxalpha is not None else 0)
         seller_addr = script.extract_destination(order["seller"],
                                                  self.node.params)
         if seller_addr is None:
@@ -769,10 +772,48 @@ class RPCMethods:
                            "no funded address other than the seller's")
         need = order["amount"] * order["price"]
         tx = self.node.wallet.create_token_op_tx(
-            self.node.chain, _dex.encode_fill(oid),
+            self.node.chain, _dex.encode_fill(oid, max_cost),
             buyer_addr, seller_addr, need)
         self.node.submit_tx(tx)
         return {"txid": tx.txid_hex(), "paid_alpha": need / 1e8}
+
+    def dexswap(self, token_id: str, total_alpha, maxalpha=None):
+        """Market buy — fills the cheapest open orders for `token_id`
+        until `total_alpha` is spent. Multi-hop fast swap in one call."""
+        tid = hex_to_hash(token_id)
+        budget = int(Decimal(str(total_alpha)) * 10**8)
+        cap = (int(Decimal(str(maxalpha)) * 10**8)
+               if maxalpha is not None else None)
+        # cheapest matching orders first — fast best-price execution
+        orders = sorted(
+            (o for o in self.node.dex.orders.values() if o["token_id"] == tid),
+            key=lambda o: o["price"])
+        fills, spent = [], 0
+        for o in orders:
+            need = o["amount"] * o["price"]
+            if spent + need > budget:
+                break
+            if cap is not None and need > cap:
+                continue
+            seller_addr = script.extract_destination(o["seller"],
+                                                     self.node.params)
+            buyer_addr = None
+            for u in self.node.wallet.list_unspent(self.node.chain, 1):
+                a = script.extract_destination(u["script"], self.node.params)
+                if a != seller_addr:
+                    buyer_addr = a
+                    break
+            if buyer_addr is None:
+                break
+            tx = self.node.wallet.create_token_op_tx(
+                self.node.chain, _dex.encode_fill(o["order_id"], cap or 0),
+                buyer_addr, seller_addr, need)
+            self.node.submit_tx(tx)
+            fills.append(tx.txid_hex())
+            spent += need
+        if not fills:
+            raise RPCError(RPC_INVALID_PARAMS, "no fillable orders for token")
+        return {"fills": fills, "spent_alpha": spent / 1e8}
 
     def dexcancel(self, order_id: str):
         """Cancel your own open order; escrowed tokens return to you."""
