@@ -10,12 +10,13 @@ import time
 from decimal import Decimal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import constants, merkleproof, script, tokens as _tokens, wallet as _wallet
+from . import constants, crypto, merkleproof, script, tokens as _tokens, wallet as _wallet
+from .base58 import b58encode_check
 from .block import Block
 from .transaction import (
     OutPoint, SIGHASH_ALL, Transaction, TxIn, TxOut)
 from .utils import (
-    BytesReader, compact_to_target, hash_to_hex, hex_to_hash, now,
+    BytesReader, compact_to_target, hash160, hash_to_hex, hex_to_hash, now,
 )
 
 
@@ -423,6 +424,39 @@ class RPCMethods:
         except Exception as e:
             raise RPCError(RPC_MISC_ERROR, str(e))
         return tx.txid_hex()
+
+    # -- burning + multisig -------------------------------------------------------
+    def burnalpha(self, amount, note: str = ""):
+        """Provably burn ALPHA: sends coins to an OP_RETURN output, which is
+        unspendable by consensus — the same mechanism used on Bitcoin."""
+        data = ("ALPHABURN:" + str(note)).encode()
+        burn_spk = script.script_op_return(data)
+        try:
+            tx = self.node.wallet.create_transaction(
+                self.node.chain, [(burn_spk, sats(amount))], 1)
+            self.node.submit_tx(tx)
+        except ValueError as e:
+            raise RPCError(RPC_WALLET_INSUFFICIENT_FUNDS, str(e))
+        except Exception as e:
+            raise RPCError(RPC_MISC_ERROR, str(e))
+        return {"txid": tx.txid_hex(), "burned": float(amount),
+                "note": str(note)}
+
+    def createmultisig(self, nrequired: int, keys: list):
+        """Create a m-of-n P2SH multisig address (bitcoind createmultisig)."""
+        pubs = []
+        for k in keys:
+            pk = crypto.parse_pubkey(bytes.fromhex(k))
+            pubs.append(crypto.serialize_pubkey(pk, True))
+        n = int(nrequired)
+        if n < 1 or n > len(pubs) or len(pubs) > 15:
+            raise RPCError(RPC_INVALID_PARAMETER,
+                           "need 1 <= nrequired <= len(keys) <= 15")
+        redeem = script.script_multisig(n, pubs)
+        addr = b58encode_check(
+            bytes([self.node.params.base58_script_address])
+            + hash160(redeem))
+        return {"address": addr, "redeemScript": redeem.hex()}
 
     # -- wallet encryption (bitcoind encryptwallet/walletpassphrase/walletlock) --
     def encryptwallet(self, passphrase: str):

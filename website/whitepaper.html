@@ -137,6 +137,18 @@
   <p>Issuance converges on the same asymptote as Bitcoin: the sum of all future block rewards
   is a geometric series that asymptotically approaches but never reaches 21,000,000 —
   exactly <b>20,999,999.9769 ALPHA</b>.</p>
+  <h4>3.1 Community Reserve — 25%</h4>
+  <p><b>5,250,000 ALPHA</b> (25% of total supply) is allocated to a community reserve
+  governed by a <b>3-of-5 multisig</b> address — five founding members, any three required
+  to spend. No single member controls the fund; it is released for ecosystem growth,
+  listings, development and member benefit as the community decides.</p>
+  <p>The remaining <b>15,750,000 ALPHA</b> (75%) enters circulation strictly through the
+  Bitcoin-style mining schedule — fair, permissionless, earned by work.</p>
+  <h4>3.2 Provable Burning</h4>
+  <p>ALPHA supports verifiable coin destruction via the <code>burnalpha</code> RPC: coins are
+  sent to an <code>OP_RETURN</code> output, which is unspendable by consensus — the same
+  mechanism Bitcoin users employ to provably remove coins. Anyone can verify a burn
+  on-chain; burned coins permanently reduce circulating supply.</p>
 
   <h2 id="script">4. Script &amp; Contracts</h2>
   <p>A complete Bitcoin-style stack interpreter executes every standard locking script:</p>
