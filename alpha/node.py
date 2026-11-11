@@ -6,6 +6,7 @@ Handles Bitcoin's message flow:
 """
 
 import os
+import socket
 import threading
 import time
 
@@ -120,6 +121,55 @@ class Node:
         with self.peers_lock:
             for p in self.peers:
                 p.send(command, payload)
+
+    # ------------------------------------------------------------------
+    # LAN peer discovery — nodes on the same local network find each
+    # other via UDP broadcast, no internet/seed needed. UDP port 8334.
+    # ------------------------------------------------------------------
+    LAN_PORT = 8334
+
+    def start_lan_discovery(self) -> None:
+        """Broadcast 'ALPHA|<network>|<p2pport>' beacons on the LAN and
+        auto-connect to other nodes we hear — works fully offline."""
+        beacon = f"ALPHA|{self.params.name}|{self.port}".encode()
+
+        def _discover():
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            try:
+                s.bind(("", self.LAN_PORT))
+            except OSError:
+                s.bind(("", 0))          # port taken — listen on ephemeral
+            s.settimeout(2.0)
+            last_beacon = 0.0
+            while getattr(self, "_lan_on", True):
+                # broadcast our presence every ~30s
+                if time.time() - last_beacon > 30:
+                    try:
+                        s.sendto(beacon, ("255.255.255.255", self.LAN_PORT))
+                        last_beacon = time.time()
+                    except OSError:
+                        pass
+                try:
+                    data, addr = s.recvfrom(128)
+                except socket.timeout:
+                    continue
+                except OSError:
+                    break
+                parts = data.decode(errors="ignore").split("|")
+                if (len(parts) == 3 and parts[0] == "ALPHA"
+                        and parts[1] == self.params.name):
+                    ip, port = addr[0], int(parts[2])
+                    if ip not in self._lan_known():
+                        self.connect(ip, port)   # don't re-dial known peers
+            s.close()
+
+        self._lan_on = True
+        threading.Thread(target=_discover, daemon=True).start()
+
+    def _lan_known(self):
+        return {getattr(p, "host", None) for p in self.peers}
 
     # ------------------------------------------------------------------
     # message dispatch

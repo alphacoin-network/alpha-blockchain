@@ -63,6 +63,8 @@ def main() -> int:
 
     # auto-connect to public seed nodes (like Bitcoin's DNS seeds), plus
     # any explicit --connect peers
+    # LAN auto-discovery — find & connect local nodes even with no internet
+    node.start_lan_discovery()
     targets = list(args.connect) + [s for s in params.seed_nodes
                                   if s not in args.connect]
     for target in targets:
