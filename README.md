@@ -151,7 +151,13 @@ python alphaweb.py --port 8080                        # site on :8080
 ```
 
 Landing page with 3D ALPHA coin, live network stats, block explorer,
-token registry and full API docs.
+token registry, full API docs, a getting-started guide (`guide.html` —
+wallet safety, confirmations, individual/business use, FAQ) and a
+whitepaper with protocol diagrams (`whitepaper.html`).
+
+See `docs/USECASES.md` for real-world end-to-end flows (merchant checkout,
+escrow, loans, token launches, KYC-gated assets, supply chain, NFT sales)
+and `examples/use_cases.py` for a runnable demo.
 
 ## Layout
 

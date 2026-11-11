@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Whitepaper — Alpha Blockchain</title>
-  <meta name="description" content="Alpha Blockchain whitepaper: a Bitcoin-grade decentralized network — consensus, monetary policy, script, tokens, network, security, tokenomics and the full ecosystem roadmap.">
+  <meta name="description" content="Alpha Blockchain whitepaper v2: a Bitcoin-grade decentralized network — transactions, timestamp server, proof-of-work, network, incentive, merkle trees, SPV, privacy, security calculations, monetary policy, script, the ALP meta-protocol layer, tokenomics and the full ecosystem.">
   <meta name="theme-color" content="#f7931a">
   <link rel="icon" type="image/svg+xml" href="coin.svg">
   <link rel="apple-touch-icon" href="coin.svg"><link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
   <style>
-    .wp { max-width: 860px; margin: 0 auto; line-height: 1.75; }
+    .wp { max-width: 880px; margin: 0 auto; line-height: 1.75; }
     .wp h2 { font-size: 30px; margin: 46px 0 14px; padding-top: 20px;
       border-top: 1px solid var(--border); }
     .wp h2:first-of-type { border-top: none; }
@@ -41,6 +41,12 @@
     .wp table.spec { width: 100%; font-size: 14px; }
     .wp table.spec td { padding: 9px 14px; }
     .wp table.spec td:first-child { color: var(--dim); }
+    .fig { background: var(--card); border:1px solid var(--border); border-radius:12px;
+      padding:20px 14px 12px; margin:18px 0; overflow-x:auto; }
+    .fig svg { display:block; margin:0 auto; max-width:100%; height:auto; }
+    .fig .cap { text-align:center; color:var(--dim); font-size:12.5px; margin-top:12px;
+      font-style:italic; }
+    .fig text { font-family: var(--mono, monospace); }
   </style>
 </head>
 <body>
@@ -50,45 +56,63 @@
   <div class="cover">
     <img src="coin.svg" alt="alpha coin">
     <h1>Alpha Blockchain</h1>
-    <p>A Bitcoin-grade decentralized network — ALPHA coin, tokens and the full ecosystem.<br>
-       <b>Whitepaper v1.0</b> · November 2026 · alpha-blockchain</p>
+    <p>A Peer-to-Peer Electronic Cash System — and a platform built on it.<br>
+       <b>Whitepaper v2.0</b> · November 2026 · alpha-blockchain</p>
   </div>
 
   <h3>Contents</h3>
   <div class="toc">
     <a href="#abs">Abstract</a>
     <a href="#intro">1. Introduction</a>
-    <a href="#consensus">2. Consensus</a>
-    <a href="#money">3. Monetary Policy</a>
-    <a href="#script">4. Script &amp; Contracts</a>
-    <a href="#tokens">5. Tokens (ALP)</a>
-    <a href="#network">6. Network &amp; Nodes</a>
-    <a href="#wallet">7. Wallet &amp; Keys</a>
-    <a href="#security">8. Security Model</a>
-    <a href="#apis">9. APIs &amp; Interop</a>
-    <a href="#governance">10. Governance &amp; Distribution</a>
-    <a href="#usecases">11. Use Cases</a>
-    <a href="#roadmap">12. Roadmap</a>
-    <a href="#tech">13. Technical Reference</a>
-    <a href="#legal">14. Disclaimer</a>
+    <a href="#tx">2. Transactions</a>
+    <a href="#timestamp">3. Timestamp Server</a>
+    <a href="#pow">4. Proof-of-Work</a>
+    <a href="#network">5. Network</a>
+    <a href="#incentive">6. Incentive</a>
+    <a href="#money">7. Monetary Policy</a>
+    <a href="#merkle">8. Reclaiming Disk Space</a>
+    <a href="#spv">9. Simplified Payment Verification</a>
+    <a href="#split">10. Combining &amp; Splitting Value</a>
+    <a href="#privacy">11. Privacy</a>
+    <a href="#script">12. Script &amp; Contracts</a>
+    <a href="#meta">13. The Meta-Protocol Layer</a>
+    <a href="#wallet">14. Wallet &amp; Keys</a>
+    <a href="#security">15. Security Model &amp; Calculations</a>
+    <a href="#apis">16. APIs &amp; Interoperability</a>
+    <a href="#governance">17. Governance &amp; Distribution</a>
+    <a href="#usecases">18. Use Cases</a>
+    <a href="#roadmap">19. Roadmap</a>
+    <a href="#tech">20. Technical Reference</a>
+    <a href="#conclusion">21. Conclusion</a>
+    <a href="#legal">22. Disclaimer</a>
   </div>
 
   <h2 id="abs">Abstract</h2>
-  <p class="abs">Alpha Blockchain is a decentralized proof-of-work network engineered to
-  Bitcoin's exact technical specification — SHA-256d PoW, 21,000,000-coin supply, 10-minute
-  blocks, UTXO accounting, a full stack-machine Script engine, SegWit and Taproot — extended
-  with a native token layer (ALP), SPV proofs, compact-block filters, PSBT, HD wallets and a
-  complete explorer/REST API. It is designed to be permissionless, auditable and compatible
-  with Bitcoin's well-understood security model.</p>
+  <p class="abs">A purely peer-to-peer version of electronic cash allows online payments to be
+  sent directly from one party to another without going through a financial institution.
+  Alpha Blockchain implements that design to Bitcoin's exact specification — SHA-256d
+  proof-of-work, 21,000,000-coin supply, 10-minute blocks, UTXO accounting, a full
+  stack-machine Script engine, SegWit and Taproot — and extends it with a deterministic
+  OP_RETURN meta-protocol layer: tokens, a DEX with AMM pools, identity, NFTs, domains,
+  real-world assets, oracles, escrow, lending and enterprise records, all validated by
+  every full node. The network timestamps transactions by hashing them into an ongoing
+  chain of hash-based proof-of-work, forming a record that cannot be changed without
+  redoing the proof-of-work — and it keeps running even on a local network with no
+  internet, thanks to UDP peer discovery.</p>
 
   <h2 id="intro">1. Introduction</h2>
-  <p>Bitcoin proved that a scarce, permissionless, censorship-resistant digital asset can be
-  secured by pure cryptography and economic incentive — without any trusted party. Alpha
-  Blockchain takes that design and rebuilds it from first principles: a clean-room,
-  dependency-free Python implementation that mirrors Bitcoin's consensus behavior bit-for-bit,
-  while adding the infrastructure modern applications actually need — a deterministic token
-  layer, a block explorer, developer APIs and the plumbing for DeFi, identity, real-world
-  assets and enterprise use.</p>
+  <p>Commerce on the internet has come to rely almost exclusively on financial institutions
+  serving as trusted third parties to process electronic payments. The system works well
+  enough for most transactions, but it still suffers from the inherent weaknesses of the
+  trust-based model: mediation costs, minimum practical transaction sizes, chargeback fraud,
+  and the loss of non-reversible payments for non-reversible services.</p>
+  <p>Bitcoin showed what is needed instead: an electronic payment system based on
+  cryptographic proof instead of trust, allowing any two willing parties to transact
+  directly without a trusted third party. Alpha Blockchain takes that design and rebuilds
+  it from first principles — a clean-room, dependency-free Python implementation that
+  mirrors Bitcoin's consensus behavior — while adding the infrastructure modern
+  applications actually need: a deterministic token layer, a block explorer, developer
+  APIs and the plumbing for DeFi, identity, real-world assets and enterprise use.</p>
   <p>The project has two goals:</p>
   <ul>
     <li><b>Faithfulness</b> — replicate Bitcoin's consensus-critical behavior exactly: the same
@@ -98,89 +122,195 @@
         tokens, explorer) so the chain is a platform, not just a coin.</li>
   </ul>
 
-  <h2 id="consensus">2. Consensus</h2>
-  <p>Consensus is the set of rules every honest node independently enforces. Alpha implements
-  Bitcoin's rules end-to-end:</p>
-  <h4>2.1 Proof of Work</h4>
+  <h2 id="tx">2. Transactions</h2>
+  <p>We define an electronic coin as a <b>chain of digital signatures</b>. Each owner transfers
+  the coin to the next by digitally signing a hash of the previous transaction and the
+  public key of the next owner, and adding these to the end of the coin. A payee can
+  verify the signatures to verify the chain of ownership.</p>
+
+  <div class="fig">
+    <svg viewBox="0 0 900 210" xmlns="http://www.w3.org/2000/svg" font-size="11">
+      <defs><marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+        <path d="M0,0 L8,4 L0,8 z" fill="#f5c542"/></marker></defs>
+      <!-- tx boxes -->
+      <g>
+        <rect x="30" y="35" width="230" height="95" rx="10" fill="#141829" stroke="#2a3350"/>
+        <text x="145" y="58" fill="#f5c542" text-anchor="middle" font-weight="bold">Transaction</text>
+        <text x="145" y="82" fill="#c8d0e8" text-anchor="middle">Owner 1's Public Key</text>
+        <text x="145" y="105" fill="#5a6484" text-anchor="middle">··· data ···</text>
+      </g>
+      <g>
+        <rect x="335" y="35" width="230" height="95" rx="10" fill="#141829" stroke="#2a3350"/>
+        <text x="450" y="58" fill="#f5c542" text-anchor="middle" font-weight="bold">Transaction</text>
+        <text x="450" y="82" fill="#c8d0e8" text-anchor="middle">Owner 2's Public Key</text>
+        <text x="450" y="105" fill="#5a6484" text-anchor="middle">··· data ···</text>
+      </g>
+      <g>
+        <rect x="640" y="35" width="230" height="95" rx="10" fill="#141829" stroke="#2a3350"/>
+        <text x="755" y="58" fill="#f5c542" text-anchor="middle" font-weight="bold">Transaction</text>
+        <text x="755" y="82" fill="#c8d0e8" text-anchor="middle">Owner 3's Public Key</text>
+        <text x="755" y="105" fill="#5a6484" text-anchor="middle">··· data ···</text>
+      </g>
+      <!-- arrows -->
+      <line x1="262" y1="82" x2="330" y2="82" stroke="#f5c542" stroke-width="1.6" marker-end="url(#ar)"/>
+      <text x="297" y="48" fill="#4f7cff" text-anchor="middle">Verify</text>
+      <text x="297" y="72" fill="#9fb4ff" text-anchor="middle">hash(prev Tx ‖ Owner 1 pubkey)</text>
+      <text x="297" y="102" fill="#3ddc97" text-anchor="middle">Owner 0's Signature</text>
+      <text x="297" y="118" fill="#5a6484" text-anchor="middle">sign: Owner 0 private key</text>
+      <line x1="567" y1="82" x2="635" y2="82" stroke="#f5c542" stroke-width="1.6" marker-end="url(#ar)"/>
+      <text x="602" y="48" fill="#4f7cff" text-anchor="middle">Verify</text>
+      <text x="602" y="72" fill="#9fb4ff" text-anchor="middle">hash(prev Tx ‖ Owner 2 pubkey)</text>
+      <text x="602" y="102" fill="#3ddc97" text-anchor="middle">Owner 1's Signature</text>
+      <text x="602" y="118" fill="#5a6484" text-anchor="middle">sign: Owner 1 private key</text>
+      <text x="145" y="160" fill="#5a6484" text-anchor="middle">↑ anyone can verify</text>
+      <text x="450" y="160" fill="#5a6484" text-anchor="middle">↑ anyone can verify</text>
+      <text x="755" y="160" fill="#5a6484" text-anchor="middle">↑ anyone can verify</text>
+    </svg>
+    <div class="cap">Fig. 1 — A coin as a chain of digital signatures. Each spend signs
+    hash(previous transaction ‖ next owner's public key) with the current owner's private key.</div>
+  </div>
+
+  <p>The problem, of course, is that the payee can't verify that one of the owners did not
+  <b>double-spend</b> the coin. A common solution is a trusted central mint that checks every
+  transaction — but then the fate of the entire money system depends on the company running
+  the mint, with every transaction having to go through them, just like a bank.</p>
+  <p>We need the payee to know the previous owners did not sign any earlier transactions. The
+  only way to confirm the absence of a transaction is to be aware of <i>all</i> transactions —
+  so transactions must be publicly announced, and participants must agree on a single history
+  of the order in which they were received. Alpha solves this exactly as Bitcoin does: a
+  peer-to-peer distributed timestamp server generating computational proof of chronological
+  order. In the UTXO model this takes concrete form: every node maintains the set of
+  unspent outputs and rejects any input that references an output already spent.</p>
+
+  <h2 id="timestamp">3. Timestamp Server</h2>
+  <p>The solution begins with a timestamp server: it works by taking a hash of a block of
+  items to be timestamped and widely publishing the hash. The timestamp proves the data
+  must have existed at the time, obviously, in order to get into the hash. Each timestamp
+  includes the previous timestamp in its hash, forming a chain — with each additional
+  timestamp reinforcing the ones before it.</p>
+
+  <div class="fig">
+    <svg viewBox="0 0 860 180" xmlns="http://www.w3.org/2000/svg" font-size="11">
+      <defs><marker id="ar2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+        <path d="M0,0 L8,4 L0,8 z" fill="#f5c542"/></marker></defs>
+      <g>
+        <rect x="30" y="55" width="190" height="80" rx="10" fill="#141829" stroke="#2a3350"/>
+        <text x="125" y="80" fill="#f5c542" text-anchor="middle" font-weight="bold">Block</text>
+        <text x="125" y="105" fill="#c8d0e8" text-anchor="middle">Item  Item  Item</text>
+      </g>
+      <g>
+        <rect x="335" y="55" width="190" height="80" rx="10" fill="#141829" stroke="#2a3350"/>
+        <text x="430" y="80" fill="#f5c542" text-anchor="middle" font-weight="bold">Block</text>
+        <text x="430" y="105" fill="#c8d0e8" text-anchor="middle">Item  Item  Item</text>
+      </g>
+      <g>
+        <rect x="640" y="55" width="190" height="80" rx="10" fill="#141829" stroke="#2a3350"/>
+        <text x="735" y="80" fill="#f5c542" text-anchor="middle" font-weight="bold">Block</text>
+        <text x="735" y="105" fill="#c8d0e8" text-anchor="middle">Item  Item  Item</text>
+      </g>
+      <line x1="222" y1="95" x2="330" y2="95" stroke="#f5c542" stroke-width="1.6" marker-end="url(#ar2)"/>
+      <text x="276" y="85" fill="#3ddc97" text-anchor="middle">Hash</text>
+      <line x1="527" y1="95" x2="635" y2="95" stroke="#f5c542" stroke-width="1.6" marker-end="url(#ar2)"/>
+      <text x="581" y="85" fill="#3ddc97" text-anchor="middle">Hash</text>
+      <text x="276" y="115" fill="#5a6484" text-anchor="middle">← prev hash inside →</text>
+      <text x="581" y="115" fill="#5a6484" text-anchor="middle">← prev hash inside →</text>
+      <text x="430" y="160" fill="#8a93b2" text-anchor="middle">each hash is widely published — proving the items existed at that time</text>
+    </svg>
+    <div class="cap">Fig. 2 — Timestamp server: each block's hash commits to the previous
+    timestamp, forming a self-reinforcing chain.</div>
+  </div>
+
+  <h2 id="pow">4. Proof-of-Work</h2>
+  <p>To implement a distributed timestamp server on a peer-to-peer basis, Alpha uses a
+  proof-of-work system similar to Adam Back's Hashcash — the same construction Bitcoin
+  uses. The proof-of-work involves scanning for a value that, when hashed with SHA-256d
+  (double SHA-256), gives a hash below a numeric <b>target</b>. The average work required is
+  exponential in the difficulty and can be verified by executing a single hash.</p>
+  <p>Miners increment a <b>nonce</b> in the block until a value is found that gives the block's
+  hash the required target. Once the CPU effort has been expended to satisfy the
+  proof-of-work, the block cannot be changed without redoing the work — and as later blocks
+  chain after it, changing it would mean redoing all the blocks after it.</p>
+
+  <div class="fig">
+    <svg viewBox="0 0 880 160" xmlns="http://www.w3.org/2000/svg" font-size="11">
+      <defs><marker id="ar3" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+        <path d="M0,0 L8,4 L0,8 z" fill="#f5c542"/></marker></defs>
+      <g>
+        <rect x="20" y="35" width="240" height="85" rx="10" fill="#141829" stroke="#2a3350"/>
+        <rect x="20" y="35" width="240" height="32" rx="10" fill="#1b2138" stroke="#2a3350"/>
+        <text x="80" y="56" fill="#4f7cff" text-anchor="middle">Prev Hash</text>
+        <text x="200" y="56" fill="#f5c542" text-anchor="middle">Nonce</text>
+        <line x1="140" y1="40" x2="140" y2="66" stroke="#2a3350"/>
+        <text x="140" y="92" fill="#c8d0e8" text-anchor="middle">Tx   Tx   Tx   …</text>
+      </g>
+      <g>
+        <rect x="320" y="35" width="240" height="85" rx="10" fill="#141829" stroke="#2a3350"/>
+        <rect x="320" y="35" width="240" height="32" rx="10" fill="#1b2138" stroke="#2a3350"/>
+        <text x="380" y="56" fill="#4f7cff" text-anchor="middle">Prev Hash</text>
+        <text x="500" y="56" fill="#f5c542" text-anchor="middle">Nonce</text>
+        <line x1="440" y1="40" x2="440" y2="66" stroke="#2a3350"/>
+        <text x="440" y="92" fill="#c8d0e8" text-anchor="middle">Tx   Tx   Tx   …</text>
+      </g>
+      <g>
+        <rect x="620" y="35" width="240" height="85" rx="10" fill="#141829" stroke="#2a3350"/>
+        <rect x="620" y="35" width="240" height="32" rx="10" fill="#1b2138" stroke="#2a3350"/>
+        <text x="680" y="56" fill="#4f7cff" text-anchor="middle">Prev Hash</text>
+        <text x="800" y="56" fill="#f5c542" text-anchor="middle">Nonce</text>
+        <line x1="740" y1="40" x2="740" y2="66" stroke="#2a3350"/>
+        <text x="740" y="92" fill="#c8d0e8" text-anchor="middle">Tx   Tx   Tx   …</text>
+      </g>
+      <line x1="262" y1="77" x2="315" y2="77" stroke="#f5c542" stroke-width="1.6" marker-end="url(#ar3)"/>
+      <line x1="562" y1="77" x2="615" y2="77" stroke="#f5c542" stroke-width="1.6" marker-end="url(#ar3)"/>
+      <text x="440" y="145" fill="#8a93b2" text-anchor="middle">SHA256d(header) ≤ target — one hash verifies, exponential work to forge</text>
+    </svg>
+    <div class="cap">Fig. 3 — The proof-of-work chain. Changing any block requires redoing
+    its work and all work after it.</div>
+  </div>
+
+  <p>Proof-of-work also solves the problem of determining representation in majority
+  decision making. If the majority were based on one-IP-address-one-vote, it could be
+  subverted by anyone able to allocate many IPs. Proof-of-work is essentially
+  <b>one-CPU-one-vote</b>: the majority decision is the chain with the greatest invested
+  proof-of-work.</p>
+
+  <h4>4.1 Consensus rules (every node enforces)</h4>
   <ul>
     <li>80-byte block header: <code>version(4) | prev_hash(32) | merkle_root(32) |
         time(4) | bits(4) | nonce(4)</code></li>
     <li>Block valid iff <code>SHA256d(header) ≤ target</code> where
         <code>target = bits_mantissa × 2^(8·(bits_exponent−3))</code> (bit-exact).</li>
     <li>Merkle root uses Bitcoin's duplicate-last rule; witness commitments (BIP141) verified.</li>
+    <li>Median-time-past over 11 blocks (MTP) — miners can't jump the clock arbitrarily;
+        future timestamps limited to +2 hours.</li>
+    <li>Best chain = most cumulative chainwork (not merely longest). Reorgs disconnect
+        and reconnect blocks with full UTXO/mempool/meta-protocol undo.</li>
+    <li>BIP34: block height in coinbase; genesis reward unspendable (Bitcoin quirk preserved).</li>
   </ul>
-  <h4>2.2 Difficulty retarget</h4>
+  <h4>4.2 Difficulty retarget</h4>
+  <p>To compensate for increasing hardware speed and varying interest in mining, the
+  difficulty is determined by a moving average targeting an average number of blocks per
+  hour. If they're generated too fast, the difficulty increases:</p>
   <div class="formula">new_target = old_target × clamp(actual_timespan / 20160, ¼, 4)
   (every 2016 blocks; target spacing = 10 minutes)</div>
-  <h4>2.3 Timestamps</h4>
-  <ul>
-    <li>Median-time-past over 11 blocks (MTP) — miners can't jump the clock arbitrarily.</li>
-    <li>Future timestamps limited to +2 hours from network time.</li>
-  </ul>
-  <h4>2.4 Chain selection</h4>
-  <ul>
-    <li>Best chain = most cumulative chainwork (not longest). Reorgs disconnect &amp; reconnect
-        blocks with full UTXO/mempool/token undo.</li>
-    <li>BIP34: block height in coinbase; genesis reward unspendable (Bitcoin quirk).</li>
-  </ul>
 
-  <h2 id="money">3. Monetary Policy</h2>
-  <div class="kvs">
-    <div class="k">Max supply</div><div>21,000,000 ALPHA</div>
-    <div class="k">Subunit</div><div>1 ALPHA = 100,000,000 alphasats</div>
-    <div class="k">Block subsidy</div><div>50 ALPHA, halving every 210,000 blocks</div>
-    <div class="k">Total issuance</div><div>20,999,999.9769 ALPHA</div>
-    <div class="k">Block time</div><div>10 minutes</div>
-    <div class="k">Coinbase maturity</div><div>100 blocks</div>
-    <div class="k">Halvings</div><div>subsidy = 50 ÷ 2^(height/210000) until 0</div>
-  </div>
-  <p>Issuance converges on the same asymptote as Bitcoin: the sum of all future block rewards
-  is a geometric series that asymptotically approaches but never reaches 21,000,000 —
-  exactly <b>20,999,999.9769 ALPHA</b>.</p>
-  <h4>3.1 Community Reserve — 25%</h4>
-  <p><b>5,250,000 ALPHA</b> (25% of total supply) is allocated to a community reserve
-  governed by a <b>3-of-5 multisig</b> address — five founding members, any three required
-  to spend. No single member controls the fund; it is released for ecosystem growth,
-  listings, development and member benefit as the community decides.</p>
-  <p>The remaining <b>15,750,000 ALPHA</b> (75%) enters circulation strictly through the
-  Bitcoin-style mining schedule — fair, permissionless, earned by work.</p>
-  <h4>3.2 Provable Burning</h4>
-  <p>ALPHA supports verifiable coin destruction via the <code>burnalpha</code> RPC: coins are
-  sent to an <code>OP_RETURN</code> output, which is unspendable by consensus — the same
-  mechanism Bitcoin users employ to provably remove coins. Anyone can verify a burn
-  on-chain; burned coins permanently reduce circulating supply.</p>
-
-  <h2 id="script">4. Script &amp; Contracts</h2>
-  <p>A complete Bitcoin-style stack interpreter executes every standard locking script:</p>
-  <ul>
-    <li><b>Legacy</b>: P2PK, P2PKH, P2SH, m-of-n multisig, OP_RETURN</li>
-    <li><b>Timelocks</b>: CLTV (BIP65), CSV (BIP112)</li>
-    <li><b>SegWit v0</b>: P2WPKH, P2WSH, P2SH-P2WPKH (BIP141/143/144)</li>
-    <li><b>Taproot (BIP340/341/342)</b>: schnorr signatures, key-path &amp; script-path spends,
-        tapleaf merkle trees, control blocks, OP_CHECKSIGADD</li>
-    <li><b>Full sighash matrix</b>: ALL/NONE/SINGLE/ANYONECANPAY across legacy, BIP143 and BIP341</li>
-    <li><b>Policy flags</b>: STRICTENC, DERSIG, LOW_S, NULLDUMMY, NULLFAIL, CLEANSTACK, MINIMALIF, MINIMALDATA, WITNESS_PUBKEYTYPE</li>
-  </ul>
-
-  <h2 id="tokens">5. Tokens — the ALP protocol</h2>
-  <p>Assets are issued on-chain via an <b>OP_RETURN meta-protocol</b> (Omni-style), so base
-  consensus stays untouched while a deterministic parallel indexer tracks balances.</p>
-  <h4>5.1 Operations</h4>
-  <ul>
-    <li><b>Issue</b> — <code>createtoken</code>: defines name, decimals, supply. token_id = txid.</li>
-    <li><b>Send</b> — <code>sendtoken</code>: move balances between addresses.</li>
-    <li><b>Mint / Burn</b> — issuer-only supply changes.</li>
-    <li><b>Query</b> — registry, info, balances, holders.</li>
-  </ul>
-  <h4>5.2 Semantics</h4>
-  <ul>
-    <li>Deterministic: every node replays OP_RETURN ops in block order → same state.</li>
-    <li>Reorg-safe: per-block undo journal rolls back token state.</li>
-    <li>Validation: invalid ops (over-balance sends, non-issuer mints) are ignored.</li>
-    <li>Extensible: <code>sendopreturn</code> lets projects embed their own data.</li>
-  </ul>
-
-  <h2 id="network">6. Network &amp; Nodes</h2>
+  <h2 id="network">5. Network</h2>
+  <p>The steps to run the network — identical to Bitcoin's:</p>
+  <ol>
+    <li>New transactions are broadcast to all nodes.</li>
+    <li>Each node collects new transactions into a block.</li>
+    <li>Each node works on finding a difficult proof-of-work for its block.</li>
+    <li>When a node finds a proof-of-work, it broadcasts the block to all nodes.</li>
+    <li>Nodes accept the block only if all transactions in it are valid and not already spent.</li>
+    <li>Nodes express their acceptance of the block by working on creating the next block
+        in the chain, using the hash of the accepted block as the previous hash.</li>
+  </ol>
+  <p>Nodes always consider the chain with the most work to be the correct one and keep
+  working on extending it. If two nodes broadcast different versions of the next block
+  simultaneously, nodes work on the first one they receive but save the other branch in
+  case it accumulates more work; the tie is broken when the next proof-of-work is found.
+  Broadcasts are tolerant of dropped messages — a node that misses a block requests it
+  when it realizes it missed one.</p>
+  <h4>5.1 Wire protocol &amp; discovery</h4>
   <ul>
     <li><b>Wire protocol</b>: Bitcoin-exact framing — magic, 12-byte command, sha256d checksum, 32MB cap</li>
     <li><b>Handshake</b>: version/verack, sendheaders, sendcmpct</li>
@@ -193,9 +323,9 @@
     <li>24 message handlers covering the full message set</li>
     <li><b>Seed nodes</b>: new nodes auto-connect to public seeds
         (<code>68.178.163.58:8333</code>) — no manual peering needed, like Bitcoin's DNS seeds</li>
-    <li><b>LAN discovery</b>: nodes broadcast UDP beacons on port 8334 —
-        peers on the same local network auto-connect, so the chain keeps
-        syncing even without the public internet</li>
+    <li><b>LAN discovery</b>: nodes broadcast UDP beacons on port 8334 — peers on the
+        same local network auto-connect, so the chain keeps syncing even without
+        the public internet</li>
     <li><b>Offline capable</b>: a node mines, signs and validates standalone;
         transactions can be signed offline and broadcast on reconnect</li>
   </ul>
@@ -204,16 +334,339 @@
   <code>python alphad.py --chain main</code> auto-connects to seed nodes, and
   <code>python mine_alpha.py</code> mines like early Bitcoin.</div>
 
-  <h2 id="wallet">7. Wallet &amp; Keys</h2>
+  <h2 id="incentive">6. Incentive</h2>
+  <p>By convention, the first transaction in a block is a special transaction — the
+  <b>coinbase</b> — that creates new coins owned by the creator of the block. This adds an
+  incentive for nodes to support the network, and provides a way to initially distribute
+  coins into circulation, since there is no central authority to issue them. The steady
+  addition of a constant amount of new coins is analogous to gold miners expending
+  resources to add gold to circulation — in our case, CPU time and electricity are
+  expended.</p>
+  <p>The incentive can also be funded with <b>transaction fees</b>. If the output value of a
+  transaction is less than its input value, the difference is a fee added to the
+  incentive value of the block containing the transaction. Once the predetermined number
+  of coins has entered circulation, the incentive transitions entirely to transaction
+  fees and becomes completely inflation-free.</p>
+  <p>The incentive also encourages nodes to stay honest. If a greedy attacker assembles
+  more CPU power than all honest nodes, he must choose between defrauding people by
+  stealing back his payments, or generating new coins. He ought to find it more
+  profitable to play by the rules — rules that favor him with more new coins than
+  everyone else combined — than to undermine the system and the validity of his own
+  wealth.</p>
+
+  <h2 id="money">7. Monetary Policy</h2>
+  <div class="kvs">
+    <div class="k">Max supply</div><div>21,000,000 ALPHA</div>
+    <div class="k">Subunit</div><div>1 ALPHA = 100,000,000 alphasats</div>
+    <div class="k">Block subsidy</div><div>50 ALPHA, halving every 210,000 blocks</div>
+    <div class="k">Mining issuance</div><div>15,750,000 ALPHA (75%) via the Bitcoin schedule</div>
+    <div class="k">Block time</div><div>10 minutes</div>
+    <div class="k">Coinbase maturity</div><div>100 blocks</div>
+    <div class="k">Halvings</div><div>subsidy = 50 ÷ 2^(height/210000) until 0</div>
+  </div>
+  <p>Issuance converges on the same asymptote as Bitcoin: the sum of all future block
+  rewards is a geometric series approaching but never reaching its cap.</p>
+  <h4>7.1 Community Reserve — 25%</h4>
+  <p><b>5,250,000 ALPHA</b> (25% of total supply) is allocated to a community reserve
+  governed by a <b>3-of-5 multisig</b> address — five founding members, any three required
+  to spend. No single member controls the fund; it is released for ecosystem growth,
+  listings, development and member benefit as the community decides.</p>
+  <p>The remaining <b>15,750,000 ALPHA</b> (75%) enters circulation strictly through the
+  Bitcoin-style mining schedule — fair, permissionless, earned by work.</p>
+  <h4>7.2 Provable Burning</h4>
+  <p>ALPHA supports verifiable coin destruction via the <code>burnalpha</code> RPC: coins are
+  sent to an <code>OP_RETURN</code> output, which is unspendable by consensus — the same
+  mechanism Bitcoin users employ to provably remove coins. Anyone can verify a burn
+  on-chain; burned coins permanently reduce circulating supply.</p>
+
+  <h2 id="merkle">8. Reclaiming Disk Space</h2>
+  <p>Once the latest transaction in a coin is buried under enough blocks, the spent
+  transactions before it can be discarded to save disk space. To facilitate this without
+  breaking the block's hash, transactions are hashed in a <b>Merkle tree</b>, with only the
+  root included in the block's hash. Old blocks can then be compacted by stubbing off
+  branches of the tree — the interior hashes do not need to be stored.</p>
+
+  <div class="fig">
+    <svg viewBox="0 0 880 340" xmlns="http://www.w3.org/2000/svg" font-size="10.5">
+      <defs><marker id="ar4" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+        <path d="M0,0 L7,3.5 L0,7 z" fill="#4f7cff"/></marker></defs>
+      <!-- full tree -->
+      <rect x="60" y="18" width="300" height="46" rx="8" fill="#1b2138" stroke="#2a3350"/>
+      <text x="210" y="36" fill="#f5c542" text-anchor="middle" font-weight="bold">Block Header (Block Hash)</text>
+      <text x="210" y="54" fill="#9fb4ff" text-anchor="middle">Prev Hash   Nonce   Root Hash</text>
+      <line x1="210" y1="64" x2="210" y2="82" stroke="#4f7cff" stroke-width="1.4" marker-end="url(#ar4)"/>
+      <rect x="165" y="86" width="90" height="26" rx="6" fill="#141829" stroke="#f5c542"/>
+      <text x="210" y="103" fill="#f5c542" text-anchor="middle">Root Hash</text>
+      <line x1="185" y1="112" x2="120" y2="130" stroke="#4f7cff" stroke-width="1.2"/>
+      <line x1="235" y1="112" x2="300" y2="130" stroke="#4f7cff" stroke-width="1.2"/>
+      <rect x="75" y="132" width="90" height="26" rx="6" fill="#141829" stroke="#2a3350"/>
+      <text x="120" y="149" fill="#c8d0e8" text-anchor="middle">Hash01</text>
+      <rect x="255" y="132" width="90" height="26" rx="6" fill="#141829" stroke="#2a3350"/>
+      <text x="300" y="149" fill="#c8d0e8" text-anchor="middle">Hash23</text>
+      <line x1="100" y1="158" x2="55" y2="176" stroke="#4f7cff"/>
+      <line x1="140" y1="158" x2="185" y2="176" stroke="#4f7cff"/>
+      <line x1="280" y1="158" x2="235" y2="176" stroke="#4f7cff"/>
+      <line x1="320" y1="158" x2="365" y2="176" stroke="#4f7cff"/>
+      <rect x="10" y="178" width="80" height="24" rx="6" fill="#141829" stroke="#2a3350"/>
+      <text x="50" y="194" fill="#c8d0e8" text-anchor="middle">Hash0</text>
+      <rect x="140" y="178" width="80" height="24" rx="6" fill="#141829" stroke="#2a3350"/>
+      <text x="180" y="194" fill="#c8d0e8" text-anchor="middle">Hash1</text>
+      <rect x="200" y="178" width="80" height="24" rx="6" fill="#141829" stroke="#2a3350"/>
+      <text x="240" y="194" fill="#c8d0e8" text-anchor="middle">Hash2</text>
+      <rect x="330" y="178" width="80" height="24" rx="6" fill="#141829" stroke="#2a3350"/>
+      <text x="370" y="194" fill="#c8d0e8" text-anchor="middle">Hash3</text>
+      <line x1="50" y1="202" x2="50" y2="216" stroke="#4f7cff"/>
+      <line x1="180" y1="202" x2="180" y2="216" stroke="#4f7cff"/>
+      <line x1="240" y1="202" x2="240" y2="216" stroke="#4f7cff"/>
+      <line x1="370" y1="202" x2="370" y2="216" stroke="#4f7cff"/>
+      <rect x="20" y="218" width="60" height="24" rx="6" fill="#0e1220" stroke="#3ddc97"/>
+      <text x="50" y="234" fill="#3ddc97" text-anchor="middle">Tx0</text>
+      <rect x="150" y="218" width="60" height="24" rx="6" fill="#0e1220" stroke="#3ddc97"/>
+      <text x="180" y="234" fill="#3ddc97" text-anchor="middle">Tx1</text>
+      <rect x="210" y="218" width="60" height="24" rx="6" fill="#0e1220" stroke="#3ddc97"/>
+      <text x="240" y="234" fill="#3ddc97" text-anchor="middle">Tx2</text>
+      <rect x="340" y="218" width="60" height="24" rx="6" fill="#0e1220" stroke="#3ddc97"/>
+      <text x="370" y="234" fill="#3ddc97" text-anchor="middle">Tx3</text>
+      <text x="210" y="275" fill="#8a93b2" text-anchor="middle">Transactions hashed in a Merkle tree</text>
+      <!-- pruned tree -->
+      <rect x="520" y="18" width="300" height="46" rx="8" fill="#1b2138" stroke="#2a3350"/>
+      <text x="670" y="36" fill="#f5c542" text-anchor="middle" font-weight="bold">Block Header (Block Hash)</text>
+      <text x="670" y="54" fill="#9fb4ff" text-anchor="middle">Prev Hash   Nonce   Root Hash</text>
+      <line x1="670" y1="64" x2="670" y2="82" stroke="#4f7cff" stroke-width="1.4" marker-end="url(#ar4)"/>
+      <rect x="625" y="86" width="90" height="26" rx="6" fill="#141829" stroke="#f5c542"/>
+      <text x="670" y="103" fill="#f5c542" text-anchor="middle">Root Hash</text>
+      <line x1="645" y1="112" x2="580" y2="130" stroke="#4f7cff" stroke-width="1.2"/>
+      <line x1="695" y1="112" x2="760" y2="130" stroke="#4f7cff" stroke-width="1.2"/>
+      <rect x="535" y="132" width="90" height="26" rx="6" fill="#141829" stroke="#5a6484" stroke-dasharray="4 3"/>
+      <text x="580" y="149" fill="#5a6484" text-anchor="middle">Hash01</text>
+      <rect x="715" y="132" width="90" height="26" rx="6" fill="#141829" stroke="#2a3350"/>
+      <text x="760" y="149" fill="#c8d0e8" text-anchor="middle">Hash23</text>
+      <line x1="740" y1="158" x2="705" y2="176" stroke="#4f7cff"/>
+      <line x1="780" y1="158" x2="815" y2="176" stroke="#4f7cff"/>
+      <rect x="660" y="178" width="80" height="24" rx="6" fill="#141829" stroke="#5a6484" stroke-dasharray="4 3"/>
+      <text x="700" y="194" fill="#5a6484" text-anchor="middle">Hash2</text>
+      <rect x="780" y="178" width="80" height="24" rx="6" fill="#141829" stroke="#2a3350"/>
+      <text x="820" y="194" fill="#c8d0e8" text-anchor="middle">Hash3</text>
+      <line x1="820" y1="202" x2="820" y2="216" stroke="#4f7cff"/>
+      <rect x="790" y="218" width="60" height="24" rx="6" fill="#0e1220" stroke="#3ddc97"/>
+      <text x="820" y="234" fill="#3ddc97" text-anchor="middle">Tx3</text>
+      <text x="670" y="275" fill="#8a93b2" text-anchor="middle">After pruning Tx0–2 — stubbed branches discarded</text>
+    </svg>
+    <div class="cap">Fig. 4 — Merkle-tree pruning: only the root is in the block hash, so
+    spent interior branches can be discarded without breaking verification.</div>
+  </div>
+
+  <p>A block header with no transactions is about 80 bytes. With blocks every 10 minutes,
+  that's 80 × 6 × 24 × 365 ≈ <b>4.2 MB per year</b> — storage is not a problem even if all
+  headers are kept in memory. Alpha additionally supports keep-N <b>pruning</b> and
+  <b>assumeutxo</b> snapshot sync for nodes that want to start fast or stay small.</p>
+
+  <h2 id="spv">9. Simplified Payment Verification</h2>
+  <p>It is possible to verify payments without running a full network node. A user only
+  needs a copy of the <b>block headers</b> of the most-work chain — obtainable by querying
+  network nodes — plus the <b>Merkle branch</b> linking the transaction to the block it's
+  timestamped in. He can't check the transaction himself, but by linking it to a place in
+  the chain he can see that a network node has accepted it, and blocks added after it
+  further confirm the network has accepted it.</p>
+
+  <div class="fig">
+    <svg viewBox="0 0 880 320" xmlns="http://www.w3.org/2000/svg" font-size="10.5">
+      <defs><marker id="ar5" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+        <path d="M0,0 L7,3.5 L0,7 z" fill="#4f7cff"/></marker></defs>
+      <text x="440" y="22" fill="#8a93b2" text-anchor="middle">Longest Proof-of-Work Chain — headers only</text>
+      <g>
+        <rect x="30" y="35" width="140" height="52" rx="8" fill="#1b2138" stroke="#2a3350"/>
+        <text x="100" y="56" fill="#f5c542" text-anchor="middle">Block Header</text>
+        <text x="100" y="74" fill="#9fb4ff" text-anchor="middle">Prev · Root · Nonce</text>
+      </g>
+      <g>
+        <rect x="200" y="35" width="140" height="52" rx="8" fill="#1b2138" stroke="#2a3350"/>
+        <text x="270" y="56" fill="#f5c542" text-anchor="middle">Block Header</text>
+        <text x="270" y="74" fill="#9fb4ff" text-anchor="middle">Prev · Root · Nonce</text>
+      </g>
+      <g>
+        <rect x="370" y="35" width="140" height="52" rx="8" fill="#1b2138" stroke="#f5c542"/>
+        <text x="440" y="56" fill="#f5c542" text-anchor="middle">Block Header</text>
+        <text x="440" y="74" fill="#9fb4ff" text-anchor="middle">Prev · Root · Nonce</text>
+      </g>
+      <g>
+        <rect x="540" y="35" width="140" height="52" rx="8" fill="#1b2138" stroke="#2a3350"/>
+        <text x="610" y="56" fill="#f5c542" text-anchor="middle">Block Header</text>
+        <text x="610" y="74" fill="#9fb4ff" text-anchor="middle">Prev · Root · Nonce</text>
+      </g>
+      <g>
+        <rect x="710" y="35" width="140" height="52" rx="8" fill="#1b2138" stroke="#2a3350"/>
+        <text x="780" y="56" fill="#f5c542" text-anchor="middle">Block Header</text>
+        <text x="780" y="74" fill="#9fb4ff" text-anchor="middle">Prev · Root · Nonce</text>
+      </g>
+      <line x1="170" y1="61" x2="196" y2="61" stroke="#f5c542" marker-end="url(#ar5)"/>
+      <line x1="340" y1="61" x2="366" y2="61" stroke="#f5c542" marker-end="url(#ar5)"/>
+      <line x1="510" y1="61" x2="536" y2="61" stroke="#f5c542" marker-end="url(#ar5)"/>
+      <line x1="680" y1="61" x2="706" y2="61" stroke="#f5c542" marker-end="url(#ar5)"/>
+      <!-- merkle branch below 3rd header -->
+      <line x1="440" y1="87" x2="440" y2="108" stroke="#3ddc97" stroke-dasharray="5 4" marker-end="url(#ar5)"/>
+      <text x="520" y="104" fill="#3ddc97">Merkle branch</text>
+      <rect x="330" y="112" width="100" height="28" rx="6" fill="#141829" stroke="#3ddc97"/>
+      <text x="380" y="130" fill="#3ddc97" text-anchor="middle">Hash01</text>
+      <rect x="450" y="112" width="100" height="28" rx="6" fill="#141829" stroke="#3ddc97"/>
+      <text x="500" y="130" fill="#3ddc97" text-anchor="middle">Hash2</text>
+      <line x1="440" y1="140" x2="440" y2="162" stroke="#3ddc97" stroke-dasharray="5 4"/>
+      <rect x="370" y="166" width="140" height="28" rx="6" fill="#141829" stroke="#3ddc97"/>
+      <text x="440" y="184" fill="#3ddc97" text-anchor="middle">Hash3  (sibling)</text>
+      <line x1="440" y1="194" x2="440" y2="216" stroke="#3ddc97" stroke-dasharray="5 4"/>
+      <rect x="350" y="220" width="180" height="40" rx="8" fill="#0e1220" stroke="#f5c542" stroke-width="1.6"/>
+      <text x="440" y="245" fill="#f5c542" text-anchor="middle" font-weight="bold">Tx3 — payment being verified</text>
+      <text x="440" y="295" fill="#8a93b2" text-anchor="middle">branch hashes recompute the header's Merkle root → Tx3 is in the chain</text>
+    </svg>
+    <div class="cap">Fig. 5 — SPV: a light client keeps headers (~4.2 MB/yr) and verifies a
+    transaction via its Merkle branch.</div>
+  </div>
+
+  <p>The verification is reliable as long as honest nodes control the network, but is more
+  vulnerable if the network is overpowered by an attacker — a light client can be fooled
+  by fabricated transactions for as long as the attacker can overpower the network.
+  Businesses receiving frequent payments should run their own full nodes for independent
+  security and quicker verification. Alpha exposes
+  <code>gettxoutproof</code>/<code>verifytxoutproof</code> (partial-merkle proofs) plus
+  BIP157/158 compact filters for exactly this class of client.</p>
+
+  <h2 id="split">10. Combining &amp; Splitting Value</h2>
+  <p>Although it would be possible to handle coins individually, it would be unwieldy to
+  make a separate transaction for every cent. To allow value to be split and combined,
+  transactions contain <b>multiple inputs and outputs</b>. Normally there is either a
+  single input from a larger previous transaction, or multiple inputs combining smaller
+  amounts — and at most two outputs: one for the payment and one returning the change,
+  if any, back to the sender.</p>
+
+  <div class="fig">
+    <svg viewBox="0 0 760 200" xmlns="http://www.w3.org/2000/svg" font-size="11">
+      <defs><marker id="ar6" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+        <path d="M0,0 L8,4 L0,8 z" fill="#f5c542"/></marker></defs>
+      <rect x="300" y="55" width="160" height="100" rx="12" fill="#141829" stroke="#f5c542"/>
+      <text x="380" y="110" fill="#f5c542" text-anchor="middle" font-weight="bold">Transaction</text>
+      <line x1="60" y1="75" x2="295" y2="75" stroke="#4f7cff" stroke-width="1.4" marker-end="url(#ar6)"/>
+      <text x="60" y="65" fill="#4f7cff">In</text>
+      <line x1="60" y1="105" x2="295" y2="105" stroke="#4f7cff" stroke-width="1.4" marker-end="url(#ar6)"/>
+      <text x="60" y="95" fill="#4f7cff">In</text>
+      <line x1="60" y1="135" x2="295" y2="135" stroke="#4f7cff" stroke-width="1.4" marker-end="url(#ar6)"/>
+      <text x="60" y="125" fill="#4f7cff">In</text>
+      <text x="140" y="170" fill="#8a93b2" text-anchor="middle">combine smaller UTXOs</text>
+      <line x1="465" y1="85" x2="690" y2="85" stroke="#3ddc97" stroke-width="1.4" marker-end="url(#ar6)"/>
+      <text x="630" y="75" fill="#3ddc97">Out — payment</text>
+      <line x1="465" y1="125" x2="690" y2="125" stroke="#3ddc97" stroke-width="1.4" marker-end="url(#ar6)"/>
+      <text x="630" y="145" fill="#3ddc97">Out — change</text>
+      <text x="600" y="170" fill="#8a93b2" text-anchor="middle">split value</text>
+    </svg>
+    <div class="cap">Fig. 6 — A transaction fans-in value from inputs and fans-out to a
+    payment output plus change.</div>
+  </div>
+
+  <p>Fan-out — where a transaction depends on several transactions, and those depend on
+  many more — is not a problem: there is never the need to extract a complete standalone
+  copy of a transaction's history.</p>
+
+  <h2 id="privacy">11. Privacy</h2>
+  <p>The traditional banking model achieves a level of privacy by limiting access to
+  information to the parties involved and the trusted third party. The necessity to
+  announce all transactions publicly precludes that method — but privacy can still be
+  maintained by breaking the flow of information in another place: <b>keeping public keys
+  anonymous</b>. The public can see that someone is sending an amount to someone else, but
+  without information linking the transaction to anyone — similar to stock exchanges
+  publishing the time and size of trades (the "tape") without naming the parties.</p>
+
+  <div class="fig">
+    <svg viewBox="0 0 880 230" xmlns="http://www.w3.org/2000/svg" font-size="10.5">
+      <defs><marker id="ar7" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+        <path d="M0,0 L7,3.5 L0,7 z" fill="#f5c542"/></marker></defs>
+      <text x="215" y="26" fill="#f5c542" text-anchor="middle" font-weight="bold">Traditional Privacy Model</text>
+      <rect x="20" y="45" width="90" height="60" rx="8" fill="#141829" stroke="#2a3350"/>
+      <text x="65" y="80" fill="#c8d0e8" text-anchor="middle">Identities</text>
+      <line x1="110" y1="75" x2="140" y2="75" stroke="#f5c542" marker-end="url(#ar7)"/>
+      <rect x="144" y="45" width="100" height="60" rx="8" fill="#141829" stroke="#2a3350"/>
+      <text x="194" y="80" fill="#c8d0e8" text-anchor="middle">Transactions</text>
+      <line x1="244" y1="75" x2="274" y2="75" stroke="#f5c542" marker-end="url(#ar7)"/>
+      <rect x="278" y="45" width="110" height="60" rx="8" fill="#141829" stroke="#4f7cff"/>
+      <text x="333" y="72" fill="#4f7cff" text-anchor="middle">Trusted</text>
+      <text x="333" y="88" fill="#4f7cff" text-anchor="middle">Third Party</text>
+      <line x1="388" y1="75" x2="418" y2="75" stroke="#f5c542" marker-end="url(#ar7)"/>
+      <rect x="422" y="45" width="100" height="60" rx="8" fill="#141829" stroke="#2a3350"/>
+      <text x="472" y="80" fill="#c8d0e8" text-anchor="middle">Public</text>
+      <text x="270" y="135" fill="#8a93b2" text-anchor="middle">privacy = access limited to parties + trusted third party</text>
+
+      <text x="665" y="26" fill="#f5c542" text-anchor="middle" font-weight="bold">New Privacy Model</text>
+      <rect x="480" y="160" width="90" height="60" rx="8" fill="#141829" stroke="#2a3350"/>
+      <text x="525" y="195" fill="#c8d0e8" text-anchor="middle">Identities</text>
+      <line x1="572" y1="190" x2="600" y2="190" stroke="#3ddc97" stroke-dasharray="5 4"/>
+      <text x="586" y="178" fill="#3ddc97" text-anchor="middle" font-size="14">✗</text>
+      <rect x="604" y="160" width="100" height="60" rx="8" fill="#141829" stroke="#2a3350"/>
+      <text x="654" y="195" fill="#c8d0e8" text-anchor="middle">Transactions</text>
+      <line x1="704" y1="190" x2="734" y2="190" stroke="#f5c542" marker-end="url(#ar7)"/>
+      <rect x="738" y="160" width="100" height="60" rx="8" fill="#141829" stroke="#2a3350"/>
+      <text x="788" y="195" fill="#c8d0e8" text-anchor="middle">Public</text>
+      <text x="660" y="135" fill="#8a93b2" text-anchor="middle">privacy = public keys anonymous — the link is broken</text>
+    </svg>
+    <div class="cap">Fig. 7 — Privacy models: the bank hides data behind a trusted third
+    party; the blockchain breaks the identity↔transaction link instead.</div>
+  </div>
+
+  <p>As an additional firewall, a new key pair should be used for each transaction to keep
+  them from being linked to a common owner. Some linking is still unavoidable with
+  multi-input transactions, which necessarily reveal that their inputs were owned by the
+  same owner — if the owner of a key is revealed, linking could expose other transactions
+  of the same owner. Alpha's HD wallet (BIP32) derives a fresh address per receive for
+  exactly this reason, and Tor/SOCKS5 support hides network-level identity.</p>
+
+  <h2 id="script">12. Script &amp; Contracts</h2>
+  <p>A complete Bitcoin-style stack interpreter executes every standard locking script:</p>
+  <ul>
+    <li><b>Legacy</b>: P2PK, P2PKH, P2SH, m-of-n multisig, OP_RETURN</li>
+    <li><b>Timelocks</b>: CLTV (BIP65), CSV (BIP112)</li>
+    <li><b>SegWit v0</b>: P2WPKH, P2WSH, P2SH-P2WPKH (BIP141/143/144)</li>
+    <li><b>Taproot (BIP340/341/342)</b>: schnorr signatures, key-path &amp; script-path spends,
+        tapleaf merkle trees, control blocks, OP_CHECKSIGADD</li>
+    <li><b>Full sighash matrix</b>: ALL/NONE/SINGLE/ANYONECANPAY across legacy, BIP143 and BIP341</li>
+    <li><b>Policy flags</b>: STRICTENC, DERSIG, LOW_S, NULLDUMMY, NULLFAIL, CLEANSTACK, MINIMALIF, MINIMALDATA, WITNESS_PUBKEYTYPE</li>
+  </ul>
+  <p>On top of these primitives sit HTLC <b>atomic swaps</b> (hashlock + timelock contracts)
+  enabling trustless exchange with Bitcoin-family chains.</p>
+
+  <h2 id="meta">13. The Meta-Protocol Layer</h2>
+  <p>Alpha's extension over Bitcoin's design: application protocols encoded in
+  <code>OP_RETURN</code> outputs (Omni-style). Base consensus stays untouched — every node
+  replays the ops in block order into a deterministic parallel indexer, journaled for
+  reorg safety. Invalid ops (over-balance sends, non-issuer mints, expired escrows) are
+  ignored by every node identically, so all honest nodes converge on the same
+  application state.</p>
+  <table class="spec tbl-wrap"><table>
+    <tr><th>Protocol</th><th>Operations (live)</th></tr>
+    <tr><td><b>Tokens — ALP</b></td><td>issue, send, mint, burn; registry + holder lists; KYC-gated RWA tokens with clawback, dividends, physical-backing records, carbon retirement</td></tr>
+    <tr><td><b>DEX</b></td><td>on-chain order book: dexsell, dexfill, dexcancell, dexswap (market buy with best-price execution), max-cost slippage caps</td></tr>
+    <tr><td><b>AMM pools</b></td><td>constant-product x·y=k pools: create, add/remove liquidity (LP shares), quote, swap with min_out; 0.3% fee</td></tr>
+    <tr><td><b>Identity</b></td><td>did:alpha:&lt;address&gt; registration/resolution, verifiable credentials (issue/verify/revoke), Alpha ID sign-in challenges, reusable on-chain KYC status</td></tr>
+    <tr><td><b>Web3</b></td><td>NFT mint/transfer/burn, NFT marketplace escrow (list/buy), .alpha domain register/resolve/transfer, on-chain gaming achievements</td></tr>
+    <tr><td><b>Oracle &amp; AI</b></td><td>data feeds (create/publish/latest/history) signed by publisher key, AI-agent registry, machine-to-machine payment receipts</td></tr>
+    <tr><td><b>Escrow &amp; lending</b></td><td>3-party escrow (release/dispute/refund/expiry-claim), collateralized token loans with interest and default seizure</td></tr>
+    <tr><td><b>Merchant</b></td><td>invoices + payment links + paid-status tracking (createinvoice/payinvoice/listinvoices)</td></tr>
+    <tr><td><b>Enterprise</b></td><td>supply-chain items/events/history, tamper-evident certificates (issue/verify/revoke), business registry</td></tr>
+    <tr><td><b>Atomic swaps</b></td><td>HTLC initiate/participate/redeem/refund for cross-chain exchange</td></tr>
+  </table></table>
+  <div class="warn"><b>Design note:</b> meta-protocol ops are indexed state, not Script
+  covenants — like Omni/Ordinals on Bitcoin. Enforcement is social-consensus (every node
+  computes the same state), which is why reorg journaling matters: a disconnected block's
+  ops are rolled back exactly.</div>
+
+  <h2 id="wallet">14. Wallet &amp; Keys</h2>
   <ul>
     <li><b>Encryption</b>: AES-256-CBC + SHA-512×25000 EVP_BytesToKey (encryptwallet/unlock/lock)</li>
     <li><b>HD</b>: BIP32 deterministic keys (xprv/xpub, hardened/normal, BIP39 seed)</li>
     <li><b>Addresses</b>: legacy, P2SH-segwit, bech32 P2WPKH, bech32m taproot</li>
     <li><b>Signing</b>: coin-select + change, all script types, signmessage/verifymessage</li>
     <li><b>PSBT</b>: BIP174 fund/sign/finalize + BIP380 descriptors</li>
+    <li><b>Web wallet</b>: browser-side key generation + signing (secp256k1/ECDSA in JS),
+        AES-GCM localStorage, QR payments — keys never leave the device</li>
   </ul>
 
-  <h2 id="security">8. Security Model</h2>
+  <h2 id="security">15. Security Model &amp; Calculations</h2>
   <ul>
     <li>RFC6979 deterministic nonces — no nonce reuse → no key leakage</li>
     <li>Strict DER (BIP66) + low-S (BIP62) — signature malleability closed</li>
@@ -222,85 +675,181 @@
     <li>All consensus bounds enforced: MAX_MONEY, negative/zero outputs, double-spend, fee≥0, maturity</li>
     <li>Pure-Python crypto — no external dependencies to attack</li>
   </ul>
-  <div class="warn"><b>Limitations (honest):</b> wallet passphrase lives in Python memory (no
-  secure zeroing), AES is pure-Python (not timing-hardened), P2P DoS limits are basic, and
-  coin selection is largest-first (not privacy-optimal).</div>
+  <h4>15.1 Attack probability — how safe are z confirmations?</h4>
+  <p>Following the Bitcoin whitepaper's analysis: consider an attacker trying to generate
+  an alternate chain faster than the honest chain. The race is a Binomial Random Walk —
+  honest block found: gap +1; attacker block found: gap −1. The probability of an
+  attacker catching up from z blocks behind is the Gambler's Ruin result:</p>
+  <div class="formula">p  = probability an honest node finds the next block
+q  = probability the attacker finds the next block
+q_z = 1               if p ≤ q
+    = (q/p)^z         if p &gt; q          — drops exponentially with z</div>
+  <p>Since the attacker's progress is a Poisson distribution with expected value
+  <b>λ = z·q/p</b>, the probability he can ever catch up after z confirmations is:</p>
+  <div class="formula">P = 1 − Σ(k=0..z) [ λ^k·e^(−λ)/k! · (1 − (q/p)^(z−k)) ]</div>
+  <table class="spec tbl-wrap"><table>
+    <tr><th>Attacker share q</th><th>z for P &lt; 0.1%</th></tr>
+    <tr><td>10%</td><td>5 confirmations</td></tr>
+    <tr><td>15%</td><td>8</td></tr>
+    <tr><td>20%</td><td>11</td></tr>
+    <tr><td>25%</td><td>15</td></tr>
+    <tr><td>30%</td><td>24</td></tr>
+    <tr><td>40%</td><td>89</td></tr>
+    <tr><td>45%</td><td>340</td></tr>
+  </table></table>
+  <p>Against a 10%-hashrate attacker, <b>6 confirmations</b> gives ~0.02% reversal
+  probability — the same margin Bitcoin users rely on. Even a successful attacker can
+  only try to reverse <i>his own</i> payments: he cannot create coins from thin air or
+  take money that never belonged to him, because honest nodes reject invalid
+  transactions regardless of proof-of-work.</p>
+  <div class="warn"><b>Limitations (honest):</b> wallet passphrase lives in Python memory
+  (no secure zeroing), AES is pure-Python (not timing-hardened), P2P DoS limits are
+  basic, coin selection is largest-first (not privacy-optimal), and — most importantly —
+  the network is young: total hashrate is small, so assume q could be high until mining
+  decentralizes. Wait for more confirmations on large transfers accordingly.</div>
 
-  <h2 id="apis">9. APIs &amp; Interoperability</h2>
+  <h2 id="apis">16. APIs &amp; Interoperability</h2>
   <ul>
-    <li><b>JSON-RPC</b>: ~65 bitcoind-compatible methods across chain/wallet/mining/tx/tokens/PSBT/descriptors/filters</li>
+    <li><b>JSON-RPC</b>: ~65 bitcoind-compatible methods across chain/wallet/mining/tx/tokens/PSBT/descriptors/filters + all meta-protocol methods</li>
     <li><b>REST</b>: <code>/rest/chaininfo|block|tx|headers|mempool|utxo|tokens</code></li>
-    <li><b>Web/explorer API</b>: <code>/api/stats|blocks|block|tx|address|tokens|search</code></li>
+    <li><b>Web/explorer API</b>: <code>/api/stats|blocks|block|tx|address|tokens|dexorders|search</code></li>
     <li><b>SPV</b>: gettxoutproof/verifytxoutproof partial-merkle proofs</li>
     <li><b>P2P</b>: full Bitcoin message set (24 handlers)</li>
+    <li><b>SDK</b>: alpha_cli client, PSBT + descriptors, developer docs</li>
   </ul>
 
-  <h2 id="governance">10. Governance &amp; Distribution</h2>
+  <h2 id="governance">17. Governance &amp; Distribution</h2>
   <table class="spec tbl-wrap"><table>
     <tr><th>Item</th><th>Detail</th></tr>
-    <tr><td>Issuance model</td><td>Fair launch — no premine, no ICO, no dev fee. All ALPHA is earned via mining.</td></tr>
-    <tr><td>Emission</td><td>50/block → halves every 210,000 blocks → ~20,999,999.9769 total.</td></tr>
+    <tr><td>Issuance model</td><td>75% (15,750,000 ALPHA) released strictly through
+        proof-of-work mining on the Bitcoin schedule — earned by work, no ICO, no dev fee.
+        25% (5,250,000 ALPHA) allocated to a community reserve locked in a 3-of-5 multisig:
+        no single party controls it.</td></tr>
+    <tr><td>Emission</td><td>50/block → halves every 210,000 blocks.</td></tr>
     <tr><td>Consensus changes</td><td>Soft-fork style: new rules tighten (never loosen) — nodes opt in.</td></tr>
     <tr><td>Token issuance</td><td>Permissionless: any project can issue an ALP token on-chain.</td></tr>
+    <tr><td>Reserve governance</td><td>3-of-5 P2SH multisig — five founding members, any
+        three signatures required; every spend is publicly auditable on-chain.</td></tr>
   </table></table>
 
-  <h2 id="usecases">11. Use Cases</h2>
-  <p>The same use cases that made Bitcoin matter — plus Alpha's token layer:</p>
+  <h2 id="usecases">18. Use Cases</h2>
+  <h3>18.1 ALPHA — the coin</h3>
   <div class="grid cards" style="margin-top:16px">
-    <div class="card"><h3>Digital Gold</h3><p>Fixed 21M supply + halvings — a scarce,
-      provably-limited store of value. Like Bitcoin, but on Alpha.</p></div>
-    <div class="card"><h3>Peer-to-Peer Cash</h3><p>Send value anywhere, no bank, no
-      permission — final settlement in ~10-minute blocks.</p></div>
-    <div class="card"><h3>Borderless Payments</h3><p>Cross-border transfers without
-      intermediaries, weekends, or cut-off times.</p></div>
-    <div class="card"><h3>No Chargebacks</h3><p>Confirmed transactions are final —
-      merchants get fraud-proof settlement.</p></div>
-    <div class="card"><h3>Censorship Resistance</h3><p>No one can freeze or reverse
-      your coins — you hold the keys, you own the coins.</p></div>
-    <div class="card"><h3>Micropayments</h3><p>Send fractions of a cent — divisible
-      to 0.00000001 ALPHA (1 alphasat).</p></div>
-    <div class="card"><h3>Programmable Money</h3><p>Script contracts: timelocks,
-      multisig, HTLC atomic swaps, escrow.</p></div>
-    <div class="card"><h3>Tokenization</h3><p>Issue real-world and digital assets
-      on ALP — points, items, shares.</p></div>
+    <div class="card"><h3>Digital Gold</h3><p>Capped 21M supply with a transparent,
+      predictable issuance schedule — a provably scarce store of value. The emission is
+      public arithmetic every node verifies, not a policy anyone can change.</p></div>
+    <div class="card"><h3>Peer-to-Peer Cash</h3><p>Send value to any address anywhere with
+      no bank and no permission — ~10-minute final settlement, fees you choose, no
+      minimum or maximum.</p></div>
+    <div class="card"><h3>Borderless Payments &amp; Remittance</h3><p>Cross-border transfers
+      without intermediaries, weekends, cut-off times or FX desks — the same cost whether
+      the payment crosses the street or the planet.</p></div>
+    <div class="card"><h3>Merchant Settlement</h3><p>Confirmed payments are final — no
+      chargebacks, no chargeback fraud priced into your margins. Invoices, payment links
+      and QR checkout are built in.</p></div>
+    <div class="card"><h3>Censorship Resistance</h3><p>No one can freeze, seize through the
+      protocol, or reverse your coins — you hold the keys, you own the coins.</p></div>
+    <div class="card"><h3>Micropayments</h3><p>Divisible to 0.00000001 ALPHA (1 alphasat) —
+      send fractions of a cent; fees scale with data size, not value.</p></div>
+    <div class="card"><h3>Savings Without a Bank</h3><p>Self-custody wealth with an
+      auditable supply — your balance is verifiable by anyone, spendable only by you.</p></div>
+    <div class="card"><h3>Provable Burning</h3><p>Permanently remove coins via an
+      unspendable OP_RETURN output — public, verifiable supply reduction.</p></div>
+  </div>
+  <h3>18.2 Alpha — the blockchain platform</h3>
+  <div class="grid cards" style="margin-top:16px">
+    <div class="card"><h3>Tokenization</h3><p>Issue assets on ALP — points, shares, game
+      items, community currencies — with mint/burn and full holder registries.</p></div>
+    <div class="card"><h3>Decentralized Exchange</h3><p>Trade tokens against ALPHA on an
+      on-chain order book with slippage caps, or token↔token in AMM liquidity pools —
+      custody never leaves the chain.</p></div>
     <div class="card"><h3>Atomic Swaps</h3><p>Trustless cross-chain exchange with
-      Bitcoin-family chains via HTLCs.</p></div>
+      Bitcoin-family chains via HTLCs — no bridge, no custodian.</p></div>
+    <div class="card"><h3>Real-World Assets</h3><p>KYC-gated property/gold tokens with
+      fractional ownership, issuer clawback for compliance, pro-rata dividends, carbon
+      retirement certificates and immutable physical-backing records.</p></div>
+    <div class="card"><h3>Identity &amp; KYC</h3><p>did:alpha: identifiers, verifiable
+      credentials, sign-in challenges and reusable KYC — privacy-preserving (only hashes
+      on-chain).</p></div>
+    <div class="card"><h3>NFTs &amp; Domains</h3><p>Collectibles, game items and .alpha
+      names owned by keys — with an escrowed marketplace for trustless trades.</p></div>
+    <div class="card"><h3>Escrow &amp; Lending</h3><p>Three-party escrow with arbiters,
+      disputes and auto-release; collateralized loans with on-chain interest and
+      seizure — contracts without lawyers.</p></div>
+    <div class="card"><h3>Enterprise Records</h3><p>Supply-chain tracking, tamper-evident
+      certificates, audit logs and business registry entries — provable provenance.</p></div>
+    <div class="card"><h3>Oracles &amp; AI Agents</h3><p>Key-signed data feeds for
+      on-chain apps, agent registries and M2M payment receipts — the plumbing for
+      autonomous commerce.</p></div>
+    <div class="card"><h3>Resilient Operation</h3><p>Nodes keep working on a LAN with no
+      internet (UDP 8334 discovery) — local payments and mining continue, sync resumes
+      on reconnect.</p></div>
   </div>
 
-  <h2 id="roadmap">12. Roadmap</h2>
+  <h2 id="roadmap">19. Roadmap</h2>
   <ul>
-    <li><b>Complete</b>: consensus, coin, script, segwit+taproot, network, wallet, tokens, explorer, APIs, Tor, pruning, filters</li>
-    <li><b>In progress</b>: web wallet UI, merchant tools</li>
-    <li><b>Planned</b>: DEX/swap, staking, lending, stablecoin, NFT, domains, identity/KYC, oracle, AI agents, enterprise suite</li>
+    <li><b>Complete</b>: consensus, coin, script, segwit+taproot, network (incl. LAN
+        discovery + offline mode), wallet (CLI + web), explorer, APIs, Tor, pruning,
+        filters — and the full meta-protocol layer: tokens, DEX, AMM, atomic swaps,
+        identity/DID/KYC, RWA, NFT/domains/gaming, oracle/AI agents, escrow/lending,
+        merchant invoices, enterprise records, testnet faucet.</li>
+    <li><b>Planned</b>: mobile wallet apps, staking, fiat-backed stablecoin,
+        Lightning-style payment channels.</li>
   </ul>
   <p>See <a href="roadmap.html">roadmap.html</a> for live milestone status.</p>
 
-  <h2 id="tech">13. Technical Reference</h2>
-  <h4>13.1 Block header (80 bytes)</h4>
+  <h2 id="tech">20. Technical Reference</h2>
+  <h4>20.1 Block header (80 bytes)</h4>
   <div class="formula">version(4) | prev(32) | merkle(32) | time(4) | bits(4) | nonce(4)</div>
-  <h4>13.2 Signature hashes</h4>
+  <h4>20.2 Signature hashes</h4>
   <div class="formula">legacy  : sig_hash = SHA256d(tx_with_script_in_input)
 BIP143  : segwit v0 preimage (prevouts+sequences+outputs hashed separately)
 BIP341  : tagged("TapSighash", 0x00 || SigMsg || tapleaf_ext)</div>
-  <h4>13.3 Difficulty</h4>
+  <h4>20.3 Difficulty &amp; work</h4>
   <div class="formula">target = mantissa × 2^(8·(exponent−3))
-work   = (2^256 − target − 1) / (target + 1) + 1</div>
-  <h4>13.4 Subsidy</h4>
-  <div class="formula">subsidy(h) = 50·1e8 >> (h / 210000)</div>
-  <h4>13.5 Reference</h4>
+work   = (2^256 − target − 1) / (target + 1) + 1
+retarget: every 2016 blocks, clamp ×[¼, 4], goal 10 min/block</div>
+  <h4>20.4 Subsidy</h4>
+  <div class="formula">subsidy(h) = 50·1e8 &gt;&gt; (h / 210000)
+Σ subsidy → approaches issuance cap geometrically</div>
+  <h4>20.5 Attacker catch-up (Gambler's Ruin + Poisson)</h4>
+  <div class="formula">λ = z·q/p
+P(catch up) = 1 − Σ(k=0..z) [ λ^k·e^(−λ)/k! · (1 − (q/p)^(z−k)) ]</div>
+  <h4>20.6 References</h4>
   <ul>
-    <li>Bitcoin whitepaper — Nakamoto 2008</li>
+    <li>S. Nakamoto — "Bitcoin: A Peer-to-Peer Electronic Cash System" (2008); sections 2–11
+        of this document follow its analysis directly</li>
+    <li>W. Dai — b-money (1998); A. Back — Hashcash (2002); Merkle (1980); Haber &amp; Stornetta (1991)</li>
     <li>BIP141/143/144 (segwit), BIP152 (compact blocks), BIP157/158 (filters),
-        BIP155 (addrv2), BIP32/39 (HD), BIP340/341/342 (taproot), BIP174/380 (PSBT/descriptors)</li>
+        BIP155 (addrv2), BIP32/39 (HD), BIP340/341/342 (taproot), BIP174/380 (PSBT/descriptors),
+        BIP65/112 (timelocks), BIP62/66/147 (malleability), BIP34 (coinbase height)</li>
   </ul>
 
-  <h2 id="legal">14. Disclaimer</h2>
+  <h2 id="conclusion">21. Conclusion</h2>
+  <p>We have built a system for electronic transactions without relying on trust. Starting
+  from the usual framework of coins made from digital signatures — which provides strong
+  control of ownership but is incomplete without a way to prevent double-spending — Alpha
+  uses a peer-to-peer network with proof-of-work to record a public history of
+  transactions that quickly becomes computationally impractical for an attacker to
+  change, as long as honest nodes control a majority of CPU power.</p>
+  <p>The network is robust in its unstructured simplicity. Nodes work all at once with
+  little coordination; they need not be identified, since messages are delivered on a
+  best-effort basis. Nodes can leave and rejoin the network at will — accepting the
+  proof-of-work chain as proof of what happened while they were gone — and can keep
+  transacting on a local network even when disconnected from the wider internet. They
+  vote with their CPU power, expressing acceptance of valid blocks by extending them and
+  rejecting invalid blocks by refusing to work on them. Any needed rules and incentives
+  are enforced with this consensus mechanism — and above that shared foundation, the
+  OP_RETURN meta-protocol layer turns Alpha from a coin into a platform.</p>
+
+  <h2 id="legal">22. Disclaimer</h2>
   <p class="note">This document describes the Alpha Blockchain implementation as built.
-  ALPHA is a digital asset — not legal tender, not a security, and not an investment product.
-  Cryptocurrency involves risk; do your own research. Nothing here constitutes financial advice.</p>
+  ALPHA is a digital asset — not legal tender, not a security, and not an investment
+  product. Cryptocurrency involves risk; do your own research. Nothing here constitutes
+  financial advice.</p>
 
   <p style="color:var(--dim);margin-top:44px;font-size:13.5px;text-align:center">—
-  Alpha Blockchain · engineered to the Bitcoin specification · v1.0 —</p>
+  Alpha Blockchain · engineered to the Bitcoin specification · v2.0 —</p>
 
 </div></div></section>
 <footer>Alpha Blockchain whitepaper</footer>
