@@ -60,6 +60,56 @@
   <div class="grid stats" id="stats"><div class="loading">loading…</div></div>
 </div></section>
 
+<!-- HOW IT WORKS — tx lifecycle -->
+<section class="eco"><div class="wrap">
+  <div class="eco-num">◆ HOW IT WORKS</div>
+  <h2>A payment's life on Alpha</h2>
+  <p class="eco-sub">From signature to settlement — every step verified by every node,
+     exactly like Bitcoin.</p>
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 14px 8px;overflow-x:auto">
+    <svg viewBox="0 0 900 150" xmlns="http://www.w3.org/2000/svg" font-size="11" style="display:block;margin:0 auto;max-width:100%;font-family:var(--mono)">
+      <defs><marker id="fa" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+        <path d="M0,0 L8,4 L0,8 z" fill="#f5c542"/></marker></defs>
+      <g>
+        <rect x="10" y="45" width="120" height="60" rx="10" fill="#141829" stroke="#4f7cff"/>
+        <text x="70" y="70" fill="#4f7cff" text-anchor="middle">1 · SIGN</text>
+        <text x="70" y="90" fill="#8a93b2" text-anchor="middle" font-size="9.5">wallet signs tx</text>
+      </g>
+      <g>
+        <rect x="165" y="45" width="120" height="60" rx="10" fill="#141829" stroke="#4f7cff"/>
+        <text x="225" y="70" fill="#4f7cff" text-anchor="middle">2 · BROADCAST</text>
+        <text x="225" y="90" fill="#8a93b2" text-anchor="middle" font-size="9.5">to P2P peers</text>
+      </g>
+      <g>
+        <rect x="320" y="45" width="120" height="60" rx="10" fill="#141829" stroke="#4f7cff"/>
+        <text x="380" y="70" fill="#4f7cff" text-anchor="middle">3 · MEMPOOL</text>
+        <text x="380" y="90" fill="#8a93b2" text-anchor="middle" font-size="9.5">validated, queued</text>
+      </g>
+      <g>
+        <rect x="475" y="45" width="120" height="60" rx="10" fill="#141829" stroke="#f5c542"/>
+        <text x="535" y="70" fill="#f5c542" text-anchor="middle">4 · MINED</text>
+        <text x="535" y="90" fill="#8a93b2" text-anchor="middle" font-size="9.5">PoW ~10 min</text>
+      </g>
+      <g>
+        <rect x="630" y="45" width="120" height="60" rx="10" fill="#141829" stroke="#3ddc97"/>
+        <text x="690" y="70" fill="#3ddc97" text-anchor="middle">5 · CONFIRMED</text>
+        <text x="690" y="90" fill="#8a93b2" text-anchor="middle" font-size="9.5">in a block</text>
+      </g>
+      <g>
+        <rect x="775" y="45" width="115" height="60" rx="10" fill="#141829" stroke="#3ddc97" stroke-width="2"/>
+        <text x="832" y="70" fill="#3ddc97" text-anchor="middle" font-weight="bold">FINAL</text>
+        <text x="832" y="90" fill="#8a93b2" text-anchor="middle" font-size="9.5">6+ conf = safe</text>
+      </g>
+      <line x1="130" y1="75" x2="160" y2="75" stroke="#f5c542" stroke-width="1.5" marker-end="url(#fa)"/>
+      <line x1="285" y1="75" x2="315" y2="75" stroke="#f5c542" stroke-width="1.5" marker-end="url(#fa)"/>
+      <line x1="440" y1="75" x2="470" y2="75" stroke="#f5c542" stroke-width="1.5" marker-end="url(#fa)"/>
+      <line x1="595" y1="75" x2="625" y2="75" stroke="#f5c542" stroke-width="1.5" marker-end="url(#fa)"/>
+      <line x1="750" y1="75" x2="772" y2="75" stroke="#f5c542" stroke-width="1.5" marker-end="url(#fa)"/>
+      <text x="450" y="135" fill="#5a6484" text-anchor="middle">irreversible — no bank, no chargebacks, no trusted third party</text>
+    </svg>
+  </div>
+</div></section>
+
 <!-- JOIN THE NETWORK -->
 <section class="eco"><div class="wrap">
   <div class="eco-num">◆ LIVE NETWORK</div>

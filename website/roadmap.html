@@ -3,21 +3,26 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Roadmap — Alpha Blockchain</title>
-  <meta name="description" content="Alpha Blockchain roadmap: completed milestones marked green, in-progress gold, planned gray — the path to the full Alpha ecosystem.">
+  <meta name="description" content="Alpha Blockchain roadmap: every milestone with technical detail — completed in green, in-progress gold, planned gray — from Bitcoin-grade core to the full ecosystem platform.">
   <meta name="theme-color" content="#f7931a">
   <link rel="icon" type="image/svg+xml" href="coin.svg">
   <link rel="apple-touch-icon" href="coin.svg"><link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
   <style>
+    .rm-hero { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:14px; margin: 26px 0 10px; }
+    .rm-hero .stat { text-align:center; }
+    .bigbar { height: 12px; border-radius: 8px; background: var(--card2); overflow: hidden; margin: 18px 0 34px; border:1px solid var(--border); }
+    .bigbar i { display:block; height:100%; background: linear-gradient(90deg, var(--green), var(--gold)); transition: width 1s; }
     .rm-section { margin-bottom: 44px; }
-    .rm-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; flex-wrap: wrap; }
+    .rm-head { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; flex-wrap: wrap; }
     .rm-num { width: 46px; height: 46px; border-radius: 12px; background: linear-gradient(135deg,#ffd968,#e8a92e);
       color: #241a03; font-weight: 800; font-size: 20px; display:flex; align-items:center; justify-content:center; }
     .rm-head h3 { font-size: 22px; }
     .rm-head .q { font-family: var(--mono); font-size: 12px; color: var(--dim);
       border: 1px solid var(--border); border-radius: 6px; padding: 2px 10px; }
     .rm-head .prog { margin-left: auto; font-family: var(--mono); font-size: 13px; color: var(--dim); }
-    .milestone { display: flex; gap: 14px; align-items: flex-start; padding: 12px 16px;
+    .rm-desc { color: var(--dim); font-size: 14px; margin: 4px 0 14px 60px; max-width: 760px; }
+    .milestone { display: flex; gap: 14px; align-items: flex-start; padding: 13px 16px;
       border-left: 3px solid var(--border); margin-bottom: 10px; background: var(--card); border-radius: 0 10px 10px 0; }
     .milestone.done { border-left-color: var(--green); }
     .milestone.wip  { border-left-color: var(--gold); }
@@ -28,97 +33,192 @@
     .wip  .dot { background: rgba(245,197,66,.18); color: var(--gold); }
     .todo .dot { background: var(--card2); color: var(--dim); }
     .milestone .mt { font-weight: 600; font-size: 15px; }
-    .milestone .md { color: var(--dim); font-size: 13px; margin-top: 3px; }
+    .milestone .md { color: var(--dim); font-size: 13px; margin-top: 3px; line-height: 1.55; }
+    .milestone .md code { font-size: 11.5px; }
+    .mlinks { margin-top: 6px; }
+    .mlinks a { display:inline-block; font-size: 11.5px; color: var(--accent); border:1px solid var(--border);
+      border-radius: 10px; padding: 1px 9px; margin: 2px 6px 0 0; }
+    .mlinks a:hover { border-color: var(--accent); }
     .milestone .tag-done { color: var(--green); font-size: 11px; font-weight: 700; margin-left: auto; white-space: nowrap; }
     .milestone .tag-wip  { color: var(--gold);  font-size: 11px; font-weight: 700; margin-left: auto; white-space: nowrap; }
     .milestone .tag-todo { color: var(--dim);   font-size: 11px; font-weight: 700; margin-left: auto; white-space: nowrap; }
     .bar { height: 6px; border-radius: 4px; background: var(--card2); overflow: hidden; margin: 6px 0 18px; }
     .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--green), var(--gold)); }
+    .fig { background: var(--card); border:1px solid var(--border); border-radius:14px;
+      padding:22px 14px 12px; margin:8px 0 40px; overflow-x:auto; }
+    .fig svg { display:block; margin:0 auto; max-width:100%; height:auto; }
+    .fig .cap { text-align:center; color:var(--dim); font-size:12.5px; margin-top:12px; font-style:italic; }
+    .fig text { font-family: var(--mono, monospace); }
+    .next { background: var(--card); border:1px solid var(--border); border-radius:14px; padding: 24px 26px; }
+    .next h4 { color: var(--gold); font-size: 16px; margin-bottom: 6px; }
+    .next p { color: var(--dim); font-size: 14px; margin-bottom: 16px; line-height: 1.6; }
+    @media (max-width: 720px){ .rm-hero { grid-template-columns: 1fr; } .rm-desc { margin-left: 0; } }
   </style>
 </head>
 <body>
 <nav></nav>
 <section><div class="wrap">
   <h2 class="title">Roadmap</h2>
-  <p class="sub">Step-by-step progress — <b style="color:var(--green)">green = complete</b>,
-     <b style="color:var(--gold)">gold = in progress</b>, <b style="color:var(--dim)">gray = planned</b>.</p>
+  <p class="sub">Step-by-step engineering progress — <b style="color:var(--green)">green = complete</b>,
+     <b style="color:var(--gold)">gold = in progress</b>, <b style="color:var(--dim)">gray = planned</b>.
+     Every milestone links to its docs.</p>
+
+  <div class="rm-hero" id="rmstats"></div>
+  <div class="bigbar"><i id="bigbar" style="width:0%"></i></div>
+
+  <div class="fig">
+    <svg viewBox="0 0 880 300" xmlns="http://www.w3.org/2000/svg" font-size="11">
+      <defs><marker id="la" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+        <path d="M0,0 L7,3.5 L0,7 z" fill="#5a6484"/></marker></defs>
+      <!-- L4 apps -->
+      <rect x="110" y="14" width="660" height="56" rx="12" fill="#141829" stroke="#3ddc97"/>
+      <text x="440" y="36" fill="#3ddc97" text-anchor="middle" font-weight="bold" font-size="12">L4 — APPLICATIONS</text>
+      <text x="440" y="56" fill="#c8d0e8" text-anchor="middle">Web Wallet · Explorer · Merchant checkout · dApps · Mobile (planned)</text>
+      <!-- L3 meta -->
+      <rect x="110" y="86" width="660" height="56" rx="12" fill="#141829" stroke="#f5c542"/>
+      <text x="440" y="108" fill="#f5c542" text-anchor="middle" font-weight="bold" font-size="12">L3 — META-PROTOCOL LAYER (OP_RETURN, reorg-safe indexers)</text>
+      <text x="440" y="128" fill="#c8d0e8" text-anchor="middle">Tokens · DEX · AMM · Identity/KYC · RWA · NFT/Domains · Oracle/AI · Escrow/Lending · Enterprise</text>
+      <!-- L2 network -->
+      <rect x="110" y="158" width="660" height="56" rx="12" fill="#141829" stroke="#4f7cff"/>
+      <text x="440" y="180" fill="#4f7cff" text-anchor="middle" font-weight="bold" font-size="12">L2 — P2P NETWORK</text>
+      <text x="440" y="200" fill="#c8d0e8" text-anchor="middle">headers-first sync · compact blocks · BIP157 filters · Tor · LAN discovery (UDP 8334) · offline mode</text>
+      <!-- L1 core -->
+      <rect x="110" y="230" width="660" height="56" rx="12" fill="#141829" stroke="#e8a92e" stroke-width="2"/>
+      <text x="440" y="252" fill="#ffd968" text-anchor="middle" font-weight="bold" font-size="12">L1 — BITCOIN-GRADE CONSENSUS CORE</text>
+      <text x="440" y="272" fill="#c8d0e8" text-anchor="middle">SHA-256d PoW · UTXO · Script/SegWit/Taproot · 21M supply · 10-min blocks · 2016-block retarget</text>
+      <!-- layer arrows -->
+      <line x1="90" y1="230" x2="90" y2="146" stroke="#5a6484" stroke-width="1.4" marker-end="url(#la)"/>
+      <line x1="90" y1="158" x2="90" y2="74" stroke="#5a6484" stroke-width="1.4" marker-end="url(#la)"/>
+      <text x="78" y="190" fill="#5a6484" text-anchor="middle" transform="rotate(-90 78 190)">every layer verified by every node</text>
+    </svg>
+    <div class="cap">Alpha architecture — a Bitcoin-exact base layer carrying a deterministic
+    meta-protocol stack, all validated by the same full nodes.</div>
+  </div>
+
   <div id="roadmap"></div>
+
+  <div class="next">
+    <h4>What's next — the remaining milestones</h4>
+    <p><b>Mobile wallet</b> — native iOS/Android apps wrapping the same self-custody key model as
+       the web wallet (client-side keys, QR pay, biometric lock). The wallet protocol is already
+       final; this is packaging work.</p>
+    <p><b>Staking &amp; validators</b> — Alpha stays proof-of-work; "staking" means an optional
+       reward-lock layer where holders time-lock ALPHA via CLTV and earn a share of a community
+       incentive pool — designed so PoW security is never replaced.</p>
+    <p><b>Stablecoin</b> — a fiat-backed ALP token issued by a custodian with attestation records
+       (the RWA infrastructure — KYC gating, backing proofs, clawback — is already live; what
+       remains is the issuer/custodian integration).</p>
+    <p><b>Lightning-style channels</b> — off-chain payment channels for instant low-fee
+       transfers, settling to the base chain. Requires channel state machinery; HTLCs needed
+       for it already exist (atomic swaps).</p>
+  </div>
 </div></section>
 <footer>Alpha Blockchain roadmap</footer>
 <script src="app.js"></script>
 <script>
 nav('rm');
-const M = (t, d, s) => ({ t, d, s });
+const M = (t, d, s, l) => ({ t, d, s, l: l || [] });
 
 const PHASES = [
-  { q: '01 — ALPHA CORE', name: 'Alpha Core', items: [
-    M('Blockchain consensus', 'PoW sha256d, 80B headers, nBits, retarget ±4×, MTP-11, chainwork, reorgs', 'done'),
-    M('Alpha Coin & supply', '21M cap, 50→halving/210k, exact 20,999,999.9769, coinbase maturity', 'done'),
-    M('UTXO model', 'Deterministic set, fee accounting, spend/undo, persistence', 'done'),
-    M('Script engine v1', 'P2PK, P2PKH, P2SH, multisig, OP_RETURN, CLTV/CSV timelocks', 'done'),
-    M('SegWit v0', 'P2WPKH/P2WSH/P2SH-P2WPKH, BIP141/143/144, witness commitment', 'done'),
-    M('Taproot + Tapscript', 'Schnorr BIP340, key+script-path, OP_CHECKSIGADD, control blocks', 'done'),
-    M('Genesis & vectors', 'Bitcoin genesis reproduced, KAT vectors verified', 'done'),
+  { q: 'PHASE 01', name: 'Alpha Core — consensus & money',
+    desc: 'The foundation: a Bitcoin-exact proof-of-work blockchain — same headers, same difficulty math, same monetary schedule, same Script semantics.',
+    items: [
+    M('Blockchain consensus', 'SHA-256d PoW, 80-byte headers, compact nBits target, 2016-block retarget clamped ×[¼,4], median-time-past over 11 blocks, cumulative chainwork selection, full reorg with UTXO/mempool/meta-protocol undo.', 'done',
+      [['whitepaper §4','whitepaper.html#pow'],['tech ref','whitepaper.html#tech']]),
+    M('Alpha Coin & monetary policy', '21,000,000 cap · 50 ALPHA subsidy halving every 210,000 blocks · 1 ALPHA = 10⁸ alphasats · 100-block coinbase maturity · issuance asymptote verified.', 'done',
+      [['whitepaper §7','whitepaper.html#money']]),
+    M('UTXO model', 'Deterministic unspent set, per-tx fee accounting, connect/disconnect journals, durable persistence.', 'done'),
+    M('Script engine', 'Full stack-machine interpreter — P2PK, P2PKH, P2SH, m-of-n multisig, OP_RETURN, CLTV/CSV timelocks, complete sighash matrix (ALL/NONE/SINGLE/ANYONECANPAY).', 'done',
+      [['whitepaper §12','whitepaper.html#script']]),
+    M('SegWit v0', 'P2WPKH / P2WSH / P2SH-P2WPKH — BIP141/143/144 with witness commitment verification.', 'done'),
+    M('Taproot + Tapscript', 'Schnorr BIP340 signatures, key-path & script-path spends, tapleaf merkle trees, control blocks, OP_CHECKSIGADD.', 'done'),
+    M('Genesis & known-answer vectors', 'Bitcoin genesis block reproduced bit-for-bit; consensus code audited against Bitcoin test vectors.', 'done'),
   ]},
-  { q: '02 — ALPHA NETWORK', name: 'Networking', items: [
-    M('P2P wire protocol', 'magic+command+checksum, version/verack, inv/getdata/tx/block/headers', 'done'),
-    M('Sync & relay', 'headers-first, block+tx relay, 2-node live sync verified', 'done'),
-    M('Compact blocks', 'BIP152 siphash short-IDs, mempool reconstruction, blocktxn', 'done'),
-    M('Bloom filters', 'BIP37 filterload/add/clear, filtered-block serving', 'done'),
-    M('Compact filters', 'BIP157/158 GCS filters, getblockfilter', 'done'),
-    M('addrv2', 'BIP155 variable-length network addresses', 'done'),
-    M('Tor / I2P', 'SOCKS5 proxy, .onion hidden-service hosting', 'done'),
-    M('Pruning & assumeutxo', 'keep-N block pruning + UTXO snapshot fast-sync', 'done'),
-    M('Public mainnet launch', 'Live public network, seed-node auto-connect, public explorer on VPS', 'done'),
-    M('Public mining', 'mine_alpha.py — anyone can solo-mine ALPHA like early Bitcoin', 'done'),
-    M('Offline / LAN mode', 'UDP 8334 peer discovery — nodes auto-connect on local networks; standalone mine+sign without internet', 'done'),
+  { q: 'PHASE 02', name: 'Networking — peer-to-peer layer',
+    desc: 'Bitcoin-exact wire protocol plus Alpha extras: LAN discovery and offline operation for network partitions.',
+    items: [
+    M('P2P wire protocol', 'Bitcoin framing — magic + 12-byte command + sha256d checksum, 32 MB cap, version/verack handshake, inv/getdata/tx/block/headers relay, 24 message handlers.', 'done',
+      [['whitepaper §5','whitepaper.html#network']]),
+    M('Sync & relay', 'Headers-first synchronization, block + tx relay — live multi-node sync verified.', 'done'),
+    M('Compact blocks', 'BIP152 siphash short-IDs, mempool reconstruction, blocktxn round-trip.', 'done'),
+    M('Bloom filters', 'BIP37 filterload/filteradd/filterclear with filtered-block serving for light clients.', 'done'),
+    M('Compact filters', 'BIP157/158 Golomb-coded block filters — getblockfilter for private light-client scanning.', 'done'),
+    M('addrv2', 'BIP155 variable-length network addresses (Tor v3, I2P ready).', 'done'),
+    M('Tor / proxy', 'SOCKS5 proxy support + .onion hidden-service hosting for censorship-resistant nodes.', 'done'),
+    M('Pruning & assumeutxo', 'Keep-N block pruning + UTXO-snapshot fast sync for low-resource nodes.', 'done'),
+    M('Public mainnet launch', 'Live public network — seed 68.178.163.58:8333, public explorer, auto-connect.', 'done',
+      [['explorer','explorer.html']]),
+    M('Public mining', 'mine_alpha.py + browser miner — anyone can solo-mine like early Bitcoin.', 'done',
+      [['mine','mine.html']]),
+    M('Offline / LAN mode', 'UDP 8334 beacon discovery — nodes on the same LAN auto-connect and sync with no internet; standalone mining + offline tx signing work anywhere.', 'done',
+      [['guide','guide.html#individuals'],['whitepaper §5','whitepaper.html#network']]),
   ]},
-  { q: '03 — ALPHA WALLET', name: 'Wallet', items: [
-    M('Wallet core', 'WIF keys, coin-select, change, largest-first', 'done'),
-    M('Encryption', 'AES-256-CBC + SHA-512×25000, encryptwallet/passphrase/lock', 'done'),
-    M('HD wallets', 'BIP32 xprv/xpub, hardened/normal, BIP39 seed', 'done'),
-    M('Addresses', 'legacy, P2SH-segwit, bech32, bech32m taproot', 'done'),
-    M('Signed messages', 'signmessage/verifymessage with pubkey recovery', 'done'),
-    M('PSBT', 'BIP174 create/fund/sign/combine/finalize', 'done'),
-    M('Descriptors', 'BIP380 pkh/wpkh/tr/sh/wsh/multi/sortedmulti', 'done'),
+  { q: 'PHASE 03', name: 'Wallet — self-custody stack',
+    desc: 'Full-node CLI wallet plus a zero-install browser wallet — keys never leave your device in either.',
+    items: [
+    M('Wallet core', 'WIF keys, coin selection, change outputs, address book, rescan.', 'done'),
+    M('Encryption', 'AES-256-CBC + SHA-512×25,000 EVP_BytesToKey — encryptwallet / passphrase / lock / unlock.', 'done'),
+    M('HD wallets', 'BIP32 xprv/xpub derivation, hardened + normal paths, BIP39 seed.', 'done'),
+    M('Address formats', 'Legacy base58, P2SH-SegWit, bech32 P2WPKH, bech32m Taproot — all four generations.', 'done'),
+    M('Signed messages', 'signmessage/verifymessage with public-key recovery — proof of address ownership.', 'done'),
+    M('PSBT', 'BIP174 create/fund/sign/combine/finalize — air-gapped and multisig signing workflows.', 'done'),
+    M('Descriptors', 'BIP380 pkh/wpkh/tr/sh/wsh/multi/sortedmulti output descriptors.', 'done'),
+    M('Web wallet', 'Self-custody browser wallet — client-side secp256k1 + ECDSA signing, AES-GCM local storage, QR scan-and-pay.', 'done',
+      [['open wallet','wallet.html'],['security guide','guide.html#know']]),
   ]},
-  { q: '04 — ALPHA DEFI', name: 'DeFi & Tokens', items: [
-    M('Token protocol', 'ALP OP_RETURN issue/send/mint/burn (Omni-style)', 'done'),
-    M('Token indexer', 'Deterministic balances + registry + reorg undo', 'done'),
-    M('Token explorer', 'Token list, holders, balances on the site', 'done'),
-    M('OP_RETURN projects', 'Embed arbitrary project data on-chain', 'done'),
-    M('Stablecoin', 'Fiat-backed asset on ALP', 'todo'),
+  { q: 'PHASE 04', name: 'DeFi — tokens, DEX, AMM, swaps',
+    desc: 'The ALP meta-protocol: assets and markets living inside OP_RETURN records — same trust model as the coin.',
+    items: [
+    M('Token protocol (ALP)', 'Omni-style issue/send/mint/burn via OP_RETURN — token_id = creation txid.', 'done',
+      [['whitepaper §13','whitepaper.html#meta'],['tokens page','tokens.html']]),
+    M('Token indexer', 'Deterministic balance engine + registry + per-block reorg undo journal.', 'done'),
+    M('Token explorer', 'Token list, holder tables, balances — public read API on the site.', 'done'),
+    M('OP_RETURN projects', 'sendopreturn — embed arbitrary application data on-chain.', 'done'),
+    M('DEX order book', 'On-chain escrowed orders — dexsell/dexfill/dexcancel + dexswap market buys with best-price execution and max-cost slippage caps.', 'done'),
+    M('AMM liquidity pools', 'Constant-product x·y=k pools — create/add/remove liquidity (LP shares), quotes, swaps with min_out, 0.3% fee.', 'done'),
+    M('Atomic swaps (HTLC)', 'Hash+timelock contracts — createswap/participate/redeem/refund for trustless cross-chain exchange with Bitcoin-family chains.', 'done'),
+    M('Stablecoin', 'Fiat-backed asset on ALP — needs a custodian/issuer; RWA rails already live.', 'todo'),
   ]},
-  { q: '05 — ALPHA DEVELOPERS', name: 'APIs & Dev Tools', items: [
-    M('JSON-RPC', '~65 bitcoind-compatible methods', 'done'),
-    M('REST API', '/rest/chaininfo|block|tx|headers|mempool|utxo|tokens', 'done'),
-    M('Explorer + web API', 'blocks/tx/address/tokens/search + landing + docs', 'done'),
-    M('SPV proofs', 'gettxoutproof/verifytxoutproof partial merkle trees', 'done'),
-    M('Fee estimation', 'estimatesmartfee (CPFP package feerates)', 'done'),
-    M('SDK / client libs', 'alpha_cli + JSON client helper', 'done'),
+  { q: 'PHASE 05', name: 'Developers — APIs & tooling',
+    desc: 'Everything needed to build on Alpha — bitcoind-compatible RPC, REST, SPV, docs and use-case examples.',
+    items: [
+    M('JSON-RPC', '~65 bitcoind-compatible methods + all meta-protocol methods — cookie-authenticated, localhost-bound.', 'done',
+      [['API docs','api.html']]),
+    M('REST API', '/rest/chaininfo|block|tx|headers|mempool|utxo|tokens.', 'done'),
+    M('Explorer + web API', 'blocks/tx/address/tokens/dexorders/search + landing + docs.', 'done',
+      [['explorer','explorer.html']]),
+    M('SPV proofs', 'gettxoutproof/verifytxoutproof partial-merkle inclusion proofs.', 'done',
+      [['whitepaper §9','whitepaper.html#spv']]),
+    M('Fee estimation', 'estimatesmartfee with CPFP package feerates.', 'done'),
+    M('SDK / client libs', 'alpha_cli client + JSON-RPC helper + runnable examples (examples/use_cases.py).', 'done',
+      [['use cases','guide.html#start']]),
+    M('Testnet + faucet', 'Regtest/testnet chains + on-chain faucet for dev coins.', 'done'),
   ]},
-  { q: '06 — ALPHA SECURITY', name: 'Security', items: [
-    M('RPC authentication', 'bitcoind-style .cookie auth (401 without)', 'done'),
-    M('Wallet encryption', 'AES-256 + passphrase, owner-only files', 'done'),
-    M('Consensus hardening', 'all bounds enforced, all attack vectors tested', 'done'),
-    M('Signature safety', 'RFC6979, strict DER, low-S, curve checks', 'done'),
-    M('Audit & tests', '40/40 tests — vectors, consensus, integration, attacks', 'done'),
+  { q: 'PHASE 06', name: 'Security — hardening & audit',
+    desc: 'Bitcoin\'s hard-won lessons applied: malleability fixes, deterministic nonces, strict validation.',
+    items: [
+    M('RPC authentication', 'bitcoind-style .cookie auth — 401 without it; RPC bound to localhost only.', 'done'),
+    M('Wallet encryption', 'AES-256 + passphrase; wallet files chmod 0600.', 'done'),
+    M('Consensus hardening', 'All bounds enforced — MAX_MONEY, negative/zero outputs, double-spend, fee≥0, maturity, sighash edge cases.', 'done'),
+    M('Signature safety', 'RFC6979 deterministic nonces, strict DER (BIP66), low-S (BIP62), off-curve pubkey rejection.', 'done',
+      [['whitepaper §15','whitepaper.html#security']]),
+    M('Audit & tests', 'Vectors + consensus + integration + attack tests; 28/28 live-feature end-to-end smoke suite.', 'done'),
   ]},
-  { q: '07 — ALPHA ECOSYSTEM', name: 'Pay · Identity · RWA · Web3 · AI · Enterprise', items: [
-    M('Web wallet UI', 'Self-custody browser wallet — client-side keys, send/receive, QR — wallet.html', 'done'),
-    M('Merchant & payments', 'Invoices, payment links, QR pay, paid-status tracking — createinvoice/payinvoice', 'done'),
-    M('Atomic swaps (HTLC)', 'Cross-chain trustless swaps with BTC-family chains — createswap/redeemswap/refundswap', 'done'),
-    M('DEX order book', 'On-chain token trading — dexsell/dexfill/dexcancel, escrowed orders', 'done'),
-    M('Liquidity pools (AMM)', 'Constant-product token↔token pools — ammcreate/ammadd/ammswap, LP shares', 'done'),
-    M('Staking & validators', 'Reward layer on PoW', 'todo'),
-    M('Lending & escrow', '3-party escrow (release/dispute/refund/expiry) + collateralized loans with interest & seizure', 'done'),
-    M('Remittance', 'Cross-border settlement via core payments — sendtoaddress, ~10-min finality', 'done'),
-    M('Identity & KYC', 'did:alpha: DIDs, verifiable credentials, Alpha ID sign-in, reusable on-chain KYC', 'done'),
-    M('NFT & domains', 'NFT mint/transfer/burn + escrowed marketplace + .alpha domains + game achievements', 'done'),
-    M('Oracle', 'Key-signed data feeds — oraclecreate/publish/latest/history', 'done'),
-    M('AI agents & M2M pay', 'Agent registry + machine-to-machine payment receipts + HTLC escrow', 'done'),
-    M('Enterprise suite', 'Supply-chain items/events, tamper-evident certificates, business registry, testnet faucet', 'done'),
-    M('Mobile wallet', 'iOS/Android app', 'todo'),
+  { q: 'PHASE 07', name: 'Ecosystem — pay · identity · RWA · Web3 · AI · enterprise',
+    desc: 'The application layer — every protocol below is live on mainnet, verified end-to-end.',
+    items: [
+    M('Merchant & payments', 'Invoices, payment links, QR checkout, paid-status tracking — createinvoice/payinvoice/listinvoices.', 'done'),
+    M('Remittance', 'Borderless settlement via core payments — sendtoaddress, ~10-min finality, self-chosen fees.', 'done'),
+    M('Lending & escrow', 'Three-party escrow (release/dispute/refund/expiry-claim) + collateralized token loans with interest and default seizure.', 'done'),
+    M('Identity & KYC', 'did:alpha: identifiers, verifiable credentials, Alpha ID sign-in challenges, reusable on-chain KYC.', 'done'),
+    M('NFT & domains', 'NFT mint/transfer/burn + escrowed marketplace + .alpha naming + on-chain game achievements.', 'done'),
+    M('RWA suite', 'KYC-gated asset tokens, issuer clawback, pro-rata dividends, carbon-retirement certificates, physical-backing provenance.', 'done'),
+    M('Oracle', 'Key-signed external data feeds — create/publish/latest/history.', 'done'),
+    M('AI agents & M2M pay', 'Autonomous-agent registry + machine-to-machine payment receipts + HTLC escrow.', 'done'),
+    M('Enterprise suite', 'Supply-chain items/events/history, tamper-evident certificates, business registry.', 'done'),
+    M('Staking & validators', 'Optional CLTV reward-lock layer on top of PoW (design: never replaces mining).', 'todo'),
+    M('Mobile wallet', 'Native iOS/Android wrapper on the web-wallet key model.', 'todo'),
+    M('Lightning-style channels', 'Off-chain instant payment channels settling on-chain (HTLCs already exist).', 'todo'),
   ]},
 ];
 
@@ -130,22 +230,26 @@ function render() {
     const pct = Math.round(d / p.items.length * 100);
     return `<div class="rm-section">
       <div class="rm-head"><div class="rm-num">${String(pi+1).padStart(2,'0')}</div>
-        <h3>${p.name}</h3><span class="q">${p.q}</span><div class="prog">${d}/${p.items.length}</div></div>
+        <h3>${p.name}</h3><span class="q">${p.q}</span><div class="prog">${d}/${p.items.length} done</div></div>
+      <div class="rm-desc">${p.desc}</div>
       <div class="bar"><i style="width:${pct}%"></i></div>
       ${p.items.map(i => `
         <div class="milestone ${i.s}">
           <div class="dot">${i.s==='done'?'&#10003;':i.s==='wip'?'&#9679;':''}</div>
-          <div><div class="mt">${i.t}</div><div class="md">${i.d}</div></div>
+          <div><div class="mt">${i.t}</div><div class="md">${i.d}</div>
+            ${i.l.length ? `<div class="mlinks">${i.l.map(x=>`<a href="${x[1]}">${x[0]} →</a>`).join('')}</div>` : ''}
+          </div>
           <div class="tag-${i.s}">${i.s==='done'?'COMPLETE':i.s==='wip'?'IN PROGRESS':'PLANNED'}</div>
         </div>`).join('')}
     </div>`;
   }).join('');
-  document.getElementById('roadmap').innerHTML = html +
-    `<div class="detail"><h3>Overall: ${done}/${total} milestones complete
-       (${Math.round(done/total*100)}%)</h3>
-       <div class="bar"><i style="width:${Math.round(done/total*100)}%"></i></div>
-       <p style="color:var(--dim);font-size:13.5px;margin-top:8px">Core network is production-ready;
-       ecosystem items are next-phase work.</p></div>`;
+  const pct = Math.round(done/total*100);
+  document.getElementById('rmstats').innerHTML =
+    `<div class="stat"><div class="k">Milestones complete</div><div class="v green">${done}/${total}</div></div>
+     <div class="stat"><div class="k">Overall progress</div><div class="v gold">${pct}%</div></div>
+     <div class="stat"><div class="k">Network status</div><div class="v green">MAINNET LIVE</div></div>`;
+  document.getElementById('bigbar').style.width = pct + '%';
+  document.getElementById('roadmap').innerHTML = html;
 }
 render();
 </script>
