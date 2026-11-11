@@ -150,18 +150,81 @@ alpha_cli.py walletpassphrase mypass 300   # unlock 5 min</pre></div>
     <tr><td class="hash">/rest/tokens.json / /rest/token/&lt;id&gt;.json</td><td>token registry / info</td></tr>
   </table></div>
 
-  <h3 class="sect" id="webapi">10. Explorer Web API (this site)</h3>
+  <h3 class="sect" id="webapi">10. Public Web API (no node needed)</h3>
+  <p class="sub">Read-only HTTP JSON served by this site — safe public mirror of the
+     node's RPC. Use it from any app/browser; private RPC stays localhost-only.</p>
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 12px 6px;margin-bottom:22px;overflow-x:auto">
+    <svg viewBox="0 0 760 110" xmlns="http://www.w3.org/2000/svg" font-size="11" style="display:block;margin:0 auto;max-width:100%;font-family:var(--mono)">
+      <defs><marker id="ap" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+        <path d="M0,0 L8,4 L0,8 z" fill="#f5c542"/></marker></defs>
+      <rect x="10" y="30" width="140" height="55" rx="10" fill="#141829" stroke="#4f7cff"/>
+      <text x="80" y="53" fill="#4f7cff" text-anchor="middle">Your app / browser</text>
+      <text x="80" y="72" fill="#8a93b2" text-anchor="middle" font-size="9.5">GET /api/…</text>
+      <rect x="230" y="30" width="140" height="55" rx="10" fill="#141829" stroke="#f5c542"/>
+      <text x="300" y="53" fill="#f5c542" text-anchor="middle">alphaweb :8080</text>
+      <text x="300" y="72" fill="#8a93b2" text-anchor="middle" font-size="9.5">public read-only API</text>
+      <rect x="450" y="30" width="140" height="55" rx="10" fill="#141829" stroke="#3ddc97"/>
+      <text x="520" y="53" fill="#3ddc97" text-anchor="middle">alphad node</text>
+      <text x="520" y="72" fill="#8a93b2" text-anchor="middle" font-size="9.5">RPC localhost :8332</text>
+      <rect x="660" y="30" width="90" height="55" rx="10" fill="#141829" stroke="#2a3350"/>
+      <text x="705" y="53" fill="#c8d0e8" text-anchor="middle">chain +</text>
+      <text x="705" y="70" fill="#c8d0e8" text-anchor="middle">indexers</text>
+      <line x1="150" y1="57" x2="225" y2="57" stroke="#f5c542" stroke-width="1.5" marker-end="url(#ap)"/>
+      <line x1="370" y1="57" x2="445" y2="57" stroke="#f5c542" stroke-width="1.5" marker-end="url(#ap)"/>
+      <line x1="590" y1="57" x2="655" y2="57" stroke="#f5c542" stroke-width="1.5" marker-end="url(#ap)"/>
+    </svg>
+  </div>
+
+  <h4 style="color:var(--gold);margin:18px 0 8px">Chain &amp; explorer</h4>
   <div class="tbl-wrap"><table>
-    <tr><th>Endpoint</th><th>Returns</th></tr>
-    <tr><td class="hash">/api/stats</td><td>live network stats</td></tr>
-    <tr><td class="hash">/api/blocks?n=20</td><td>latest block summaries</td></tr>
-    <tr><td class="hash">/api/block/&lt;hash|height&gt;</td><td>block + txs</td></tr>
-    <tr><td class="hash">/api/tx/&lt;txid&gt;</td><td>transaction detail</td></tr>
-    <tr><td class="hash">/api/address/&lt;addr&gt;</td><td>balance + utxos + tokens</td></tr>
-    <tr><td class="hash">/api/mempool</td><td>mempool txids + info</td></tr>
-    <tr><td class="hash">/api/tokens / /api/token/&lt;id&gt;</td><td>registry / holders</td></tr>
-    <tr><td class="hash">/api/search?q=</td><td>detect block/tx/address</td></tr>
+    <tr><th>Endpoint</th><th>Returns · use it for</th></tr>
+    <tr><td class="hash">/api/stats</td><td>height, supply, hashrate, peers — dashboards, tickers</td></tr>
+    <tr><td class="hash">/api/blocks?n=20</td><td>latest block summaries — explorers, monitors</td></tr>
+    <tr><td class="hash">/api/block/&lt;hash|height&gt;</td><td>full block + txs — auditing a block</td></tr>
+    <tr><td class="hash">/api/tx/&lt;txid&gt;</td><td>transaction detail — payment verification</td></tr>
+    <tr><td class="hash">/api/address/&lt;addr&gt;</td><td>balance + txs + token balances — wallets, portfolio apps</td></tr>
+    <tr><td class="hash">/api/utxos/&lt;addr&gt;</td><td>spendable UTXOs — build/sign txs offline (web wallet uses this)</td></tr>
+    <tr><td class="hash">/api/mempool</td><td>unconfirmed txs — fee + confirmation tracking</td></tr>
+    <tr><td class="hash">/api/search?q=</td><td>auto-detect block/tx/address — universal lookup box</td></tr>
+    <tr><td class="hash">/api/broadcast?hex=</td><td>submit a signed raw tx — send payments without a node</td></tr>
+    <tr><td class="hash">/api/minework / /api/submitwork</td><td>block template / submit nonce — external miners</td></tr>
   </table></div>
+
+  <h4 style="color:var(--gold);margin:22px 0 8px">Tokens &amp; DeFi</h4>
+  <div class="tbl-wrap"><table>
+    <tr><td class="hash">/api/tokens</td><td>all issued tokens — registry, supply, issuer</td></tr>
+    <tr><td class="hash">/api/token/&lt;id&gt;</td><td>token info + holder list — verify any asset</td></tr>
+    <tr><td class="hash">/api/dexorders</td><td>open order book — build trading bots/UIs</td></tr>
+    <tr><td class="hash">/api/pools</td><td>AMM pools + reserves — quotes, liquidity apps</td></tr>
+    <tr><td class="hash">/api/nftorders</td><td>NFT marketplace listings — storefronts</td></tr>
+  </table></div>
+
+  <h4 style="color:var(--gold);margin:22px 0 8px">Identity, RWA &amp; Web3</h4>
+  <div class="tbl-wrap"><table>
+    <tr><td class="hash">/api/identity/&lt;addr&gt;</td><td>resolve did:alpha: + credentials — "Sign in with Alpha"</td></tr>
+    <tr><td class="hash">/api/kyc/&lt;addr&gt;</td><td>on-chain KYC status — gate your app/compliance check</td></tr>
+    <tr><td class="hash">/api/nfts</td><td>all NFTs — galleries, ownership proofs</td></tr>
+    <tr><td class="hash">/api/domains / /api/domain/&lt;name&gt;</td><td>.alpha registry / resolve a name → address</td></tr>
+    <tr><td class="hash">/api/games?game=&lt;name&gt;</td><td>on-chain achievements — public leaderboards</td></tr>
+    <tr><td class="hash">/api/retirements</td><td>carbon-retirement certificates — ESG auditors</td></tr>
+  </table></div>
+
+  <h4 style="color:var(--gold);margin:22px 0 8px">Finance &amp; enterprise</h4>
+  <div class="tbl-wrap"><table>
+    <tr><td class="hash">/api/feeds / /api/feed/&lt;id&gt;</td><td>oracle feeds / latest value — price triggers, smart apps</td></tr>
+    <tr><td class="hash">/api/feedhist/&lt;id&gt;</td><td>oracle history — charts, audit trails</td></tr>
+    <tr><td class="hash">/api/agents / /api/receipts</td><td>AI-agent registry / M2M payment log — auditable bots</td></tr>
+    <tr><td class="hash">/api/loans</td><td>collateralized loan market — lend or verify collateral</td></tr>
+    <tr><td class="hash">/api/escrows</td><td>escrow contracts + status — track a trade's lifecycle</td></tr>
+    <tr><td class="hash">/api/invoices</td><td>merchant invoices + paid status — checkout tracking</td></tr>
+    <tr><td class="hash">/api/items / /api/item/&lt;id&gt;</td><td>supply-chain items / full event history — provenance</td></tr>
+    <tr><td class="hash">/api/certs / /api/cert/&lt;hash&gt;</td><td>certificates / verify a document hash — tamper check</td></tr>
+    <tr><td class="hash">/api/businesses / /api/business/&lt;id&gt;</td><td>business registry / one entry — KYB lookups</td></tr>
+  </table></div>
+  <p class="sub" style="margin-top:14px">Writes (sending, issuing, trading…) are done by signing a
+     transaction client-side and POSTing via <code>/api/broadcast</code> — the web
+     wallet and token creator work exactly this way, keys never leave your
+     device. Node-side writes stay on the authenticated local RPC.</p>
 
   <h3 class="sect" id="publish">11. Publish / run your own node</h3>
   <div class="tbl-wrap"><table>

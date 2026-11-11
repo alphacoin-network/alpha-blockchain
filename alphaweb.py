@@ -173,6 +173,53 @@ def make_handler(api: API):
                                    qs.get("hex", [""])[0])
                 elif route == "dexorders":
                     out = api.call("dexorders")
+                # ---- public read-only protocol APIs ----
+                elif route == "pools":
+                    out = api.call("ammpools")
+                elif route == "nfts":
+                    out = api.call("listnfts")
+                elif route == "nftorders":
+                    out = api.call("nftorders")
+                elif route == "domains":
+                    out = api.call("listdomains")
+                elif route.startswith("domain/"):
+                    out = api.call("resolvedomain", route[7:])
+                elif route.startswith("identity/"):
+                    out = api.call("resolveidentity", route[9:])
+                elif route.startswith("kyc/"):
+                    out = api.call("kycstatus", route[4:])
+                elif route == "feeds":
+                    out = api.call("oraclefeeds")
+                elif route.startswith("feedhist/"):
+                    out = api.call("oraclehistory", route[9:])
+                elif route.startswith("feed/"):
+                    out = api.call("oraclelatest", route[5:])
+                elif route == "agents":
+                    out = api.call("listagents")
+                elif route == "receipts":
+                    out = api.call("paymentreceipts")
+                elif route == "loans":
+                    out = api.call("listloans")
+                elif route == "escrows":
+                    out = api.call("listescrows")
+                elif route == "invoices":
+                    out = api.call("listinvoices")
+                elif route == "items":
+                    out = api.call("listitems")
+                elif route.startswith("item/"):
+                    out = api.call("itemhistory", route[5:])
+                elif route == "certs":
+                    out = api.call("listcertificates")
+                elif route.startswith("cert/"):
+                    out = api.call("verifycertificate", route[5:])
+                elif route == "businesses":
+                    out = api.call("listbusinesses")
+                elif route.startswith("business/"):
+                    out = api.call("businessinfo", route[9:])
+                elif route == "retirements":
+                    out = api.call("retirementcerts")
+                elif route == "games":
+                    out = api.call("gamerecords", qs.get("game", [None])[0])
                 else:
                     self._json({"error": "not found"}, 404)
                     return
