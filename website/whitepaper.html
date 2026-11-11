@@ -193,6 +193,11 @@
     <li>24 message handlers covering the full message set</li>
     <li><b>Seed nodes</b>: new nodes auto-connect to public seeds
         (<code>68.178.163.58:8333</code>) — no manual peering needed, like Bitcoin's DNS seeds</li>
+    <li><b>LAN discovery</b>: nodes broadcast UDP beacons on port 8334 —
+        peers on the same local network auto-connect, so the chain keeps
+        syncing even without the public internet</li>
+    <li><b>Offline capable</b>: a node mines, signs and validates standalone;
+        transactions can be signed offline and broadcast on reconnect</li>
   </ul>
   <div class="note"><b>Live network:</b> the public mainnet is running — explorer at
   <code>http://68.178.163.58:8080</code>. Anyone can join:

@@ -50,6 +50,19 @@ python mine_alpha.py --datadir ./data-mainnet
 # 3. public explorer: http://68.178.163.58:8080
 ```
 
+## Offline / LAN operation
+
+The network keeps working **without the public internet**:
+
+- **Standalone** — a node mines, signs and validates fully offline
+- **LAN auto-discovery** — nodes on the same local network find each other
+  via UDP broadcast on port **8334** (`ALPHA|<net>|<port>` beacon) and
+  connect automatically — no seed needed
+- **Offline signing** — build + sign txs offline with
+  `createrawtransaction` / `signrawtransaction`, then broadcast later with
+  `sendrawtransaction` when connectivity returns
+- When the internet comes back, the node resyncs from the seed nodes.
+
 ### Community setup (founding members only)
 
 ```bash
