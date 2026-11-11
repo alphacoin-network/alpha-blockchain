@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Staking — Alpha Blockchain</title>
+  <meta name="description" content="Alpha Staking — lock ALPHA in CLTV time-locked outputs and earn pro-rata rewards. Real on-chain locks, flexible duration, transparent tracking.">
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#f7931a">
+  <link rel="canonical" href="https://alphacoin.network/stake.html">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Alpha Staking — lock &amp; earn">
+  <meta property="og:description" content="Lock ALPHA in CLTV time-locked outputs and earn pro-rata rewards.">
+  <meta property="og:image" content="https://alphacoin.network/logo.svg">
+  <link rel="icon" type="image/svg+xml" href="coin.svg">
+  <link rel="apple-touch-icon" href="coin.svg">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav></nav>
+<section><div class="wrap">
+  <h2 class="title">◇ Alpha Staking</h2>
+  <p class="sub">Lock ALPHA on-chain, earn pro-rata rewards — enforced by
+     Bitcoin-style CLTV script, not trust.</p>
+
+  <div class="note" style="background:rgba(79,124,255,.08);border-left:3px solid var(--accent);padding:12px 18px;border-radius:0 8px 8px 0;font-size:14px;color:var(--dim);margin-bottom:20px">
+     <b style="color:var(--text)">Honest design:</b> Alpha is a
+     <b>proof-of-work</b> chain — staking here is a <b>lock-and-earn</b>
+     program, not consensus and not validator voting. When you stake, your
+     coins are locked in a real <code>OP_CHECKLOCKTIMEVERIFY</code> output
+     that <b>nobody — not even you — can spend before the unlock height</b>.
+     Rewards are distributed by a funder
+     (<code>stakedistribute</code>) pro-rata on locked size. No new inflation:
+     staking does not change the 21,000,000 supply cap.</div>
+
+  <div class="stats" id="sstats"><div class="loading">loading…</div></div>
+
+  <h2 class="title" style="margin-top:40px">How it works</h2>
+  <pre class="ascii">  your wallet          lock tx                     maturity           claim
+  ┌──────────┐   stakeopen   ┌───────────────────┐  unlock_height  ┌──────────┐
+  │ 10 ALPHA │──────────────▶│ CLTV output        │────blocks──────▶│ unstake   │
+  └──────────┘               │ &lt;unlock&gt; CLTV DROP │                 │ spends    │
+                             │  DUP HASH160 &lt;pkh&gt; │                 │ to wallet │
+                             │  EQUALVERIFY CHECK │                 └──────────┘
+                             └───────────────────┘
+                                   + funder runs stakedistribute → rewards
+                                     paid pro-rata to all locked stakers</pre>
+
+  <div class="grid cards" style="margin-top:24px">
+    <div class="card"><h3>1 · Lock</h3>
+      <p><code>alpha_cli stakeopen &lt;amount&gt; &lt;blocks&gt; [address]</code><br>
+      e.g. <code>stakeopen 100 4320</code> locks 100 ALPHA for ~30 days
+      (10-minute blocks). The lock is consensus-enforced — early spend is
+      rejected by every node.</p></div>
+    <div class="card"><h3>2 · Track</h3>
+      <p><code>alpha_cli liststakes</code> / <code>stakeinfo</code> — or watch
+      this page. Each position shows amount, unlock height and status.</p></div>
+    <div class="card"><h3>3 · Earn + unlock</h3>
+      <p>Rewards arrive via <code>stakedistribute</code> payouts pro-rata on
+      locked size. After the unlock height:
+      <code>alpha_cli unstake &lt;stake_id&gt;</code> returns the coins.</p></div>
+  </div>
+
+  <h2 class="title" style="margin-top:44px">Positions</h2>
+  <p class="sub">Every on-chain lock — public and auditable.</p>
+  <div class="tbl-wrap"><table>
+    <tr><th>Stake ID</th><th class="num">Amount (ALPHA)</th><th>Owner</th>
+        <th class="num">Staked @</th><th class="num">Unlock @</th><th>Status</th></tr>
+    <tbody id="stakes"><tr><td colspan="6" class="loading">loading…</td></tr></tbody>
+  </table></div>
+</div></section>
+<footer>Alpha Blockchain · staking — CLTV lock-and-earn (not consensus)</footer>
+<script src="app.js"></script>
+<script>
+nav('stake');
+async function load() {
+  const [info, sts] = await Promise.all([
+    api('stakeinfo').catch(() => null),
+    api('stakes').catch(() => [])]);
+  el('sstats').innerHTML = info ? `
+    <div class="stat"><div class="k">Locked now</div><div class="v gold">${fmt(info.total_staked_alpha)} α</div></div>
+    <div class="stat"><div class="k">Open positions</div><div class="v blue">${fmt(info.positions)}</div></div>
+    <div class="stat"><div class="k">All-time stakes</div><div class="v green">${fmt(info.all_time_positions)}</div></div>
+    <div class="stat"><div class="k">Tip height</div><div class="v blue">${fmt(info.tip_height)}</div></div>`
+    : '<div class="loading">staking info unavailable</div>';
+  el('stakes').innerHTML = (sts && sts.length) ? sts.map(s =>
+    `<tr><td class="hash">${short(s.stake_id)}</td>
+     <td class="num">${fmt(s.amount_alpha)}</td>
+     <td class="hash">${short(s.owner_pkh)}</td>
+     <td class="num">${fmt(s.staked_height)}</td>
+     <td class="num">${fmt(s.unlock_height)}</td>
+     <td><span class="tag-live ${s.status === 'locked' ? 'live' : ''}">${s.status.toUpperCase()}</span></td></tr>`
+  ).join('') : '<tr><td colspan="6" class="loading">no stake positions yet — be the first: <code>alpha_cli stakeopen</code></td></tr>';
+}
+load(); setInterval(load, 30000);
+</script>
+</body>
+</html>

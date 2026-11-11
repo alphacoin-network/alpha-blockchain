@@ -21,6 +21,7 @@ function nav(active) {
     <a href="guide.html" ${active === 'guide' ? 'class="active"' : ''}>Guide</a>
     <a href="explorer.html" ${active === 'expl' ? 'class="active"' : ''}>Explorer</a>
     <a href="tokens.html" ${active === 'tok' ? 'class="active"' : ''}>Tokens</a>
+    <a href="stake.html" ${active === 'stake' ? 'class="active"' : ''}>◇ Stake</a>
     <a href="api.html" ${active === 'api' ? 'class="active"' : ''}>API</a>
     <a href="wallet.html" ${active === 'wallet' ? 'class="active"' : ''}>◈ Wallet</a>
     <a href="mine.html" ${active === 'mine' ? 'class="active"' : ''}>⛏ Mine</a>

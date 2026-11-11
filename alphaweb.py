@@ -220,6 +220,10 @@ def make_handler(api: API):
                     out = api.call("retirementcerts")
                 elif route == "games":
                     out = api.call("gamerecords", qs.get("game", [None])[0])
+                elif route == "stakes":
+                    out = api.call("liststakes")
+                elif route == "stakeinfo":
+                    out = api.call("stakeinfo")
                 else:
                     self._json({"error": "not found"}, 404)
                     return

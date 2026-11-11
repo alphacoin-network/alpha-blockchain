@@ -6,6 +6,7 @@
   <url><loc>https://alphacoin.network/wallet.html</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://alphacoin.network/mine.html</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://alphacoin.network/tokens.html</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://alphacoin.network/stake.html</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
   <url><loc>https://alphacoin.network/whitepaper.html</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://alphacoin.network/roadmap.html</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
   <url><loc>https://alphacoin.network/api.html</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>

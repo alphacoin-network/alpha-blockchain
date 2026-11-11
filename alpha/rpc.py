@@ -10,7 +10,7 @@ import time
 from decimal import Decimal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import constants, crypto, ai as _ai, amm as _amm, dex as _dex, enterprise as _ent, escrow as _esc, identity as _id, merkleproof, script, tokens as _tokens, wallet as _wallet, web3 as _w3
+from . import constants, crypto, ai as _ai, amm as _amm, dex as _dex, enterprise as _ent, escrow as _esc, identity as _id, merkleproof, script, staking as _stk, tokens as _tokens, wallet as _wallet, web3 as _w3
 from .base58 import b58encode_check
 from .block import Block
 from .transaction import (
@@ -1730,6 +1730,120 @@ class RPCMethods:
             self.node.chain, bytes.fromhex(data_hex), address, address)
         self.node.submit_tx(tx)
         return tx.txid_hex()
+
+    # -- staking (CLTV lock-and-earn — yield layer, not consensus) ------------------
+    def stakeopen(self, amount, blocks: int = 4320,
+                  address: str | None = None):
+        """Lock ALPHA in a CLTV output for `blocks` (~30d default at 10min).
+
+        The coins become unspendable by anyone — including the owner —
+        until `unlock_height`. Returns the stake_id (the lock txid).
+        """
+        if address is None:
+            _, address = self._funded_address()
+            if address is None:
+                raise RPCError(RPC_WALLET_INSUFFICIENT_FUNDS,
+                               "wallet has no spendable outputs")
+        value = sats(amount)
+        if value <= 0:
+            raise RPCError(RPC_INVALID_PARAMS, "amount must be positive")
+        blocks = int(blocks)
+        if blocks < 1 or blocks > 525600:
+            raise RPCError(RPC_INVALID_PARAMS, "blocks out of range")
+        unlock = self.node.chain.height + blocks
+        pkh = _addr_pkh(address, self.node.params)
+        payload = _stk.encode_stake(unlock, pkh)
+        signer_spk = script.script_for_address(address, self.node.params)
+        tx = self.node.wallet.create_transaction(
+            self.node.chain,
+            [(_stk.stake_spk(unlock, pkh), value),
+             (script.script_op_return(payload), 0)],
+            first_input_script=signer_spk)
+        self.node.submit_tx(tx)
+        return {"stake_id": tx.txid_hex(), "amount_alpha": value / 1e8,
+                "unlock_height": unlock, "address": address}
+
+    def _stake(self, stake_id: str):
+        st = self.node.staking.stakes.get((hex_to_hash(stake_id), 0))
+        if st is None:
+            raise RPCError(RPC_INVALID_PARAMS, "unknown stake")
+        return st
+
+    def unstake(self, stake_id: str):
+        """Spend a matured locked output back to the wallet."""
+        st = self._stake(stake_id)
+        tip = self.node.chain.height
+        if not st["open"]:
+            raise RPCError(RPC_INVALID_PARAMS, "stake already closed")
+        if tip < st["unlock"]:
+            raise RPCError(RPC_INVALID_PARAMS,
+                           f"locked until height {st['unlock']} "
+                           f"(tip {tip})")
+        spk = _stk.stake_spk(st["unlock"], st["pkh"])
+        addr = script.extract_destination(
+            script.script_p2pkh(st["pkh"]), self.node.params)
+        key = self.node.wallet._key_for_address(addr)
+        if key is None:
+            raise RPCError(RPC_INVALID_ADDRESS_OR_KEY,
+                           "stake owner key not in wallet")
+        fee = 2000
+        if st["amount"] <= fee:
+            raise RPCError(RPC_INVALID_PARAMS, "stake too small to spend")
+        dest = self.node.wallet.new_address("bech32")
+        tx = Transaction(
+            version=2,
+            vin=[TxIn(OutPoint(hex_to_hash(stake_id), 0))],
+            vout=[TxOut(st["amount"] - fee,
+                        script.script_for_address(dest, self.node.params))],
+            locktime=st["unlock"])
+        tx.vin[0].sequence = 0xFFFFFFFE
+        sighash = tx.signature_hash(spk, 0, SIGHASH_ALL)
+        sig = crypto.ecdsa_sign_der(sighash, key.priv) + b"\x01"
+        tx.vin[0].script_sig = (script.push_data(sig)
+                                + script.push_data(key.pubkey))
+        self.node.submit_tx(tx)
+        return {"txid": tx.txid_hex(), "to": dest,
+                "amount_alpha": (st["amount"] - fee) / 1e8}
+
+    def liststakes(self):
+        """All indexed stake positions (locked and closed)."""
+        return self.node.staking.listing()
+
+    def stakeinfo(self):
+        """Aggregate staking stats."""
+        return self.node.staking.stats(self.node.chain.height)
+
+    def stakedistribute(self, amount, address: str | None = None):
+        """Pay `amount` ALPHA to open stakers pro-rata on locked size."""
+        open_ = [s for s in self.node.staking.stakes.values() if s["open"]]
+        if not open_:
+            raise RPCError(RPC_INVALID_PARAMS, "no open stakes")
+        total = sum(s["amount"] for s in open_)
+        pool = sats(amount)
+        if pool <= 0:
+            raise RPCError(RPC_INVALID_PARAMS, "amount must be positive")
+        if address is None:
+            _, address = self._funded_address()
+            if address is None:
+                raise RPCError(RPC_WALLET_INSUFFICIENT_FUNDS,
+                               "wallet has no spendable outputs")
+        outs = {}
+        for s in open_:
+            a = script.extract_destination(
+                script.script_p2pkh(s["pkh"]), self.node.params)
+            outs[a] = outs.get(a, 0) + pool * s["amount"] // total
+        rem = pool - sum(outs.values())
+        if rem:
+            outs[next(iter(outs))] += rem
+        tx = self.node.wallet.create_transaction(
+            self.node.chain,
+            [(script.script_for_address(a, self.node.params), v)
+             for a, v in outs.items() if v > 0],
+            first_input_script=script.script_for_address(
+                address, self.node.params))
+        self.node.submit_tx(tx)
+        return {"txid": tx.txid_hex(), "distributed_sats": pool,
+                "stakers": len(outs)}
 
     # -- mining -------------------------------------------------------------------
     def generatetoaddress(self, nblocks: int, address: str):
