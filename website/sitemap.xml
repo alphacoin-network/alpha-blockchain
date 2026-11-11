@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>http://68.178.163.58:8080/</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>
-  <url><loc>http://68.178.163.58:8080/guide.html</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
-  <url><loc>http://68.178.163.58:8080/explorer.html</loc><changefreq>always</changefreq><priority>0.9</priority></url>
-  <url><loc>http://68.178.163.58:8080/wallet.html</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
-  <url><loc>http://68.178.163.58:8080/mine.html</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
-  <url><loc>http://68.178.163.58:8080/tokens.html</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
-  <url><loc>http://68.178.163.58:8080/whitepaper.html</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
-  <url><loc>http://68.178.163.58:8080/roadmap.html</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
-  <url><loc>http://68.178.163.58:8080/api.html</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://alphacoin.network/</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://alphacoin.network/guide.html</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://alphacoin.network/explorer.html</loc><changefreq>always</changefreq><priority>0.9</priority></url>
+  <url><loc>https://alphacoin.network/wallet.html</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://alphacoin.network/mine.html</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://alphacoin.network/tokens.html</loc><changefreq>hourly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://alphacoin.network/whitepaper.html</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://alphacoin.network/roadmap.html</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://alphacoin.network/api.html</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
 </urlset>
