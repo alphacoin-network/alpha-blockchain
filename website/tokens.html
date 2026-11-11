@@ -6,11 +6,11 @@
   <meta name="description" content="Tokens issued on Alpha Blockchain via the ALP protocol — anyone can create, mint, send and burn assets secured by proof-of-work.">
   <meta name="robots" content="index, follow">
   <meta name="theme-color" content="#f7931a">
-  <link rel="canonical" href="http://127.0.0.1:8080/tokens.html">
+  <link rel="canonical" href="http://68.178.163.58:8080/tokens.html">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Tokens on Alpha Blockchain">
   <meta property="og:description" content="Create and manage ALP tokens secured by proof-of-work.">
-  <meta property="og:image" content="http://127.0.0.1:8080/logo.svg">
+  <meta property="og:image" content="http://68.178.163.58:8080/logo.svg">
   <link rel="icon" type="image/svg+xml" href="coin.svg">
   <link rel="apple-touch-icon" href="coin.svg">
   <link rel="manifest" href="manifest.json">
@@ -22,6 +22,15 @@
   <h2 class="title">Tokens on Alpha</h2>
   <p class="sub">Assets issued on-chain via the ALP protocol — anyone can create
      one with <code>createtoken</code>.</p>
+  <div class="note" style="background:rgba(79,124,255,.08);border-left:3px solid var(--accent);padding:12px 18px;border-radius:0 8px 8px 0;font-size:14px;color:var(--dim);margin-bottom:20px">
+     <b style="color:var(--text)">Contract address?</b> <b>ALPHA is the native
+     coin</b> of this chain — like BTC on Bitcoin, it has no contract address
+     (contracts only exist for tokens on smart-contract platforms like
+     Ethereum). For ALP tokens, the on-chain identifier is the
+     <b>Token ID</b> below — it is the txid of the token's issuance
+     transaction: <code>alpha_cli createtoken "Name" decimals supply → token_id</code>.
+     That's the address/ID you reference in <code>sendtoken</code>,
+     <code>dexsell</code>, <code>ammcreate</code>, etc.</div>
   <div class="tbl-wrap"><table>
     <tr><th>Name</th><th>Token ID</th><th>Decimals</th><th class="num">Supply</th><th>Issuer</th><th>Height</th></tr>
     <tbody id="tokens"><tr><td colspan="6" class="loading">loading…</td></tr></tbody>
