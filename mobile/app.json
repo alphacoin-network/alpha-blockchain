@@ -11,12 +11,22 @@
     "android": {
       "package": "network.alphacoin.wallet",
       "versionCode": 1,
-      "adaptiveIcon": { "backgroundColor": "#0d1117" }
+      "adaptiveIcon": {
+        "backgroundColor": "#0d1117"
+      }
     },
     "ios": {
       "bundleIdentifier": "network.alphacoin.wallet",
       "buildNumber": "1"
     },
-    "plugins": ["expo-secure-store"]
+    "plugins": [
+      "expo-secure-store"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "a8c4a7b5-f998-4360-a036-9f13fd097209"
+      }
+    },
+    "owner": "alphabetin-consulting-and-it-services-private-limited"
   }
 }
