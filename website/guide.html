@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Getting Started &amp; Guide — Alpha Blockchain</title>
+  <meta name="description" content="Everything you need to know before using Alpha Coin: wallet security, irreversible payments, confirmations, privacy, fees — plus guides for individuals and businesses.">
+  <meta name="theme-color" content="#f7931a">
+  <link rel="icon" type="image/svg+xml" href="coin.svg">
+  <link rel="apple-touch-icon" href="coin.svg"><link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .gsec { margin: 40px 0 10px; }
+    .gsec h3 { font-size: 24px; margin-bottom: 6px; }
+    .gsec > p { color: var(--dim); margin-bottom: 18px; }
+    .kcard { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px 22px; }
+    .kcard h4 { font-size: 16px; margin-bottom: 8px; color: var(--gold); }
+    .kcard p { color: var(--dim); font-size: 14px; line-height: 1.65; }
+    .kcard p b { color: var(--text); }
+    .kgrid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+    .conftbl td, .conftbl th { padding: 9px 14px; }
+    .toc a { display: inline-block; margin: 4px 10px 4px 0; font-size: 13.5px; }
+  </style>
+</head>
+<body>
+<nav></nav>
+<section><div class="wrap">
+  <h2 class="title">Getting Started with Alpha</h2>
+  <p class="sub">Alpha Coin works like Bitcoin — peer-to-peer digital money you fully control.
+     This guide covers everything you should know before your first transaction, for
+     individuals, businesses and developers.</p>
+
+  <div class="toc" style="margin:22px 0 10px">
+    <a class="tag" href="#know">⚠ Things you need to know</a>
+    <a class="tag" href="#start">Getting started</a>
+    <a class="tag" href="#individuals">For individuals</a>
+    <a class="tag" href="#business">For businesses</a>
+    <a class="tag" href="#how">How it works</a>
+    <a class="tag" href="#faq">FAQ</a>
+  </div>
+
+  <!-- ============ YOU NEED TO KNOW ============ -->
+  <div class="gsec" id="know"><h3>Some things you need to know</h3>
+  <p>If you're getting started with Alpha, there are a few things you should know. Alpha lets you
+     exchange value in a different way than you normally do — treat it with the same care as your
+     regular wallet, or even more.</p>
+  <div class="kgrid">
+    <div class="kcard"><h4>Securing your wallet</h4>
+      <p>Alpha makes it easy to transfer value anywhere while staying in control of your money —
+         and that power comes with responsibility. Use an encrypted wallet, keep your keys private,
+         and never share your WIF or seed. The <a href="wallet.html">web wallet</a> encrypts keys
+         with AES-256 in your browser — keys never leave your device.</p></div>
+    <div class="kcard"><h4>There is no undo button</h4>
+      <p>Alpha has no central authority to reverse a mistake. If you permanently lose access to
+         your wallet, your funds are gone — no one, not even miners or developers, can recover
+         them. Always back up your keys and recovery information, and keep them private.</p></div>
+    <div class="kcard"><h4>You are your own bank</h4>
+      <p>Holding your own private keys means you control your ALPHA — and you are responsible for
+         keeping it secure. Leaving coins with a custodian or exchange introduces counterparty
+         risk: their security and solvency stand between you and your funds. Self-custody removes
+         that risk but requires you to secure your wallet and backups yourself.</p></div>
+    <div class="kcard"><h4>Alpha is pseudonymous, not anonymous</h4>
+      <p>All Alpha transactions are stored publicly and permanently on the blockchain — anyone can
+         see the balance and transactions of any address. The identity behind an address stays
+         unknown until you reveal it. Use a fresh address for each payment to protect your
+         privacy.</p></div>
+    <div class="kcard"><h4>Payments are irreversible</h4>
+      <p>An Alpha transaction cannot be reversed — it can only be refunded by the recipient. Do
+         business with people you trust, and use the built-in <b>escrow contracts</b> and
+         <b>multisig</b> for larger or trust-sensitive trades. Alpha won't send to a malformed
+         address, but always double-check the recipient.</p></div>
+    <div class="kcard"><h4>Unconfirmed transactions aren't secure</h4>
+      <p>Transactions become irreversible gradually as they accumulate confirmations — blocks are
+         found about every <b>10 minutes</b> on average. For high-value transfers, wait for more
+         confirmations:</p>
+      <div class="tbl-wrap" style="margin-top:10px"><table class="conftbl">
+        <tr><th>Confirmations</th><th>Safety</th></tr>
+        <tr><td>0</td><td>Only safe if you trust the payer</td></tr>
+        <tr><td>1–3</td><td>Reliable for everyday amounts</td></tr>
+        <tr><td>6</td><td>Recommended for high-value transfers</td></tr>
+        <tr><td>100</td><td>Coinbase (mining) rewards maturity</td></tr>
+      </table></div></div>
+    <div class="kcard"><h4>Price can be volatile</h4>
+      <p>The value of ALPHA can rise or fall unpredictably with adoption and market liquidity.
+         Treat it as a high-risk asset — never store money in it that you cannot afford to
+         lose.</p></div>
+    <div class="kcard"><h4>Active development</h4>
+      <p>Alpha is a young network evolving through active development. You may encounter
+         changes, growing pains or bugs. Check the <a href="roadmap.html">roadmap</a>,
+         consult documentation before major decisions, and remember nobody can predict
+         the future.</p></div>
+    <div class="kcard"><h4>Taxes and regulations</h4>
+      <p>Alpha is not an official currency, but most jurisdictions still require taxes on anything
+         of value — income, sales, or capital gains. It is your responsibility to comply with
+         the laws of your government and local municipalities.</p></div>
+  </div></div>
+
+  <!-- ============ GETTING STARTED ============ -->
+  <div class="gsec" id="start"><h3>How to use Alpha</h3>
+  <p>Getting started does not require deep technical knowledge.</p>
+  <div class="grid cards">
+    <div class="card"><h3>1 · Inform yourself</h3>
+      <p>Alpha is different from what you use every day. Read the sections above to use it
+         securely and avoid common pitfalls.</p></div>
+    <div class="card"><h3>2 · Choose your wallet</h3>
+      <p><a href="wallet.html">Web wallet</a> for instant browser access (keys stay on your
+         device), or the full-node CLI wallet (<code>alpha_cli.py</code>) with BIP32 HD,
+         multi-address and AES-256 encryption.</p></div>
+    <div class="card"><h3>3 · Get ALPHA</h3>
+      <p>Mine it with any CPU (<a href="mine.html">browser mining</a> or
+         <code>mine_alpha.py</code>), earn it for goods and services, or trade tokens for it
+         on the built-in DEX / AMM pools.</p></div>
+    <div class="card"><h3>4 · Spend ALPHA</h3>
+      <p>Send to any Alpha address, scan a QR code in the web wallet, pay merchant invoices and
+         payment links, or swap tokens — settlement in about 10 minutes.</p></div>
+  </div></div>
+
+  <!-- ============ FOR INDIVIDUALS ============ -->
+  <div class="gsec" id="individuals"><h3>Alpha for Individuals</h3>
+  <p>Send and receive money directly, anywhere in the world.</p>
+  <div class="kgrid">
+    <div class="kcard"><h4>Mobile payments made easy</h4>
+      <p>Two-step scan-and-pay: display your QR code in the web wallet and let the other party
+         scan it. No sign-up, no card, no PIN.</p></div>
+    <div class="kcard"><h4>Security and control over your money</h4>
+      <p>Transactions are secured by mathematics and energy — ECDSA and Schnorr signatures stop
+         others spending your coins; SHA-256d proof-of-work stops anyone undoing your
+         transactions.</p></div>
+    <div class="kcard"><h4>Works everywhere, anytime</h4>
+      <p>Like email, you don't need the recipient to use the same software — just their Alpha
+         address. The network never sleeps, even on weekends and holidays — and nodes on the
+         same LAN keep working even without internet.</p></div>
+    <div class="kcard"><h4>Fast international payments</h4>
+      <p>Borderless by design — no banks, no three-day waits, no minimum or maximum. The same fee
+         whether the payment crosses the street or the planet.</p></div>
+    <div class="kcard"><h4>Choose your own fees</h4>
+      <p>No fee to receive; you pick the fee when sending. Fees depend on transaction data size,
+         not the amount — moving a large sum costs no more than a small one.</p></div>
+    <div class="kcard"><h4>Protect your identity</h4>
+      <p>No card numbers to steal. Transactions are public but addresses aren't tied to your
+         identity until you reveal it — use a new address per payment.</p></div>
+    <div class="kcard"><h4>Be your own bank</h4>
+      <p>Hold your keys, hold your coins. The freedom comes with responsibility — secure your
+         wallet and backups.</p></div>
+    <div class="kcard"><h4>More than money</h4>
+      <p>Create tokens, NFTs and <code>.alpha</code> domains, register a <code>did:alpha:</code>
+         identity, trade on the DEX, or provably burn coins — all on the same chain.</p></div>
+  </div></div>
+
+  <!-- ============ FOR BUSINESSES ============ -->
+  <div class="gsec" id="business"><h3>Alpha for Businesses</h3>
+  <p>Accept secure payments directly from customers.</p>
+  <div class="kgrid">
+    <div class="kcard"><h4>Protection against fraud</h4>
+      <p>Payments are irreversible — no chargebacks, no chargeback fraud. The cost of fraud is no
+         longer pushed onto merchants.</p></div>
+    <div class="kcard"><h4>Merchant tools built-in</h4>
+      <p>Create invoices and payment links (<code>createinvoice</code>), track payment status
+         on-chain, and accept QR payments at point-of-sale — no third-party processor
+         needed.</p></div>
+    <div class="kcard"><h4>No PCI compliance required</h4>
+      <p>You never handle sensitive customer card data. You still secure your wallet and payment
+         requests — but skip the PCI burden.</p></div>
+    <div class="kcard"><h4>Multi-signature</h4>
+      <p>Require approval from several people to spend — e.g. a 3-of-5 board treasury (the same
+         scheme securing the Alpha community reserve). Track who authorized what.</p></div>
+    <div class="kcard"><h4>Accounting transparency</h4>
+      <p>Every payment is verifiable on a public ledger — publish donation or revenue addresses
+         and let anyone audit balances through the explorer.</p></div>
+    <div class="kcard"><h4>Supply chain &amp; certificates</h4>
+      <p>Anchor product tracking events, tamper-evident certificates, audits and your business
+         registry entry on-chain — immutable proof customers can verify.</p></div>
+    <div class="kcard"><h4>Escrow &amp; lending</h4>
+      <p>Use on-chain escrow with arbiters and expiry, or collateralized loans, for
+         trust-sensitive B2B deals.</p></div>
+    <div class="kcard"><h4>Fast settlement worldwide</h4>
+      <p>Cross-border payments settle in ~10 minutes for a fee you choose — ideal for remittance
+         and international suppliers.</p></div>
+  </div></div>
+
+  <!-- ============ HOW IT WORKS ============ -->
+  <div class="gsec" id="how"><h3>How does Alpha work?</h3>
+  <p>The basics for a new user — a quick explanation.</p>
+  <div class="kgrid">
+    <div class="kcard"><h4>Balances — the blockchain</h4>
+      <p>A shared public ledger the whole network relies on. Every confirmed transaction is
+         recorded in it, letting wallets compute spendable balances and the network verify the
+         sender owns the coins. Its order and integrity are protected by cryptography.</p></div>
+    <div class="kcard"><h4>Transactions — private keys</h4>
+      <p>A transfer of value between wallets, signed with your <b>private key</b> — a secret that
+         proves the payment came from you and can't be altered afterward. Transactions broadcast
+         to the network and usually confirm within 10–60 minutes through mining.</p></div>
+    <div class="kcard"><h4>Processing — mining</h4>
+      <p>A distributed lottery that packs pending transactions into blocks following strict
+         rules. It orders history, keeps the network neutral, and makes it impractical for any
+         single party to rewrite the chain — while paying miners 50 ALPHA per block, halving
+         every 210,000 blocks toward a 21M supply cap.</p></div>
+    <div class="kcard"><h4>Beyond payments — the token layer</h4>
+      <p>Alpha adds a meta-protocol on top of Bitcoin's design: OP_RETURN records anchor tokens,
+         NFTs, domains, identities, oracles, supply-chain events and contracts — all validated by
+         every full node with the same security as the coin itself. See the
+         <a href="whitepaper.html">whitepaper</a> for details.</p></div>
+  </div></div>
+
+  <!-- ============ FAQ ============ -->
+  <div class="gsec" id="faq"><h3>Frequently asked questions</h3>
+  <div class="kgrid">
+    <div class="kcard"><h4>How do I get ALPHA?</h4>
+      <p>Mine it (CPU, browser or node), accept it as payment, or swap tokens on the DEX/AMM.
+         Testnet coins are free from the built-in faucet.</p></div>
+    <div class="kcard"><h4>How long do transactions take?</h4>
+      <p>Broadcast is instant; first confirmation averages ~10 minutes. Six confirmations
+         (~1 hour) are recommended for large amounts.</p></div>
+    <div class="kcard"><h4>What are the fees?</h4>
+      <p>You choose. Fees are based on transaction size in bytes, not value sent — typical
+         payments cost a fraction of a cent in ALPHA.</p></div>
+    <div class="kcard"><h4>Is ALPHA a good store of value?</h4>
+      <p>It has Bitcoin's exact monetary policy — 21M cap, halving schedule, predictable
+         issuance — but as a young asset its price can be volatile. Don't invest what you can't
+         afford to lose.</p></div>
+    <div class="kcard"><h4>Can I use it without internet?</h4>
+      <p>Yes — a node can mine, validate, and create/sign transactions offline, and nodes on the
+         same LAN auto-discover each other via UDP 8334. Broadcasting to the global network and
+         chain sync need a peer connection.</p></div>
+    <div class="kcard"><h4>Who controls Alpha?</h4>
+      <p>Nobody — and everybody. It's an open-source, permissionless network like Bitcoin: miners
+         secure it, nodes validate the rules, and no central party can change the monetary
+         policy.</p></div>
+  </div></div>
+
+  <div style="margin-top:40px"><a class="btn btn-gold" href="wallet.html">Open the web wallet</a>
+  <a class="btn btn-ghost" href="whitepaper.html">Read the whitepaper</a></div>
+</div></section>
+<footer>Alpha Blockchain — getting started guide</footer>
+<script src="app.js"></script><script>nav('guide');</script>
+</body></html>
