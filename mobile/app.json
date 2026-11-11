@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Alpha Wallet",
+    "slug": "alpha-wallet",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "alphawallet",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0d1117",
+    "description": "Self-custody ALPHA wallet — send/receive, CLTV staking, mobile mining. Keys never leave your device.",
+    "android": {
+      "package": "network.alphacoin.wallet",
+      "versionCode": 1,
+      "adaptiveIcon": { "backgroundColor": "#0d1117" }
+    },
+    "ios": {
+      "bundleIdentifier": "network.alphacoin.wallet",
+      "buildNumber": "1"
+    },
+    "plugins": ["expo-secure-store"]
+  }
+}
