@@ -9,7 +9,19 @@ No third-party packages — everything (secp256k1 ECDSA, RIPEMD-160, SHA-256d,
 Base58Check, Bech32, Script interpreter, P2P protocol) is implemented from
 the specs.
 
-## Run it
+## Download (no technical knowledge needed)
+
+Prebuilt node binaries — download, unzip, run:
+
+| Platform | Download |
+|---|---|
+| Windows | [alphad-windows-latest.zip](https://github.com/alphacoin-network/alpha-blockchain/releases/download/v1.0.0/alphad-windows-latest.zip) → double-click `Start-Alpha-Node.bat` |
+| Linux | [alphad-ubuntu-latest.zip](https://github.com/alphacoin-network/alpha-blockchain/releases/download/v1.0.0/alphad-ubuntu-latest.zip) → `./start-node.sh` |
+| macOS | [alphad-macos-latest.zip](https://github.com/alphacoin-network/alpha-blockchain/releases/download/v1.0.0/alphad-macos-latest.zip) → `./start-node.sh` |
+
+All releases: [GitHub Releases](https://github.com/alphacoin-network/alpha-blockchain/releases)
+
+## Run from source
 
 ```bash
 # start the daemon (regtest is the easy-difficulty local chain)
