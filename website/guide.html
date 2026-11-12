@@ -43,6 +43,7 @@
     <a class="tag" href="#individuals">For individuals</a>
     <a class="tag" href="#business">For businesses</a>
     <a class="tag" href="#how">How it works</a>
+    <a class="tag" href="#node">Run a node</a>
     <a class="tag" href="#faq">FAQ</a>
   </div>
 
@@ -207,6 +208,60 @@
          NFTs, domains, identities, oracles, supply-chain events and contracts — all validated by
          every full node with the same security as the coin itself. See the
          <a href="whitepaper.html">whitepaper</a> for details.</p></div>
+  </div></div>
+
+  <!-- ============ RUN A NODE ============ -->
+  <div class="gsec" id="node"><h3>Run your own node</h3>
+  <p>Anyone can run a full node — permissionless, like Bitcoin. Your node downloads and
+     independently verifies every block and transaction, then relays them to other peers.
+     More nodes = a stronger, more decentralized network.</p>
+  <div class="kgrid">
+    <div class="kcard"><h4>Requirements</h4>
+      <p>Any computer works — a laptop, a Raspberry Pi, or a $5 VPS.<br>
+      • Python 3.10+ (no other dependencies)<br>
+      • ~1 GB RAM, ~5 GB disk (grows over time)<br>
+      • Internet for sync — or LAN/offline for local operation</p></div>
+    <div class="kcard"><h4>1 · Install &amp; start</h4>
+      <pre>git clone https://github.com/alphacoin-network/alpha-blockchain
+cd alpha-blockchain
+python3 alphad.py --chain main --datadir ./data-mainnet</pre>
+      <p>The node auto-connects to the public seeds
+      (<code>seed.alphacoin.network:8333</code>,
+      <code>seed2.alphacoin.network:8333</code>) and syncs the full chain —
+      no manual peering needed.</p></div>
+    <div class="kcard"><h4>2 · Accept inbound peers (optional)</h4>
+      <pre>sudo ufw allow 8333/tcp</pre>
+      <p>Open P2P port <b>8333</b> so other nodes can connect to you — you become
+      a relay that strengthens the network. The RPC port 8332 stays on
+      localhost — never open it to the internet.</p></div>
+    <div class="kcard"><h4>3 · Keep it running (VPS/servers)</h4>
+      <pre>sudo tee /etc/systemd/system/alphad.service &lt;&lt;'EOF'
+[Unit]
+Description=Alpha node
+After=network.target
+[Service]
+ExecStart=/usr/bin/python3 /path/to/alphad.py \
+  --chain main --datadir /path/to/data-mainnet
+Restart=always
+User=YOURUSER
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl enable --now alphad</pre>
+      <p>Auto-starts on boot and restarts on crash — a real 24/7 seed.</p></div>
+    <div class="kcard"><h4>4 · Verify it's working</h4>
+      <pre>python3 alpha_cli.py getblockcount --datadir ./data-mainnet
+python3 alpha_cli.py getconnectioncount --datadir ./data-mainnet</pre>
+      <p>Height should match the <a href="explorer.html">explorer</a> and
+      connections should be &gt; 0. To also mine:
+      <code>python3 mine_alpha.py --datadir ./data-mainnet --address &lt;your address&gt;</code></p></div>
+    <div class="kcard"><h4>Why run one?</h4>
+      <p><b>For you:</b> trustless verification — you check the rules yourself
+      instead of trusting a third party, plus private wallet + mining from your
+      own node.<br>
+      <b>For the network:</b> every node makes Alpha more censorship-resistant,
+      harder to attack, and keeps the chain alive even if seed nodes go
+      offline.</p></div>
   </div></div>
 
   <!-- ============ FAQ ============ -->
