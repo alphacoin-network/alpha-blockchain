@@ -302,6 +302,9 @@ class Blockchain:
                 raise ChainError("duplicate block")
             self._check_block(block)
             entry = self._accept_header(block)
+            cp = (self.params.checkpoints or {}).get(entry.height)
+            if cp is not None and hash_to_hex(h) != cp:
+                raise ChainError("block conflicts with checkpoint")
             self.blocks[h] = block
             if entry.chainwork > self.tip.chainwork:
                 self._activate(entry)
@@ -443,6 +446,9 @@ class Blockchain:
         fork = self._find_fork(new_tip)
         if fork is None:
             raise ChainError("cannot reorganize before genesis")
+        cps = self.params.checkpoints or {}
+        if cps and fork.height < max(cps):
+            raise ChainError("reorg would undo a checkpointed block")
         # collect blocks to connect (from fork's child to new_tip)
         to_connect = []
         e = new_tip

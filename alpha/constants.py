@@ -92,6 +92,10 @@ class ChainParams:
     genesis_message: bytes
     genesis_timestamp: int
     seed_nodes: tuple = ()       # public seed nodes for auto-connect
+    checkpoints: dict | None = None   # {height: blockhash-hex} — young-chain
+                                    # reorg protection (like early Bitcoin's
+                                    # -checkpoint option); nodes reject any
+                                    # block or reorg that conflicts.
 
     @property
     def pow_interval(self) -> int:
@@ -126,6 +130,15 @@ MAINNET = ChainParams(
     ),
     genesis_timestamp=1231006505,                    # same as Bitcoin genesis
     seed_nodes=("68.178.163.58", "3.105.43.51"),    # public seed nodes (GoDaddy VPS + AWS Sydney)
+    checkpoints={
+        0:    "3854a88f1dd4dad14cd4622b88b1e07c3107e2946e7105ad728275a630b5a2f4",
+        500:  "0000011ef4f73a29c8dc81c4cf9922160fee58875a604101a002a1272a855ff7",
+        1000: "00000b2f8225defa611a4170605d093e05ce55d02fe5f283eb67cda8d82862b7",
+        1500: "000007d1d5ecd3889a3319c0bf2fa6ccd5976ce3fd87853fe074aacd67720d0d",
+        2000: "00000c8f17061b896630e3b891a7def0d114370e2c87feb58a291b40bdd19ef8",
+        2500: "000009fc9069d33bb9db91f3c5bf048d9f82986106c168c44d53c7888f609cae",
+        3000: "00000ff057a4a08ea77a15933f71a5e5c9ad51b2b160821dc7a4fdb71d9e22dd",
+    },
 )
 
 # ---------------------------------------------------------------------------
