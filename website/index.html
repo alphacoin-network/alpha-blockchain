@@ -37,6 +37,26 @@
     .cta-banner { text-align:center; padding:70px 20px 50px; }
     .cta-banner h2 { font-size:36px; margin-bottom:10px; }
     .cta-banner p { color:var(--dim); margin-bottom:28px; max-width:520px; margin-left:auto;margin-right:auto;}
+    .dl-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+      gap:18px; margin:28px 0 20px; }
+    .dl-card { background:var(--card); border:1px solid var(--border); border-radius:16px;
+      padding:28px 20px 24px; text-align:center; color:var(--text);
+      display:flex; flex-direction:column; align-items:center; transition:.25s; }
+    .dl-card:hover { transform:translateY(-4px); border-color:var(--gold); }
+    .dl-os { font-size:36px; line-height:1; margin-bottom:12px; }
+    .dl-card h3 { font-size:19px; margin:0 0 6px; }
+    .dl-file { font-family:var(--mono); font-size:11.5px; color:var(--dim);
+      word-break:break-all; margin-bottom:10px; }
+    .dl-run { font-size:13px; color:var(--dim); margin-bottom:20px; }
+    .dl-run b { color:var(--text); }
+    .dl-btn { margin-top:auto; background:linear-gradient(135deg,#ffd968,#e8a92e);
+      color:#241a03; font-weight:700; font-size:14.5px; padding:11px 30px;
+      border-radius:10px; box-shadow:0 6px 18px rgba(232,169,46,.22); }
+    .dl-card:hover .dl-btn { filter:brightness(1.06); }
+    .dl-meta { display:flex; gap:20px; flex-wrap:wrap; justify-content:center;
+      font-size:13px; color:var(--dim); }
+    .dl-meta span::before { content:"✔ "; color:var(--green); }
+    .dl-meta a { color:var(--gold); }
   </style>
 </head>
 <body>
@@ -77,27 +97,33 @@
   <h2>Alpha Node <span class="g">v1.0.0</span></h2>
   <p class="eco-sub">Download, unzip, run — a full validating node in under a minute.
      No Python, no Git, no technical knowledge needed.</p>
-  <div class="grid g3" style="margin-bottom:22px">
-    <a class="card cta" href="https://github.com/alphacoin-network/alpha-blockchain/releases/download/v1.0.0/alphad-windows-latest.zip" style="text-align:center">
-      <div class="ci">🪟</div><h3>Windows</h3>
-      <p>alphad-windows-latest.zip</p>
-      <p style="font-size:12px">Unzip → double-click<br><b>Start-Alpha-Node.bat</b></p>
-      <p style="color:var(--gold);font-weight:600">Download ↓</p></a>
-    <a class="card cta" href="https://github.com/alphacoin-network/alpha-blockchain/releases/download/v1.0.0/alphad-ubuntu-latest.zip" style="text-align:center">
-      <div class="ci">🐧</div><h3>Linux</h3>
-      <p>alphad-ubuntu-latest.zip</p>
-      <p style="font-size:12px">Unzip → run<br><b>./start-node.sh</b></p>
-      <p style="color:var(--gold);font-weight:600">Download ↓</p></a>
-    <a class="card cta" href="https://github.com/alphacoin-network/alpha-blockchain/releases/download/v1.0.0/alphad-macos-latest.zip" style="text-align:center">
-      <div class="ci">🍎</div><h3>macOS</h3>
-      <p>alphad-macos-latest.zip</p>
-      <p style="font-size:12px">Unzip → run<br><b>./start-node.sh</b></p>
-      <p style="color:var(--gold);font-weight:600">Download ↓</p></a>
+  <div class="dl-grid">
+    <a class="dl-card" href="https://github.com/alphacoin-network/alpha-blockchain/releases/download/v1.0.0/alphad-windows-latest.zip">
+      <div class="dl-os">🪟</div>
+      <h3>Windows</h3>
+      <div class="dl-file">alphad-windows-latest.zip</div>
+      <div class="dl-run">Unzip → double-click<br><b>Start-Alpha-Node.bat</b></div>
+      <span class="dl-btn">Download ↓</span>
+    </a>
+    <a class="dl-card" href="https://github.com/alphacoin-network/alpha-blockchain/releases/download/v1.0.0/alphad-ubuntu-latest.zip">
+      <div class="dl-os">🐧</div>
+      <h3>Linux</h3>
+      <div class="dl-file">alphad-ubuntu-latest.zip</div>
+      <div class="dl-run">Unzip → run<br><b>./start-node.sh</b></div>
+      <span class="dl-btn">Download ↓</span>
+    </a>
+    <a class="dl-card" href="https://github.com/alphacoin-network/alpha-blockchain/releases/download/v1.0.0/alphad-macos-latest.zip">
+      <div class="dl-os">🍎</div>
+      <h3>macOS</h3>
+      <div class="dl-file">alphad-macos-latest.zip</div>
+      <div class="dl-run">Unzip → run<br><b>./start-node.sh</b></div>
+      <span class="dl-btn">Download ↓</span>
+    </a>
   </div>
-  <div style="display:flex;gap:24px;flex-wrap:wrap;justify-content:center;font-size:13px;color:var(--dim)">
-    <span>✔ ~50 MB disk</span><span>✔ 2 GB RAM</span><span>✔ Any PC, laptop or VPS</span>
-    <span>✔ Auto-connects to seeds</span>
-    <a href="https://github.com/alphacoin-network/alpha-blockchain" style="color:var(--cyan)">or build from source →</a>
+  <div class="dl-meta">
+    <span>~50 MB disk</span><span>2 GB RAM</span>
+    <span>Any PC, laptop or VPS</span><span>Auto-connects to seeds</span>
+    <a href="https://github.com/alphacoin-network/alpha-blockchain">or build from source →</a>
   </div>
 </div></section>
 
