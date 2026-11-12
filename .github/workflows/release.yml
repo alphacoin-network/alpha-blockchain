@@ -1,0 +1,39 @@
+name: Release binaries
+# Tag push → build alphad/alpha_cli for all OSes → attach to GitHub Release
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            ext: .exe
+            launcher: Start-Alpha-Node.bat
+          - os: ubuntu-latest
+            ext: ""
+            launcher: start-node.sh
+          - os: macos-latest
+            ext: ""
+            launcher: start-node.sh
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install pyinstaller
+      - run: pyinstaller --onefile --console --name alphad -y alphad.py
+      - run: pyinstaller --onefile --console --name alpha_cli -y alpha_cli.py
+      - name: package
+        shell: bash
+        run: |
+          mkdir -p pkg/alphad
+          cp dist/alphad${{ matrix.ext }} dist/alpha_cli${{ matrix.ext }} pkg/alphad/ || true
+          cp dist/alphad.exe dist/alpha_cli.exe pkg/alphad/ 2>/dev/null || true
+          cp -r release-pkg/AlphaNode/* pkg/alphad/ 2>/dev/null || true
+          cd pkg && zip -r ../alphad-${{ matrix.os }}.zip alphad
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: alphad-${{ matrix.os }}.zip

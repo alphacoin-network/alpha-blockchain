@@ -222,7 +222,17 @@
       • Python 3.10+ (no other dependencies — zero)<br>
       • ~1 GB RAM, ~5 GB disk (grows over time)<br>
       • Internet for sync — or LAN/offline for local operation</p></div>
-    <div class="kcard"><h4>1 · Install &amp; start — Windows</h4>
+    <div class="kcard"><h4>1 · Easiest — download &amp; run (no tech skills)</h4>
+      <pre>1. Download the Alpha Node zip from GitHub Releases:
+   github.com/alphacoin-network/alpha-blockchain/releases
+2. Extract it
+3. Double-click Start-Alpha-Node.bat (Windows)
+   or run ./start-node.sh (Linux/Mac)</pre>
+      <p>No Python, no install — the node auto-connects to the public seeds
+      and syncs by itself. Keep the window open to stay online.
+      (Windows may warn "unrecognized app" → <i>More info</i> →
+      <i>Run anyway</i> — normal for new software.)</p></div>
+    <div class="kcard"><h4>1 · From source — Windows</h4>
       <pre>git clone https://github.com/alphacoin-network/alpha-blockchain
 cd alpha-blockchain
 python alphad.py --chain main --datadir ./data-mainnet</pre>

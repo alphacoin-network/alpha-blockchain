@@ -9,3 +9,9 @@ chain/
 blocks.dat
 community_*.json
 mobile/node_modules/
+dist/
+build/
+*.spec
+exe-test-data/
+exe-test.log
+__pycache__/
