@@ -447,7 +447,8 @@ class Blockchain:
         if fork is None:
             raise ChainError("cannot reorganize before genesis")
         cps = self.params.checkpoints or {}
-        if cps and fork.height < max(cps):
+        last_cp = max(cps) if cps else -1
+        if fork.height < last_cp <= self.tip.height:
             raise ChainError("reorg would undo a checkpointed block")
         # collect blocks to connect (from fork's child to new_tip)
         to_connect = []
