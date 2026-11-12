@@ -29,6 +29,25 @@ jobs:
       - run: pip install pyinstaller
       - run: pyinstaller --onefile --console --name alphad -y alphad.py
       - run: pyinstaller --onefile --console --name alpha_cli -y alpha_cli.py
+      # Signed only when repo variable SIGNING_ENABLED=true and the Azure
+      # Trusted Signing secrets below are configured (see docs/CODESIGNING.md).
+      - name: Sign Windows binaries
+        if: matrix.os == 'windows-latest' && vars.SIGNING_ENABLED == 'true'
+        shell: pwsh
+        env:
+          AZ_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZ_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZ_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          TS_ENDPOINT: ${{ vars.TRUSTED_SIGNING_ENDPOINT }}
+          TS_ACCOUNT: ${{ vars.TRUSTED_SIGNING_ACCOUNT }}
+          TS_PROFILE: ${{ vars.TRUSTED_SIGNING_PROFILE }}
+        run: |
+          dotnet tool install --global AzureSignTool
+          AzureSignTool sign `
+            -dvu "$env:TS_ENDPOINT" -dva "$env:TS_ACCOUNT" -dvc "$env:TS_PROFILE" `
+            -t "$env:AZ_TENANT_ID" -i "$env:AZ_CLIENT_ID" -s "$env:AZ_CLIENT_SECRET" `
+            -tr "http://timestamp.acs.microsoft.com" -td sha256 -fd sha256 `
+            dist\alphad.exe dist\alpha_cli.exe
       - name: package
         shell: bash
         run: |
