@@ -216,24 +216,33 @@
      independently verifies every block and transaction, then relays them to other peers.
      More nodes = a stronger, more decentralized network.</p>
   <div class="kgrid">
-    <div class="kcard"><h4>Requirements</h4>
-      <p>Any computer works — a laptop, a Raspberry Pi, or a $5 VPS.<br>
-      • Python 3.10+ (no other dependencies)<br>
+    <div class="kcard"><h4>Requirements — any computer</h4>
+      <p><b>No VPS needed.</b> A normal Windows laptop, home PC, Mac, Linux
+      box or Raspberry Pi all work:<br>
+      • Python 3.10+ (no other dependencies — zero)<br>
       • ~1 GB RAM, ~5 GB disk (grows over time)<br>
       • Internet for sync — or LAN/offline for local operation</p></div>
-    <div class="kcard"><h4>1 · Install &amp; start</h4>
+    <div class="kcard"><h4>1 · Install &amp; start — Windows</h4>
+      <pre>git clone https://github.com/alphacoin-network/alpha-blockchain
+cd alpha-blockchain
+python alphad.py --chain main --datadir ./data-mainnet</pre>
+      <p>Install Python from python.org first (tick "Add to PATH"). Leave the
+      window open — the node runs as long as it stays open.</p></div>
+    <div class="kcard"><h4>1 · Install &amp; start — Linux / macOS</h4>
       <pre>git clone https://github.com/alphacoin-network/alpha-blockchain
 cd alpha-blockchain
 python3 alphad.py --chain main --datadir ./data-mainnet</pre>
-      <p>The node auto-connects to the public seeds
+      <p>Same three lines. The node auto-connects to the public seeds
       (<code>seed.alphacoin.network:8333</code>,
       <code>seed2.alphacoin.network:8333</code>) and syncs the full chain —
-      no manual peering needed.</p></div>
+      no manual peering, works behind home NAT/router too.</p></div>
     <div class="kcard"><h4>2 · Accept inbound peers (optional)</h4>
-      <pre>sudo ufw allow 8333/tcp</pre>
-      <p>Open P2P port <b>8333</b> so other nodes can connect to you — you become
-      a relay that strengthens the network. The RPC port 8332 stays on
-      localhost — never open it to the internet.</p></div>
+      <pre># Linux VPS:        sudo ufw allow 8333/tcp
+# Home PC/router:   forward port 8333 in router settings</pre>
+      <p>Your node works fine even without this — outbound sync always works.
+      Opening port <b>8333</b> just lets others connect to you too, making you
+      a relay that strengthens the network. RPC port 8332 stays on localhost —
+      never open it.</p></div>
     <div class="kcard"><h4>3 · Keep it running (VPS/servers)</h4>
       <pre>sudo tee /etc/systemd/system/alphad.service &lt;&lt;'EOF'
 [Unit]
