@@ -125,7 +125,7 @@ MAINNET = ChainParams(
         b"The Times 03/Jan/2009 Chancellor on brink of second bailout for banks"
     ),
     genesis_timestamp=1231006505,                    # same as Bitcoin genesis
-    seed_nodes=("68.178.163.58",),                   # public seed node(s)
+    seed_nodes=("68.178.163.58", "3.105.43.51"),    # public seed nodes (GoDaddy VPS + AWS Sydney)
 )
 
 # ---------------------------------------------------------------------------
