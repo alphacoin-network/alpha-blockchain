@@ -36,7 +36,12 @@ jobs:
           cp dist/alphad${{ matrix.ext }} dist/alpha_cli${{ matrix.ext }} pkg/alphad/ || true
           cp dist/alphad.exe dist/alpha_cli.exe pkg/alphad/ 2>/dev/null || true
           cp -r release-pkg/AlphaNode/* pkg/alphad/ 2>/dev/null || true
-          cd pkg && zip -r ../alphad-${{ matrix.os }}.zip alphad
+          cd pkg
+          if command -v zip >/dev/null; then
+            zip -r ../alphad-${{ matrix.os }}.zip alphad
+          else
+            7z a ../alphad-${{ matrix.os }}.zip alphad
+          fi
       - uses: softprops/action-gh-release@v2
         with:
           files: alphad-${{ matrix.os }}.zip
