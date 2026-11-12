@@ -61,6 +61,10 @@ jobs:
           else
             7z a ../alphad-${{ matrix.os }}.zip alphad
           fi
+          cd ..
+          sha256sum alphad-${{ matrix.os }}.zip > alphad-${{ matrix.os }}.zip.sha256
       - uses: softprops/action-gh-release@v2
         with:
-          files: alphad-${{ matrix.os }}.zip
+          files: |
+            alphad-${{ matrix.os }}.zip
+            alphad-${{ matrix.os }}.zip.sha256

@@ -1,7 +1,25 @@
 # Code Signing — Windows binaries (SmartScreen / Smart App Control fix)
 
-Unsigned binaries are blocked by Windows Smart App Control. Signing with
-**Azure Trusted Signing** (~$9.99/month) makes them trusted on every PC.
+Unsigned binaries are blocked by Windows Smart App Control. Options:
+
+| Option | Cost | Notes |
+|---|---|---|
+| **SignPath.io** | **FREE** | Free Authenticode signing for open-source projects; GitHub Actions integration; requires application/review |
+| Certum Open Source | ~€25/yr | Cheap OV cert for qualifying OSS projects |
+| Microsoft Store | ~$19 once | Microsoft signs MSIX packages; awkward for console daemons |
+| Azure Trusted Signing | ~$10/mo | Fast, official; steps below |
+| SHA256 + GPG | FREE | Bitcoin's original model — users verify hashes manually; warnings remain |
+
+Every release also ships `*.sha256` checksum files automatically.
+
+## SignPath (free) setup
+
+1. https://signpath.io → apply for open-source signing (repo must be public —
+   Alpha qualifies).
+2. On approval they provide a signing policy + GitHub Actions secrets; plug
+   into the `Sign Windows binaries` step in `release.yml`.
+
+## Azure Trusted Signing setup (paid alternative)
 
 ## One-time Azure setup (~30 min + identity review)
 
