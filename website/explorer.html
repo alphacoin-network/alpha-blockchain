@@ -41,6 +41,11 @@
       </table></div>
     </div>
   </div>
+  <h3 style="margin:26px 0 14px">Latest transactions</h3>
+  <div class="tbl-wrap"><table>
+    <tr><th>Txid</th><th>Type</th><th class="num">Block</th><th class="num">α</th><th>Age</th></tr>
+    <tbody id="txs"></tbody>
+  </table></div>
 </div></section>
 <footer>Alpha Blockchain explorer</footer>
 <script src="app.js"></script>
@@ -57,8 +62,14 @@ function showBlock(b) {
     <div class="k">Size / Weight</div><div class="v">${fmt(b.size)} B / ${fmt(b.weight)} WU</div>
     <div class="k">Confirmations</div><div class="v">${fmt(b.confirmations)}</div>
     <div class="k">Transactions</div><div class="v">${b.tx.length}</div></div>
-    <div class="tbl-wrap" style="margin-top:18px"><table><tr><th>txid</th></tr>
-      ${b.tx.map(t => `<tr><td class="hash"><a href="#" onclick="showTx('${t}');return false">${t}</a></td></tr>`).join('')}
+    <div class="tbl-wrap" style="margin-top:18px"><table><tr><th>txid</th><th>Type</th><th class="num">α</th></tr>
+      ${b.tx.map(t => {
+        const id = typeof t === 'string' ? t : t.txid;
+        const cb = typeof t === 'object' && t.vin && t.vin[0].coinbase;
+        const val = typeof t === 'object' && t.vout ? t.vout.reduce((s,v)=>s+v.value,0) : '';
+        return `<tr><td class="hash"><a href="#" onclick="showTx('${id}');return false">${id}</a></td>
+          <td>${cb ? 'coinbase' : 'transfer'}</td><td class="num">${val===''?'—':fmt(val)}</td></tr>`;
+      }).join('')}
     </table></div></div>`;
 }
 function showTx(t) {
@@ -104,6 +115,12 @@ async function refresh() {
   el('mempool').innerHTML = m.txids.length
     ? m.txids.slice(0,12).map(t=>`<tr><td class="hash"><a href="#" onclick="showTx('${t}');return false">${t}</a></td></tr>`).join('')
     : '<tr><td class="hash">empty</td></tr>';
+  const txs = await api('txs?n=15').catch(()=>[]);
+  el('txs').innerHTML = txs.map(t =>
+    `<tr><td class="hash"><a href="#" onclick="showTx('${t.txid}');return false">${short(t.txid)}</a></td>
+     <td>${t.coinbase ? '<span style="color:var(--gold)">coinbase</span>' : 'transfer'}</td>
+     <td class="num"><a href="#" onclick="showBlockHeight(${t.height});return false">${t.height}</a></td>
+     <td class="num">${fmt(t.value)}</td><td>${ago(t.time)}</td></tr>`).join('');
 }
 function showBlockHeight(h){ api('block/'+h).then(showBlock); }
 el('q').addEventListener('keydown', e => { if (e.key==='Enter') search(); });

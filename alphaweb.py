@@ -83,6 +83,23 @@ class API:
         return {"txids": self.call("getrawmempool"),
                 "info": self.call("getmempoolinfo")}
 
+    def recenttxs(self, n: int = 20):
+        n = min(int(n), 50)
+        tip = self.call("getblockcount")
+        out = []
+        h = tip
+        while len(out) < n and h >= 0 and tip - h < 60:
+            b = self.call("getblock", self.call("getblockhash", h), 2)
+            for t in reversed(b["tx"]):
+                out.append({
+                    "txid": t["txid"], "height": h, "time": b["time"],
+                    "coinbase": "coinbase" in t["vin"][0],
+                    "value": sum(v["value"] for v in t["vout"]),
+                    "nOut": len(t["vout"]),
+                })
+            h -= 1
+        return out[:n]
+
     def address(self, addr: str):
         scan = self.call("scantxoutset", "start")
         utxos = [u for u in scan["unspents"] if u.get("address") == addr]
@@ -147,6 +164,8 @@ def make_handler(api: API):
                     out = api.tx(route[3:])
                 elif route == "mempool":
                     out = api.mempool()
+                elif route == "txs":
+                    out = api.recenttxs(qs.get("n", [20])[0])
                 elif route.startswith("address/"):
                     out = api.address(route[8:])
                 elif route == "tokens":
