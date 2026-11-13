@@ -453,11 +453,13 @@ function showWif(){
 function logout(){localStorage.removeItem("alpha_wif");localStorage.removeItem("alpha_wif_enc");location.reload();}
 
 async function refresh(){
+  const txs=document.getElementById("txs");
+  txs.innerHTML='<div class="txrow" style="color:var(--dim)">loading…</div>';
+  try{
   const r=await fetch("/api/address/"+ADDR);const j=await r.json();
   let bal=j.balance||0;
   try{const j2=await(await fetch("/api/address/"+ADDR2)).json();bal+=j2.balance||0;}catch(e){}
   document.getElementById("bal").textContent=bal.toFixed(4);
-  const txs=document.getElementById("txs");
   let sent=[];try{sent=JSON.parse(localStorage.getItem("alpha_sent")||"[]");}catch(e){}
   const seen=new Set((j.transactions||[]).map(t=>t.txid));
   const merged=[...(j.transactions||[]),
@@ -466,6 +468,7 @@ async function refresh(){
   if(merged.length)
     txs.innerHTML=merged.slice(0,15).map(t=>`<div class="txrow"><a href="explorer.html" style="color:var(--accent)">${(t.txid||"").slice(0,20)}…</a>${t.sent?' <span style="color:#ff7b72">sent</span>':' <span style="color:var(--green)">+'+t.amount.toFixed(4)+' α</span>'}</div>`).join("");
   else txs.innerHTML='<div class="txrow" style="color:var(--dim)">no activity yet</div>';
+  }catch(e){txs.innerHTML='<div class="txrow" style="color:#ff7b72">refresh failed: '+e.message+'</div>';}
 }
 async function send(){
   const st=document.getElementById("sendstatus");
