@@ -79,6 +79,11 @@
         <button id="start" class="btn btn-gold" style="flex:1">▶ Start mining</button>
         <button id="stop" class="btn btn-ghost" disabled>■ Stop</button>
       </div>
+      <div style="display:flex;align-items:center;gap:10px;margin:12px 0 4px;font-size:13px;color:var(--dim)">
+        Threads: <b id="threadCount" style="color:var(--text)">auto</b>
+        <input type="range" id="threads" min="1" max="16" value="0" style="flex:1;accent-color:var(--gold)">
+        <span id="threadLabel" style="font-family:var(--mono);color:var(--gold)"></span>
+      </div>
       <div class="mine-stats">
         <div class="ms"><div class="v" id="hashrate">0</div><div class="l">hashes/sec</div></div>
         <div class="ms"><div class="v" id="hashes">0</div><div class="l">total hashes</div></div>
@@ -93,9 +98,9 @@
       <h3>How it works</h3>
       <ol style="color:var(--dim);font-size:14px;line-height:1.8">
         <li>Get a payout address — run <code>alpha_wallet_gen.py</code> or <code>getnewaddress</code> on your node</li>
-        <li>Paste it above and press <b>Start</b> — your browser fetches a block template and hashes it locally</li>
+        <li>Paste it above, pick threads (default = all CPU cores) and press <b>Start</b> — your browser fetches a block template and hashes it locally</li>
         <li>When a valid hash is found, it's submitted to the network — <b>50 ALPHA reward goes to your address</b></li>
-        <li>Keep the tab open to keep mining. Slower on mobile, but it works — early difficulty is CPU-friendly</li>
+        <li>Every core works in parallel — CPU load &amp; fan speed will rise, that's real mining. Keep the tab open to keep mining.</li>
       </ol>
     </div>
   </div>
@@ -150,7 +155,6 @@ function bytesToHex(b){ return [...b].map(x=>x.toString(16).padStart(2,'0')).joi
 
 /* ---------- mining loop (WebWorker inline) ---------- */
 const workerSrc = `
-${sha256.toString() ? '' : ''}
 const K=${JSON.stringify([...K])};
 const H0=${JSON.stringify(H0)};
 ${rotr.toString()}
@@ -158,25 +162,91 @@ ${sha256.toString()}
 ${sha256d.toString()}
 ${bytesToHex.toString()}
 onmessage = function(e){
-  const {prefixHex, targetHex, startNonce} = e.data;
+  const {prefixHex, targetHex, startNonce, stride} = e.data;
   const prefix = (h=>{const a=new Uint8Array(h.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16);return a;})(prefixHex);
   const tgt = BigInt('0x'+targetHex);
   const hdr = new Uint8Array(80); hdr.set(prefix);
   const dv = new DataView(hdr.buffer);
-  for(let n=startNonce;;n++){
+  let c = 0;
+  for(let n=startNonce;n<0xFFFFFFFF;n+=stride,c++){
     dv.setUint32(76, n>>>0, true);
     const d = sha256d(hdr);
-    // digest as little-endian uint256 → reverse to hex for compare
     const rev = new Uint8Array(32); for(let i=0;i<32;i++) rev[i]=d[31-i];
     if (BigInt('0x'+bytesToHex(rev)) <= tgt){ postMessage({found:n}); return; }
-    if((n & 0xFFFF)===0) postMessage({progress:n});
-    if(n>=0xFFFFFFFF){ postMessage({exhausted:true}); return; }
+    if((c & 0x3FFF)===0) postMessage({progress:c});
   }
+  postMessage({exhausted:true});
 };`;
 
-let worker = null, totalHashes = 0, found = 0, t0 = 0, lastN = 0;
+let workers = [], totalHashes = 0, found = 0, t0 = 0, roundDone = false, miningOn = false;
+let workid = null, addr = null, blobUrl = null;
+const counts = new Map();   // worker -> hashes done this round
+const lastCounts = new Map();
 let NET = { hash: 0, diff: 1, height: 0, subsidy: 50 };
 const $ = id => document.getElementById(id);
+const MAXT = Math.min(16, navigator.hardwareConcurrency || 4);
+$('threads').max = MAXT;
+$('threadLabel').textContent = 'auto ('+MAXT+' cores)';
+$('threads').oninput = () => {
+  $('threadLabel').textContent = $('threads').value === '0'
+    ? 'auto ('+MAXT+' cores)' : $('threads').value+' threads';
+};
+function nThreads(){
+  const v = parseInt($('threads').value);
+  return v === 0 ? MAXT : v;
+}
+function spawnWorkers(work){
+  const n = nThreads();
+  roundDone = false; counts.clear(); lastCounts.clear();
+  for(let i=0;i<n;i++){
+    const w = new Worker(blobUrl);
+    w.onmessage = onWorkerMsg;
+    w.postMessage({prefixHex: work.data, targetHex: work.target,
+                   startNonce: i, stride: n});
+    workers.push(w);
+  }
+  $('status').textContent = 'Mining… '+n+' thread'+(n>1?'s':'')+
+    ' · '+MAXT+' cores available';
+  log('round started: '+n+' threads, stride '+n);
+}
+function killWorkers(){ workers.forEach(w=>w.terminate()); workers = []; }
+async function mineRound(){
+  if(!addr) return;
+  let work;
+  try { work = await getWork(addr); }
+  catch(e){ log('getwork failed: '+e.message); $('status').textContent='getwork failed — retrying in 10s';
+    if(miningOn) setTimeout(mineRound,10000); return; }
+  workid = work.workid;
+  log(`new work: height ${work.height} target ${work.target.slice(0,20)}…`);
+  spawnWorkers(work);
+}
+async function onWorkerMsg(e){
+  const w = e.target, d = e.data;
+  if(roundDone) return;
+  if(d.found !== undefined){
+    roundDone = true;
+    found++; $('found').textContent = found;
+    log('VALID HASH FOUND! nonce='+d.found+' — submitting…','found');
+    killWorkers();
+    const r = await submit(workid, d.found);
+    if(r.accepted){
+      $('earned').textContent = (parseFloat($('earned').textContent)+NET.subsidy).toFixed(1);
+      log(`BLOCK ACCEPTED! ${r.hash.slice(0,20)}… +${NET.subsidy} ALPHA → your address`,'found');
+    } else log('rejected: '+JSON.stringify(r));
+    mineRound();
+  } else if(d.progress !== undefined){
+    counts.set(w, d.progress);
+    let sum = 0; for(const v of counts.values()) sum += v;
+    totalHashes = sum;
+    $('hashes').textContent = totalHashes.toLocaleString();
+    const secs = (Date.now()-t0)/1000;
+    $('hashrate').textContent = Math.round(totalHashes/secs).toLocaleString();
+    updateEstimates();
+  } else if(d.exhausted){
+    counts.delete(w);
+    if(counts.size === 0 && !roundDone){ log('nonce space exhausted — new work'); mineRound(); }
+  }
+}
 function log(msg, cls){
   const el = $('log');
   el.innerHTML += `<div class="${cls||''}">[${new Date().toLocaleTimeString()}] ${msg}</div>`;
@@ -192,17 +262,25 @@ async function submit(workid, nonce){
   const r = await fetch(`/api/submitwork?workid=${workid}&nonce=${nonce}`);
   return r.json();
 }
-async function mineRound(addr){
-  let work;
-  try { work = await getWork(addr); }
-  catch(e){ log('getwork failed: '+e.message); $('status').textContent='getwork failed — retrying in 10s';
-    setTimeout(()=>{ if(worker) mineRound(addr); },10000); return; }
-  log(`new work: height ${work.height} target ${work.target.slice(0,20)}…`);
-  worker._round = true;
-  lastN = 0;
-  worker.postMessage({prefixHex: work.data, targetHex: work.target, startNonce: 0});
-  worker._workid = work.workid;
-}
+$('start').onclick = async () => {
+  const a = $('addr').value.trim();
+  if(!a || a.length < 20){ alert('Enter a valid ALPHA payout address'); return; }
+  addr = a; miningOn = true;
+  if(!blobUrl) blobUrl = URL.createObjectURL(new Blob([workerSrc],{type:'text/javascript'}));
+  t0 = Date.now(); totalHashes = 0;
+  $('start').disabled = true; $('stop').disabled = false;
+  $('dot').classList.add('on');
+  log('miner started → '+a+' · threads='+nThreads());
+  mineRound();
+};
+$('stop').onclick = () => {
+  miningOn = false;
+  killWorkers(); roundDone = true;
+  $('start').disabled = false; $('stop').disabled = true;
+  $('dot').classList.remove('on');
+  $('status').textContent = 'Stopped';
+  log('miner stopped');
+};
 function updateEstimates(){
   const mine = parseFloat($('hashrate').textContent.replace(/,/g,'')) || 0;
   const net = NET.hash || 1;
@@ -232,42 +310,5 @@ async function refreshNet(){
   updateEstimates();
 }
 refreshNet(); setInterval(refreshNet, 30000);
-$('start').onclick = async () => {
-  const addr = $('addr').value.trim();
-  if(!addr || addr.length < 20){ alert('Enter a valid ALPHA payout address'); return; }
-  worker = new Worker(URL.createObjectURL(new Blob([workerSrc],{type:'text/javascript'})));
-  worker.onmessage = async e => {
-    if(e.data.found !== undefined){
-      found++; $('found').textContent = found;
-      log('VALID HASH FOUND! nonce='+e.data.found+' — submitting…','found');
-      const r = await submit(worker._workid, e.data.found);
-      if(r.accepted){
-        $('earned').textContent = (parseFloat($('earned').textContent)+50).toFixed(1);
-        log(`BLOCK ACCEPTED! ${r.hash.slice(0,20)}… +50 ALPHA → your address`,'found');
-      } else log('rejected: '+JSON.stringify(r));
-      mineRound(addr);
-    } else if(e.data.progress !== undefined){
-      totalHashes += Math.max(0, e.data.progress - lastN);
-      lastN = e.data.progress;
-      $('hashes').textContent = totalHashes.toLocaleString();
-      const secs = (Date.now()-t0)/1000;
-      $('hashrate').textContent = Math.round(totalHashes/secs).toLocaleString();
-      updateEstimates();
-    } else if(e.data.exhausted){ log('nonce space exhausted — new work'); mineRound(addr); }
-  };
-  t0 = Date.now(); totalHashes = 0;
-  $('start').disabled = true; $('stop').disabled = false;
-  $('dot').classList.add('on');
-  $('status').textContent = 'Mining…';
-  log('miner started → '+addr);
-  mineRound(addr);
-};
-$('stop').onclick = () => {
-  if(worker){ worker.terminate(); worker = null; }
-  $('start').disabled = false; $('stop').disabled = true;
-  $('dot').classList.remove('on');
-  $('status').textContent = 'Stopped';
-  log('miner stopped');
-};
 </script>
 </body></html>

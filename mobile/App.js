@@ -225,10 +225,10 @@ function Mine({ key_ }) {
       try {
         const w = await api.minework(key_.addr);
         const hdr = hexToB(w.data), target = BigInt("0x" + w.target);
+        const full = new Uint8Array(80); full.set(hdr);
         const t0 = Date.now(); let n = nonce;
-        // ~400ms chunks so the UI stays alive
+        // ~400ms chunks so the UI stays alive; buffer reused every hash
         while (!stop.current && Date.now() - t0 < 400 && n < 0xffffffff) {
-          const full = new Uint8Array(80); full.set(hdr);
           full[76] = n & 255; full[77] = (n >> 8) & 255;
           full[78] = (n >> 16) & 255; full[79] = (n >> 24) & 255;
           if (hashAsLEint(sha256d(full)) <= target) {
@@ -239,9 +239,12 @@ function Mine({ key_ }) {
           n++; hps++;
         }
         nonce = 0; // template refreshed each round
+        // real measured hashrate over the elapsed window
+        const elapsed = (Date.now() - t0) / 1000 || 0.4;
+        setRate(prev => Math.round(((prev * 0.6) + (hps / elapsed)) / 10) * 10);
       } catch (e) { setStatus("✗ " + e.message); }
       if (!stop.current) {
-        setRate(r => Math.round((hps * 2.5) / 1000 * 10) / 10); hps = 0;
+        hps = 0;
         setTimeout(mine, 60);
       } else { mining.current = false; }
     };
@@ -256,7 +259,7 @@ function Mine({ key_ }) {
         <Text style={s.dim}>Real SHA256d proof-of-work against your own
           address. Honest note: a phone is tiny next to ASICs — this is for
           learning/network support, not profit. Watch battery &amp; heat.</Text>
-        <Text style={s.statLine}>~{rate} kH/s · blocks found: {found}</Text>
+        <Text style={s.statLine}>~{rate >= 1000 ? (rate/1000).toFixed(1)+' kH/s' : Math.round(rate)+' H/s'} · blocks found: {found}</Text>
         {on ? <Btn t="Stop mining" onPress={halt} danger />
             : <Btn t="Start mining" onPress={start} />}
         <Text style={s.status}>{status}</Text>
