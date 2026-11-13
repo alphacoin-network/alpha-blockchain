@@ -40,6 +40,23 @@
       <li>Settlement</li>
     </ul>
     <a class="live-btn" href="tokens.html">View Token</a>
+
+    <div style="margin-top:30px;text-align:left;border-top:1px solid #ffffff14;padding-top:24px">
+      <div style="color:#f7c948;font-weight:800;font-size:15px;margin-bottom:14px">HOW TO USE AUSD</div>
+      <div style="color:var(--dim);font-size:13.5px;line-height:1.7">
+        <b style="color:var(--text)">Mint AUSD (buy with ALPHA)</b><br>
+        1. Reserve address pe ALPHA bhejo: <code style="color:var(--accent);font-size:11px">alpha1q0pj7er9yzm5mekgz960fs4j004pftue64259s6</code><br>
+        2. Tx me OP_RETURN memo lagao: <code style="color:var(--accent)">AUSD-MINT:&lt;base_units&gt;</code><br>
+        3. ~2 min me auto-mint → AUSD tumhare address pe<br><br>
+        <b style="color:var(--text)">Redeem AUSD (back to ALPHA)</b><br>
+        1. <code style="color:var(--accent)">sendtoken</code> se AUSD reserve address pe bhejo<br>
+        2. ~2 min me auto-burn → ALPHA wapas tumhare address pe ($1 worth, oracle price)<br><br>
+        <b style="color:var(--text)">Rate:</b> 1 AUSD = $1.00 · 1 ALPHA = $0.01 → <b>1 AUSD = 100 ALPHA</b><br>
+        <b style="color:var(--text)">CLI example:</b><br>
+        <code style="color:var(--accent);font-size:11px">alpha_cli sendtoaddress alpha1q0pj7... 100 --memo "AUSD-MINT:10000"</code>
+      </div>
+    </div>
+
     <div class="ausd-meta">
       Token ID: <code>90eaa2528b8e75dd737a7bd88e89a8d13e824e4668ed7deb8c85a4b78abc0392</code><br>
       Supply: 1,000,000 AUSD · Decimals: 2 · Peg: 1 AUSD = $1.00 USD
