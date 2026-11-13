@@ -39,6 +39,10 @@ def main() -> int:
                    help="Tor control password (if not cookie auth)")
     p.add_argument("--prune", type=int, default=0,
                    help="keep only the last N block bodies (0=off)")
+    p.add_argument("--stratum", action="store_true",
+                   help="run the stratum mining server (for external miners)")
+    p.add_argument("--strataport", type=int, default=8335,
+                   help="stratum TCP port (default 8335)")
     args = p.parse_args()
 
     params = constants.NETWORKS[args.chain]
@@ -74,6 +78,10 @@ def main() -> int:
         else:
             ok = node.connect(target, params.default_port)
         print(f"connect {target}: {'ok' if ok else 'failed'}")
+
+    if args.stratum:
+        from alpha import stratum
+        stratum.serve(node, args.strataport)
 
     rpc.serve(node, "127.0.0.1", rpcport, auth=auth)
 

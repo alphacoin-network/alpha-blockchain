@@ -483,8 +483,9 @@ class Node:
 
     def get_block_template(self, payout_script: bytes,
                            extranonce: int = 0,
-                           reserved: bytes | None = None) -> Block:
-        return miner.create_block_template(self.chain, self.mempool,
-                                           payout_script,
-                                           extranonce=extranonce,
-                                           reserved=reserved)
+                           reserved: bytes | None = None,
+                           extra_data: bytes | None = None) -> Block:
+        return miner.create_block_template(
+            self.chain, self.mempool, payout_script,
+            extranonce=extranonce, reserved=reserved,
+            **({"extra_data": extra_data} if extra_data is not None else {}))
