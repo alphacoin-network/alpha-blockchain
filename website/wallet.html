@@ -420,7 +420,7 @@ async function loadKey(){
   const w=localStorage.getItem("alpha_wif");
   return w?wifDecode(w):null;
 }
-const hexToB=h=>{const a=new Uint8Array(h.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2),16);return a;};
+const hexToB=h=>{const a=new Uint8Array(h.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16);return a;};
 
 function useKey(priv){
   KEY={priv,pub:privToPub(priv)};
