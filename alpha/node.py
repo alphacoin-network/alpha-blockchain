@@ -12,6 +12,7 @@ import time
 
 from . import constants, miner, net
 from .txindex import TxIndex
+from .ausd import Ausd
 from .block import Block
 from .blockchain import Blockchain, ChainError
 from .mempool import Mempool, MempoolError
@@ -91,6 +92,7 @@ class Node:
         self.mempool = Mempool(self.chain)
         wallet_path = os.path.join(data_dir, "wallet.json") if data_dir else None
         self.wallet = Wallet(self.params, wallet_path)
+        self.ausd = Ausd(self)
         self.peers: list = []
         self.peers_lock = threading.RLock()
         self._pending_compact: dict = {}

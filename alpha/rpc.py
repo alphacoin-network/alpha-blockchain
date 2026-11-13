@@ -1690,6 +1690,24 @@ class RPCMethods:
         return {"success": True, "unspents": unspents,
                 "total_amount": coins(total)}
 
+    def ausdinfo(self):
+        return self.node.ausd.info()
+
+    def ausdprice(self, usd_per_alpha=None):
+        if usd_per_alpha is None:
+            return {"alpha_usd": self.node.ausd.alpha_usd_price()}
+        return self.node.ausd.set_price(float(usd_per_alpha))
+
+    def ausdmintquote(self, ausd_amount):
+        base = int(Decimal(str(ausd_amount)) * 100)
+        return {"ausd": str(ausd_amount),
+                "alpha_required": self.node.ausd.alpha_for_ausd(base) / 1e8,
+                "reserve": self.node.ausd.reserve,
+                "memo": f"AUSD-MINT:{base}"}
+
+    def ausdsync(self):
+        return self.node.ausd.sync()
+
     def addresshistory(self, addr: str):
         return {"address": addr,
                 "transactions": self.node.txindex.history(addr, 100)}
