@@ -470,26 +470,40 @@ async function send(){
     if(!amt||amt<=0)throw new Error("enter amount");
     const sats=Math.round(amt*1e8);
     st.textContent="fetching utxos…";
-    const u=(await(await fetch("/api/utxos/"+ADDR)).json());
-    const tip=u.height;
-    const pkh=addrToPkh(ADDR);
-    const mine=u.utxos.filter(x=>x.scriptPubKey===b2hex(spkP2pkh(pkh))&&(tip-x.height)>=0);
-    mine.sort((a,b)=>b.amount-a.amount);
     const fee=1000,toSpk=anyAddrToSpk(to);
+    // gather mature UTXOs from BOTH own addresses (legacy + segwit)
+    const u1=(await(await fetch("/api/utxos/"+ADDR)).json());
+    const u2=(await(await fetch("/api/utxos/"+ADDR2)).json()).catch(()=>({utxos:[],height:0}));
+    const tip=Math.max(u1.height||0,u2.height||0);
+    const pkh=addrToPkh(ADDR),pkh2=hash160(KEY.pub);
+    const spkLeg=spkP2pkh(pkh),spkSeg=Uint8Array.from([0x00,0x14,...pkh2]);
+    const legHex=b2hex(spkLeg),segHex=b2hex(spkSeg);
+    const cands=[];
+    for(const x of u1.utxos||[])if(x.scriptPubKey===legHex&&(tip-x.height)>=0)cands.push({...x,type:0,spk:spkLeg});
+    for(const x of u2.utxos||[])if(x.scriptPubKey===segHex&&(tip-x.height)>=0)cands.push({...x,type:1,spk:spkSeg});
+    cands.sort((a,b)=>b.amount-a.amount);
     const ins=[];let sum=0;
-    for(const x of mine){ins.push(x);sum+=Math.round(x.amount*1e8);if(sum>=sats+fee)break;}
+    for(const x of cands){ins.push(x);sum+=Math.round(x.amount*1e8);if(sum>=sats+fee)break;}
     if(sum<sats+fee)throw new Error("insufficient mature funds");
     const change=sum-sats-fee;
     const outs=[{value:sats,spk:toSpk}];
-    if(change>0)outs.push({value:change,spk:spkP2pkh(pkh)});
+    if(change>0)outs.push({value:change,spk:spkLeg});
     st.textContent="signing…";
-    const txins=ins.map(x=>({txid:hexToB(x.txid),vout:x.vout,scriptSig:[]}));
+    const txins=ins.map(x=>({txid:hexToB(x.txid),vout:x.vout,type:x.type,spk:x.spk,
+      amount:Math.round(x.amount*1e8),scriptSig:[],witSig:null,witPub:null}));
+    const hasSeg=txins.some(x=>x.type===1);
     for(let i=0;i<txins.length;i++){
-      const sighash=sha256d(serTx(txins,outs,true,i,spkP2pkh(pkh)));
-      const sig=Uint8Array.from([...ecdsaSign(sighash,KEY.priv),1]);
-      txins[i].scriptSig=Uint8Array.from(push(sig).concat(push(KEY.pub)));
+      const x=txins[i];
+      if(x.type===1){
+        const sig=Uint8Array.from([...ecdsaSign(sha256d(bip143Preimage(txins,outs,i)),KEY.priv),1]);
+        x.witSig=sig;x.witPub=KEY.pub;
+      }else{
+        const sighash=sha256d(serTx(txins,outs,true,i,x.spk));
+        const sig=Uint8Array.from([...ecdsaSign(sighash,KEY.priv),1]);
+        x.scriptSig=Uint8Array.from(push(sig).concat(push(KEY.pub)));
+      }
     }
-    const raw=b2hex(serTx(txins,outs));
+    const raw=b2hex(hasSeg?serTxWit(txins,outs):serTx(txins,outs));
     st.textContent="broadcasting…";
     const r=await(await fetch("/api/broadcast?hex="+raw)).json();
     if(r.error)throw new Error(r.error);
@@ -499,6 +513,36 @@ async function send(){
 }
 function pushdata(d){return d.length<76?[d.length,...d]:(d.length<256?[0x4c,d.length,...d]:[0x4d,d.length&255,(d.length>>8)&255,...d]);}
 function spkOpReturn(data){return Uint8Array.from([0x6a,...pushdata(data)]);}
+/* ---- segwit (BIP143/144) spend support ---- */
+function u32(n){return[n&255,(n>>8)&255,(n>>16)&255,(n>>24)&255];}
+function catArr(list){const o=[];for(const a of list)o.push(...a);return new Uint8Array(o);}
+function outPointSer(x){return catArr([x.txid.slice().reverse(),u32(x.vout)]);}
+function outSer(o){const v=BigInt(Math.round(o.value));
+  const b=[];for(let i=0;i<8;i++)b.push(Number((v>>BigInt(8*i))&255n));
+  return catArr([b,varint(o.spk.length),o.spk]);}
+function bip143Preimage(ins,outs,idx){
+  const x=ins[idx];
+  const hp=sha256d(catArr(ins.map(outPointSer)));
+  const hs=sha256d(catArr(ins.map(()=>u32(0xffffffff))));
+  const ho=sha256d(catArr(outs.map(outSer)));
+  const sc=catArr([varint(x.spk.length),...x.spk]);       // scriptCode = spk
+  const amt=[];let av=BigInt(x.amount);for(let i=0;i<8;i++)amt.push(Number((av>>BigInt(8*i))&255n));
+  return catArr([[2,0,0,0],hp,hs,outPointSer(x),sc,amt,u32(0xffffffff),ho,[1,0,0,0]]);
+}
+function serTxWit(txins,outs){
+  const b=[2,0,0,0,0,1,...varint(txins.length)];
+  for(const x of txins){
+    b.push(...x.txid.slice().reverse(),...u32(x.vout));
+    b.push(...varint(x.scriptSig.length),...x.scriptSig);
+    b.push(...u32(0xffffffff));
+    if(x.type===1)b.push(2,...push(x.witSig),...push(x.witPub));
+    else b.push(0);
+  }
+  b.push(...varint(outs.length));
+  for(const o of outs)b.push(...outSer(o));
+  b.push(0,0,0,0);
+  return new Uint8Array(b);
+}
 async function createToken(){
   const st=document.getElementById("tstatus");
   try{
