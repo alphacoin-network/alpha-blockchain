@@ -124,9 +124,7 @@ class Ausd:
             return None
 
     def _resolve_token(self):
-        """Find the AUSD token in the registry by name (lazy)."""
-        if self.token_id is not None:
-            return self.token_id
+        """Find the newest AUSD token in the registry by name."""
         best = None
         for tid, info in self.node.tokens.registry.items():
             if getattr(info, "name", "") == "AUSD":
