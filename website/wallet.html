@@ -509,7 +509,7 @@ async function send(){
     if(r.error)throw new Error(r.error);
     st.innerHTML='<span style="color:var(--green)">✓ sent! txid '+(r.result||r).toString().slice(0,24)+"…</span>";
     setTimeout(refresh,3000);
-  }catch(e){st.innerHTML='<span style="color:#ff7b72">'+e.message+"</span>";}
+  }catch(e){st.innerHTML='<span style="color:#ff7b72">'+(e.stack||e.message).replace(/\n/g,"<br>")+"</span>";}
 }
 function pushdata(d){return d.length<76?[d.length,...d]:(d.length<256?[0x4c,d.length,...d]:[0x4d,d.length&255,(d.length>>8)&255,...d]);}
 function spkOpReturn(data){return Uint8Array.from([0x6a,...pushdata(data)]);}
