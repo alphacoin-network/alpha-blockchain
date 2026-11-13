@@ -7,44 +7,44 @@
   <meta name="robots" content="index, follow">
   <meta name="theme-color" content="#0e0e1e">
   <link rel="canonical" href="https://alphacoin.network/ausd.html">
-  <meta property="og:type" content="website">
-  <meta property="og:title" content="AUSD — Alpha Stablecoin">
-  <meta property="og:description" content="Dollar-pegged stable asset secured by proof-of-work. Coming soon.">
-  <meta property="og:image" content="https://alphacoin.network/img/ausd-logo.svg">
   <link rel="icon" type="image/svg+xml" href="coin.svg">
-  <link rel="apple-touch-icon" href="coin.svg">
-  <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
   <style>
-    .ausd-hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding:60px 20px 40px}
-    .ausd-hero img{width:180px;height:180px;filter:drop-shadow(0 12px 40px rgba(247,201,72,.35))}
-    .ausd-tag{display:inline-block;margin-top:18px;padding:6px 18px;border-radius:999px;background:rgba(247,201,72,.12);border:1px solid rgba(247,201,72,.4);color:#f7c948;font-size:13px;font-weight:700;letter-spacing:2px}
-    .ausd-title{font-size:44px;font-weight:800;margin:14px 0 6px;background:linear-gradient(90deg,#fff3c4,#f7c948,#d9a520);-webkit-background-clip:text;background-clip:text;color:transparent}
-    .ausd-sub{color:var(--dim);font-size:17px;max-width:560px}
-    .ausd-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin:34px auto;max-width:860px}
-    .ausd-card{background:#14142a;border:1px solid #ffffff14;border-radius:14px;padding:22px;text-align:center}
-    .ausd-card .ic{font-size:30px}
-    .ausd-card b{display:block;margin-top:10px;color:var(--text);font-size:15px}
-    .ausd-card span{color:var(--dim);font-size:13px}
-    .coming{margin:26px auto 60px;display:inline-block;padding:14px 42px;border-radius:12px;background:linear-gradient(135deg,#f7c948,#d9a520);color:#10101f;font-weight:800;font-size:17px;letter-spacing:1px;box-shadow:0 8px 30px rgba(247,201,72,.3)}
+    .ausd-box{max-width:520px;margin:70px auto;text-align:center;background:#14142a;border:1px solid #f7c94833;border-radius:20px;padding:48px 36px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+    .ausd-dollar{font-size:72px;font-weight:800;line-height:1;background:linear-gradient(180deg,#fff3c4,#f7c948,#d9a520);-webkit-background-clip:text;background-clip:text;color:transparent}
+    .ausd-name{font-size:30px;font-weight:800;color:var(--text);margin-top:6px;letter-spacing:1px}
+    .ausd-tag{display:inline-block;margin-top:10px;padding:5px 16px;border-radius:999px;background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.45);color:#4ade80;font-size:12px;font-weight:700;letter-spacing:2px}
+    .ausd-price{margin:20px 0 4px;font-size:40px;font-weight:800;color:#4ade80}
+    .ausd-price small{font-size:15px;color:var(--dim);font-weight:400}
+    .ausd-list{list-style:none;padding:0;margin:26px 0 30px;text-align:left}
+    .ausd-list li{padding:9px 0 9px 30px;position:relative;color:var(--dim);font-size:15px;border-bottom:1px solid #ffffff0d}
+    .ausd-list li:last-child{border-bottom:none}
+    .ausd-list li::before{content:"✓";position:absolute;left:4px;color:#f7c948;font-weight:800}
+    .live-btn{display:inline-block;padding:13px 40px;border-radius:12px;background:linear-gradient(135deg,#f7c948,#d9a520);color:#10101f;font-weight:800;font-size:16px;letter-spacing:1.5px;text-decoration:none}
+    .ausd-meta{margin-top:22px;font-size:12px;color:var(--dim);line-height:1.8}
+    .ausd-meta code{color:var(--accent);font-size:11px;word-break:break-all}
   </style>
 </head>
 <body>
 <nav></nav>
 <section><div class="wrap">
-  <div class="ausd-hero">
-    <img src="img/ausd-logo.svg" alt="AUSD">
-    <div class="ausd-tag">COMING SOON</div>
-    <h1 class="ausd-title">$ AUSD</h1>
-    <div class="ausd-sub">Alpha Stablecoin — the dollar-pegged stable asset of Alpha Blockchain. Send value without volatility, secured by proof-of-work.</div>
+  <div class="ausd-box">
+    <div class="ausd-dollar">$</div>
+    <div class="ausd-name">Alpha Stablecoin</div>
+    <div class="ausd-tag">● LIVE</div>
+    <div class="ausd-price">$1.00 <small>USD peg</small></div>
+    <ul class="ausd-list">
+      <li>Fiat-backed asset</li>
+      <li>Payment infra</li>
+      <li>DeFi integration</li>
+      <li>Settlement</li>
+    </ul>
+    <a class="live-btn" href="tokens.html">View Token</a>
+    <div class="ausd-meta">
+      Token ID: <code>90eaa2528b8e75dd737a7bd88e89a8d13e824e4668ed7deb8c85a4b78abc0392</code><br>
+      Supply: 1,000,000 AUSD · Decimals: 2 · Peg: 1 AUSD = $1.00 USD
+    </div>
   </div>
-  <div class="ausd-grid">
-    <div class="ausd-card"><div class="ic">🏦</div><b>Fiat-backed asset</b><span>Every AUSD backed 1:1 by reserves</span></div>
-    <div class="ausd-card"><div class="ic">💳</div><b>Payment infra</b><span>Stable prices for everyday payments</span></div>
-    <div class="ausd-card"><div class="ic">📈</div><b>DeFi integration</b><span>Lending, liquidity &amp; yield on-chain</span></div>
-    <div class="ausd-card"><div class="ic">⚡</div><b>Settlement</b><span>Fast, cheap, final transactions</span></div>
-  </div>
-  <div style="text-align:center"><span class="coming">COMING SOON</span></div>
 </div></section>
 <footer>Alpha Blockchain · AUSD — Alpha Stablecoin</footer>
 <script src="app.js"></script>
