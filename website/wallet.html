@@ -473,7 +473,7 @@ async function send(){
     const fee=1000,toSpk=anyAddrToSpk(to);
     // gather mature UTXOs from BOTH own addresses (legacy + segwit)
     const u1=(await(await fetch("/api/utxos/"+ADDR)).json());
-    const u2=(await(await fetch("/api/utxos/"+ADDR2)).json()).catch(()=>({utxos:[],height:0}));
+    const u2=await fetch("/api/utxos/"+ADDR2).then(r=>r.json()).catch(()=>({utxos:[],height:0}));
     const tip=Math.max(u1.height||0,u2.height||0);
     const pkh=addrToPkh(ADDR),pkh2=hash160(KEY.pub);
     const spkLeg=spkP2pkh(pkh),spkSeg=Uint8Array.from([0x00,0x14,...pkh2]);
