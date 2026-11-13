@@ -80,6 +80,7 @@
       <h3>Send ALPHA</h3>
       <input id="toaddr" class="field" placeholder="Recipient address" spellcheck="false">
       <input id="amount" class="field" placeholder="Amount (ALPHA)" type="number" step="any" min="0">
+      <input id="memo" class="field" placeholder="Memo / OP_RETURN (optional — e.g. AUSD-MINT:10000)" spellcheck="false" maxlength="80">
       <button class="btn btn-gold" onclick="send()" style="width:100%">Send</button>
       <div id="sendstatus" style="margin-top:10px;font-size:13px;color:var(--dim)"></div>
     </div>
@@ -504,8 +505,10 @@ async function send(){
     for(const x of cands){ins.push(x);sum+=Math.round(x.amount*1e8);if(sum>=sats+fee)break;}
     if(sum<sats+fee)throw new Error("insufficient mature funds");
     const change=sum-sats-fee;
+    const memo=(document.getElementById("memo").value||"").trim();
     const outs=[{value:sats,spk:toSpk}];
     if(change>0)outs.push({value:change,spk:spkLeg});
+    if(memo)outs.push({value:0,spk:spkOpReturn(new TextEncoder().encode(memo))});
     st.textContent="signing…";
     const txins=ins.map(x=>({txid:hexToB(x.txid),vout:x.vout,type:x.type,spk:x.spk,
       sc:x.type===1?spkP2pkh(pkh2):x.spk,
