@@ -122,7 +122,9 @@ class Mempool:
                         block_height=next_height, block_time=prev_mtp,
                         all_prevouts=prevouts)
                 except script.ScriptError as e:
-                    raise MempoolError(f"script failed: {e}")
+                    raise MempoolError(
+                        f"script failed: input {n_in} "
+                        f"(spk {coin.txout.script_pubkey.hex()[:20]}…): {e}")
 
             out_sum = tx.total_output_value()
             if out_sum > in_sum:
