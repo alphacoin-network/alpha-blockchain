@@ -109,30 +109,18 @@ class API:
             tokbal = self.call("listtokenbalances", addr)
         except Exception:
             pass
-        # recent txs paying TO this address (scan last ~50 blocks)
+        # full address history from the txindex (instant, complete)
         txs = []
         try:
-            tip = self.call("getblockcount")
-            h = tip
-            while len(txs) < 30 and h > tip - 150:
-                b = self.call("getblock", self.call("getblockhash", h), 2)
-                for t in reversed(b["tx"]):
-                    amt = 0.0
-                    for v in t["vout"]:
-                        hx = v["scriptPubKey"].get("hex", "")
-                        if not hx:
-                            continue
-                        try:
-                            if script.extract_destination(
-                                    bytes.fromhex(hx),
-                                    self.node.params) == addr:
-                                amt += v["value"]
-                        except Exception:
-                            pass
-                    if amt:
-                        txs.append({"txid": t["txid"], "height": h,
-                                    "time": b["time"], "amount": amt})
-                h -= 1
+            hist = self.call("addresshistory", addr)
+            for t in hist.get("transactions", []):
+                if t["direction"] > 0:
+                    txs.append({"txid": t["txid"], "height": t["height"],
+                                "time": t["time"],
+                                "amount": t["value"] / 1e8})
+                else:
+                    txs.append({"txid": t["txid"], "height": t["height"],
+                                "time": t["time"], "sent": True})
         except Exception:
             pass
         return {"address": addr, "balance": balance,

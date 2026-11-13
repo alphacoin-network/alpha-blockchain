@@ -11,6 +11,7 @@ import threading
 import time
 
 from . import constants, miner, net
+from .txindex import TxIndex
 from .block import Block
 from .blockchain import Blockchain, ChainError
 from .mempool import Mempool, MempoolError
@@ -57,6 +58,7 @@ class Node:
         self.enterprise = EntDB()
         self.escrow = EscrowDB()
         self.staking = StakeDB()
+        self.txindex = TxIndex(self.params, data_dir)
         self.chain = Blockchain(
             self.params,
             os.path.join(data_dir, "chain") if data_dir else None,
@@ -71,7 +73,8 @@ class Node:
                 self.ai.apply_block(b, e.height, lookup),
                 self.enterprise.apply_block(b, e.height, lookup),
                 self.escrow.apply_block(b, e.height, self.tokens, lookup),
-                self.staking.apply_block(b, e.height, lookup)))
+                self.staking.apply_block(b, e.height, lookup),
+                self.txindex.apply_block(b, e.height, lookup)))
         self.chain.on_block_disconnected = (
             lambda e: (
                 self.staking.unapply_block(e.height),
@@ -82,7 +85,8 @@ class Node:
                 self.identity.unapply_block(e.height),
                 self.amm.unapply_block(e.height, self.tokens),
                 self.dex.unapply_block(e.height, self.tokens),
-                self.tokens.unapply_block(e.height)))
+                self.tokens.unapply_block(e.height),
+                self.txindex.unapply_block(e.height)))
         self.chain.load()   # replay stored blocks (fires the token hook too)
         self.mempool = Mempool(self.chain)
         wallet_path = os.path.join(data_dir, "wallet.json") if data_dir else None

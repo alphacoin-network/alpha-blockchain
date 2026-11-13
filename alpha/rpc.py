@@ -1690,6 +1690,10 @@ class RPCMethods:
         return {"success": True, "unspents": unspents,
                 "total_amount": coins(total)}
 
+    def addresshistory(self, addr: str):
+        return {"address": addr,
+                "transactions": self.node.txindex.history(addr, 100)}
+
     def getmempoolentry(self, txid: str):
         e = self.node.mempool.get(hex_to_hash(txid))
         if e is None:
