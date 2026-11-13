@@ -185,17 +185,24 @@
      like Bitcoin. Your node auto-connects to public seed nodes — and to
      local LAN peers via UDP discovery, so it works even without internet.</p>
   <div class="grid cards">
-    <div class="card"><h3>Run a node</h3><div class="formula" style="font-size:12px"># download &amp; run — no install needed:
-github.com/alphacoin-network/alpha-blockchain/releases
-# or from source:  git clone ... → python3 alphad.py --chain main</div>
-      <div class="status"><span class="tag-live live">Windows / Mac / Linux / VPS — any PC</span></div></div>
-    <div class="card"><h3>Mine ALPHA</h3><div class="formula" style="font-size:12px">python alpha_cli.py getnewaddress --datadir ./data-mainnet
-python mine_alpha.py --datadir ./data-mainnet</div>
-      <div class="status"><span class="tag-live live">CPU mining · 50 ALPHA/block</span></div></div>
+    <div class="card"><h3>Run a node</h3>
+      <ul class="feat"><li>Download ready-made binary — no install needed</li>
+        <li>Windows · Linux · macOS · VPS · Raspberry Pi</li>
+        <li>Auto-connects to public seeds + LAN discovery</li></ul>
+      <div class="status"><a class="btn btn-gold" style="padding:9px 20px;font-size:14px" href="https://github.com/alphacoin-network/alpha-blockchain/releases/latest">⬇ Download node</a>
+        <span class="tag-live live" style="margin-left:10px">any PC</span></div></div>
+    <div class="card"><h3>Mine ALPHA</h3>
+      <ul class="feat"><li><b>Browser mining</b> — no install, works on mobile</li>
+        <li><b>CPU/GPU mining</b> via node + <code>mine_alpha.py</code></li>
+        <li>Rewards paid directly to your address</li></ul>
+      <div class="status"><a class="btn btn-gold" style="padding:9px 20px;font-size:14px" href="mine.html">⛏ Mine in browser</a>
+        <span class="tag-live live" style="margin-left:10px">live hashrate feed</span></div></div>
     <div class="card"><h3>Public explorer</h3>
-      <ul class="feat"><li>Live blocks, txs, tokens</li><li>Network stats</li>
-        <li>Seeds: seed.alphacoin.network:8333 + 3.105.43.51:8333 (AWS)</li></ul>
-      <div class="status"><span class="tag-live live">LIVE</span></div></div>
+      <ul class="feat"><li>Live blocks, transactions &amp; tokens</li>
+        <li>Address balances &amp; UTXOs</li>
+        <li>Seeds: seed.alphacoin.network + seed2.alphacoin.network</li></ul>
+      <div class="status"><a class="btn btn-ghost" style="padding:9px 20px;font-size:14px" href="explorer.html">Open explorer</a>
+        <span class="tag-live live" style="margin-left:10px">LIVE</span></div></div>
   </div>
 </div></section>
 
