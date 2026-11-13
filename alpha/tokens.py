@@ -429,7 +429,9 @@ class TokenDB:
 
     # -- queries -------------------------------------------------------------------
     def list_tokens(self, params):
-        return [t.to_json(params) for t in self.registry.values()]
+        # hide dead tokens (issued supply fully burned / no holders)
+        return [t.to_json(params) for tid, t in self.registry.items()
+                if self.holders(tid)]
 
     def token_info(self, token_id: bytes, params):
         info = self.registry.get(token_id)
