@@ -15,7 +15,6 @@
   <!-- coin body -->
   <circle cx="256" cy="256" r="244" fill="url(#gold)"/>
   <circle cx="256" cy="256" r="244" fill="none" stroke="#7a5c10" stroke-width="8"/>
-  <!-- reeded edge ticks -->
   <g stroke="#8a6a15" stroke-width="5" opacity="0.55">
     <path d="M256 12 v18 M256 482 v18 M12 256 h18 M482 256 h18"/>
     <path d="M82 82 l13 13 M417 417 l13 13 M430 82 l-13 13 M95 417 l-13 13"/>
@@ -25,14 +24,13 @@
   <circle cx="256" cy="256" r="206" fill="url(#face)"/>
   <circle cx="256" cy="256" r="206" fill="none" stroke="#f7c948" stroke-width="5" stroke-dasharray="14 8" opacity="0.9"/>
 
-  <!-- bold A mark -->
-  <path d="M256 138 L338 348 L306 348 L256 218 L206 348 L174 348 Z" fill="url(#gold)" stroke="#7a5c10" stroke-width="4" stroke-linejoin="round"/>
-  <rect x="226" y="300" width="60" height="16" rx="8" fill="url(#gold)" stroke="#7a5c10" stroke-width="3"/>
+  <!-- centered alpha-A mark above -->
+  <path d="M256 148 L296 232 L276 232 L256 190 L236 232 L216 232 Z" fill="url(#gold)"/>
+  <rect x="240" y="226" width="32" height="9" rx="4" fill="url(#gold)"/>
 
-  <!-- dollar badge bottom-right of A -->
-  <circle cx="330" cy="330" r="34" fill="url(#gold)" stroke="#7a5c10" stroke-width="4"/>
-  <text x="330" y="342" font-family="Arial,Helvetica,sans-serif" font-size="40" font-weight="bold" fill="#10101f" text-anchor="middle">$</text>
+  <!-- big centered dollar sign -->
+  <text x="256" y="392" font-family="Arial,Helvetica,sans-serif" font-size="150" font-weight="bold" fill="url(#gold)" text-anchor="middle" stroke="#7a5c10" stroke-width="3">$</text>
 
   <!-- wordmark -->
-  <text x="256" y="424" font-family="Arial,Helvetica,sans-serif" font-size="54" font-weight="800" letter-spacing="12" fill="url(#gold)" text-anchor="middle" stroke="#7a5c10" stroke-width="1.5">AUSD</text>
+  <text x="256" y="452" font-family="Arial,Helvetica,sans-serif" font-size="44" font-weight="800" letter-spacing="10" fill="#f7c948" text-anchor="middle">AUSD</text>
 </svg>
