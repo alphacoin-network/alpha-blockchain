@@ -530,16 +530,19 @@ function bip143Preimage(ins,outs,idx){
   return catArr([[2,0,0,0],hp,hs,outPointSer(x),sc,amt,u32(0xffffffff),ho,[1,0,0,0]]);
 }
 function serTxWit(txins,outs){
+  // BIP144: version | marker+flag | vin | vout | witness-stacks | locktime
   const b=[2,0,0,0,0,1,...varint(txins.length)];
   for(const x of txins){
     b.push(...x.txid.slice().reverse(),...u32(x.vout));
     b.push(...varint(x.scriptSig.length),...x.scriptSig);
     b.push(...u32(0xffffffff));
-    if(x.type===1)b.push(2,...push(x.witSig),...push(x.witPub));
-    else b.push(0);
   }
   b.push(...varint(outs.length));
   for(const o of outs)b.push(...outSer(o));
+  for(const x of txins){
+    if(x.type===1)b.push(2,...push(x.witSig),...push(x.witPub));
+    else b.push(0);
+  }
   b.push(0,0,0,0);
   return new Uint8Array(b);
 }
