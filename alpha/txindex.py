@@ -20,7 +20,7 @@ class TxIndex:
         self.params = params
         path = (os.path.join(data_dir, "txindex.db")
                 if data_dir else ":memory:")
-        self.db = sqlite3.connect(path)
+        self.db = sqlite3.connect(path, check_same_thread=False)
         self.db.execute(
             "CREATE TABLE IF NOT EXISTS addr_tx("
             " addr TEXT, txid TEXT, height INT, direction INT,"
