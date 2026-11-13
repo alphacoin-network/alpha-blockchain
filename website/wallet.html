@@ -525,7 +525,7 @@ function bip143Preimage(ins,outs,idx){
   const hp=sha256d(catArr(ins.map(outPointSer)));
   const hs=sha256d(catArr(ins.map(()=>u32(0xffffffff))));
   const ho=sha256d(catArr(outs.map(outSer)));
-  const sc=catArr([varint(x.spk.length),...x.spk]);       // scriptCode = spk
+  const sc=catArr([[...varint(x.spk.length),...x.spk]]);  // scriptCode = spk
   const amt=[];let av=BigInt(x.amount);for(let i=0;i<8;i++)amt.push(Number((av>>BigInt(8*i))&255n));
   return catArr([[2,0,0,0],hp,hs,outPointSer(x),sc,amt,u32(0xffffffff),ho,[1,0,0,0]]);
 }
