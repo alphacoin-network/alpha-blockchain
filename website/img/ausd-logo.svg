@@ -1,36 +1,41 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <radialGradient id="gold" cx="50%" cy="35%" r="70%">
+    <radialGradient id="gold" cx="50%" cy="32%" r="75%">
       <stop offset="0%" stop-color="#fff3c4"/>
-      <stop offset="40%" stop-color="#f7c948"/>
-      <stop offset="75%" stop-color="#d9a520"/>
-      <stop offset="100%" stop-color="#9a7014"/>
+      <stop offset="38%" stop-color="#f7c948"/>
+      <stop offset="72%" stop-color="#d9a520"/>
+      <stop offset="100%" stop-color="#8f6b12"/>
     </radialGradient>
-    <linearGradient id="face" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#232344"/>
-      <stop offset="100%" stop-color="#10101f"/>
-    </linearGradient>
+    <radialGradient id="face" cx="50%" cy="40%" r="70%">
+      <stop offset="0%" stop-color="#26264a"/>
+      <stop offset="100%" stop-color="#0e0e1e"/>
+    </radialGradient>
   </defs>
 
-  <!-- coin body -->
-  <circle cx="256" cy="256" r="244" fill="url(#gold)"/>
-  <circle cx="256" cy="256" r="244" fill="none" stroke="#7a5c10" stroke-width="8"/>
-  <g stroke="#8a6a15" stroke-width="5" opacity="0.55">
-    <path d="M256 12 v18 M256 482 v18 M12 256 h18 M482 256 h18"/>
-    <path d="M82 82 l13 13 M417 417 l13 13 M430 82 l-13 13 M95 417 l-13 13"/>
+  <!-- coin -->
+  <circle cx="256" cy="256" r="246" fill="url(#gold)"/>
+  <circle cx="256" cy="256" r="246" fill="none" stroke="#6e530e" stroke-width="7"/>
+  <circle cx="256" cy="256" r="224" fill="none" stroke="#0e0e1e" stroke-width="3" opacity="0.35"/>
+  <circle cx="256" cy="256" r="214" fill="url(#face)"/>
+  <circle cx="256" cy="256" r="214" fill="none" stroke="#f7c948" stroke-width="4" opacity="0.85"/>
+
+  <!-- vector dollar sign: S-curve + vertical bar, perfectly centered -->
+  <g fill="none" stroke="url(#gold)" stroke-linecap="round">
+    <path d="M 288 178
+             C 268 160, 232 160, 216 182
+             C 203 199, 209 216, 228 223
+             C 254 232, 282 242, 282 270
+             C 282 302, 254 322, 220 314
+             C 198 308, 187 290, 190 268"
+          stroke-width="17"/>
+    <path d="M 256 162 L 256 348" stroke-width="17"/>
   </g>
 
-  <!-- dark face -->
-  <circle cx="256" cy="256" r="206" fill="url(#face)"/>
-  <circle cx="256" cy="256" r="206" fill="none" stroke="#f7c948" stroke-width="5" stroke-dasharray="14 8" opacity="0.9"/>
-
-  <!-- centered alpha-A mark above -->
-  <path d="M256 148 L296 232 L276 232 L256 190 L236 232 L216 232 Z" fill="url(#gold)"/>
-  <rect x="240" y="226" width="32" height="9" rx="4" fill="url(#gold)"/>
-
-  <!-- big centered dollar sign -->
-  <text x="256" y="392" font-family="Arial,Helvetica,sans-serif" font-size="150" font-weight="bold" fill="url(#gold)" text-anchor="middle" stroke="#7a5c10" stroke-width="3">$</text>
-
   <!-- wordmark -->
-  <text x="256" y="452" font-family="Arial,Helvetica,sans-serif" font-size="44" font-weight="800" letter-spacing="10" fill="#f7c948" text-anchor="middle">AUSD</text>
+  <text x="256" y="424" text-anchor="middle"
+        font-family="Arial,Helvetica,sans-serif" font-size="46"
+        font-weight="800" letter-spacing="12" fill="#f7c948">AUSD</text>
+  <text x="256" y="452" text-anchor="middle"
+        font-family="Arial,Helvetica,sans-serif" font-size="15"
+        letter-spacing="6" fill="#7d7da0">ALPHA USD STABLE</text>
 </svg>
