@@ -1846,14 +1846,17 @@ class RPCMethods:
                 "stakers": len(outs)}
 
     # -- mining -------------------------------------------------------------------
-    def generatetoaddress(self, nblocks: int, address: str):
+    def generatetoaddress(self, nblocks: int, address: str,
+                          extranonce: int = 0, maxtries: int = 0):
         try:
             spk = script.script_for_address(address, self.node.params)
         except ValueError:
             raise RPCError(RPC_INVALID_ADDRESS_OR_KEY, "invalid address")
         hashes = []
         for _ in range(int(nblocks)):
-            block = self.node.generate_block(spk)
+            block = self.node.generate_block(
+                spk, extranonce=int(extranonce),
+                max_tries=int(maxtries) or None)
             hashes.append(block.hash_hex())
         return hashes
 
@@ -1897,6 +1900,68 @@ class RPCMethods:
         self.node.submit_block(block)
         return {"hash": block.hash_hex(), "height": self.node.chain.height,
                 "accepted": True}
+
+    # -- getblocktemplate / submitblock (Bitcoin's real mining protocol) --------
+    def getblocktemplate(self, params=None):
+        """Bitcoin-style block template. The miner builds their own coinbase
+        (their payout address) and submits the assembled block via submitblock.
+        """
+        import secrets as _sec
+        payout = self.node.wallet.new_address("bech32")
+        reserved = _sec.token_bytes(32)
+        blk = self.node.get_block_template(
+            script.script_for_address(payout, self.node.params),
+            reserved=reserved)
+        tip = self.node.chain.tip
+        txs = []
+        for tx in blk.txs[1:]:
+            fee = 0
+            for vin in tx.vin:
+                c = self.node.chain.get_utxo(vin.prevout.txid, vin.prevout.vout)
+                if c is not None:
+                    fee += c.txout.value
+            fee -= tx.total_output_value()
+            txs.append({
+                "data": tx.serialize().hex(),
+                "txid": tx.txid_hex(),
+                "hash": hash_to_hex(tx.wtxid()),
+                "depends": [],
+                "fee": coins(fee),
+                "weight": tx.weight(),
+            })
+        resp = {
+            "version": blk.header.version,
+            "previousblockhash": hash_to_hex(tip.hash),
+            "transactions": txs,
+            "coinbaseaux": {"flags": "", "default_witness_commitment": reserved.hex()},
+            "target": "%064x" % compact_to_target(blk.header.bits),
+            "mintime": tip.median_time_past() + 1,
+            "mutable": ["time", "prevblock", "transactions"],
+            "noncerange": "00000000ffffffff",
+            "sigoplimit": constants.MAX_BLOCK_SIGOPS_COST,
+            "weightlimit": constants.MAX_BLOCK_WEIGHT,
+            "curtime": now(),
+            "bits": "%08x" % blk.header.bits,
+            "height": tip.height + 1,
+            "capabilities": ["proposal"],
+        }
+        if any(tx.has_witness() for tx in blk.txs[1:]):
+            resp["rules"] = ["segwit"]
+        return resp
+
+    def submitblock(self, params):
+        """Accept a hex-encoded block assembled by an external miner."""
+        if not params or not isinstance(params[0], str):
+            raise RPCError(RPC_INVALID_PARAMS, "expected hex block")
+        try:
+            block = Block.deserialize(bytes.fromhex(params[0]))
+        except Exception as e:
+            raise RPCError(RPC_DESERIALIZATION_ERROR, f"bad block: {e}")
+        try:
+            self.node.submit_block(block)
+        except Exception as e:
+            return {"reject-reason": str(e)}
+        return {"hash": block.hash_hex(), "accepted": True}
 
     def getmininginfo(self):
         return {

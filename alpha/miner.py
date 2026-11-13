@@ -45,7 +45,9 @@ def create_coinbase(height: int, params, payout_script: bytes, fees: int,
 
 def create_block_template(chain: Blockchain, mempool: Mempool | None,
                           payout_script: bytes,
-                          extra_data: bytes = b"/Alpha/") -> Block:
+                          extra_data: bytes = b"/Alpha/",
+                          extranonce: int = 0,
+                          reserved: bytes | None = None) -> Block:
     """Assemble a candidate block from the chain tip + mempool."""
     params = chain.params
     tip = chain.tip
@@ -65,11 +67,15 @@ def create_block_template(chain: Blockchain, mempool: Mempool | None,
             weight += w
 
     need_witness = any(tx.has_witness() for tx in chosen)
-    reserved = os.urandom(32) if need_witness else None
+    if need_witness and reserved is None:
+        reserved = os.urandom(32)
+
+    # extranonce makes each miner's template unique (no duplicate grinding)
+    coinbase_data = extra_data + extranonce.to_bytes(4, "little")
 
     # first pass: build coinbase without commitment to compute wtxid root
     coinbase = create_coinbase(height, params, payout_script, fees,
-                               extra_data, reserved)
+                               coinbase_data, reserved)
     block_txs = [coinbase] + chosen
     block = Block(txs=block_txs)
 
@@ -77,7 +83,7 @@ def create_block_template(chain: Blockchain, mempool: Mempool | None,
         commitment = witness_commitment(block, reserved)
         # rebuild coinbase with the commitment output
         coinbase = create_coinbase(height, params, payout_script, fees,
-                                   extra_data, reserved, commitment)
+                                   coinbase_data, reserved, commitment)
         block.txs[0] = coinbase
 
     header = BlockHeader(
@@ -98,19 +104,31 @@ def mine_block(block: Block, pow_limit_bits: int, max_tries: int | None = None,
     """Grind the nonce (and the coinbase extranonce on overflow).
 
     Returns True if a valid proof-of-work was found.
+    The serialized 80-byte header is kept in a buffer and only the 4
+    nonce bytes are patched per hash — Bitcoin-miner style, ~3-5x faster
+    than re-serializing every iteration.
     """
+    from hashlib import sha256 as _sh
     target = block.header.target()
+    tb = target.to_bytes(32, "big")          # digest compare, no int alloc
+    buf = bytearray(block.header.serialize())          # nonce LE @ offset 76
     extranonce = extranonce_start
     tries = 0
     while True:
-        while block.header.nonce < 0xFFFFFFFF:
-            block.header.nonce += 1
+        n = int.from_bytes(buf[76:80], "little") + 1
+        while n < 0x100000000:
+            buf[76] = n & 0xFF
+            buf[77] = (n >> 8) & 0xFF
+            buf[78] = (n >> 16) & 0xFF
+            buf[79] = (n >> 24) & 0xFF
             tries += 1
-            if int.from_bytes(block.header.hash(), "little") <= target:
+            if _sh(_sh(buf).digest()).digest()[::-1] <= tb:
+                block.header.nonce = n
                 block._hash = None
                 return True
             if max_tries is not None and tries >= max_tries:
                 return False
+            n += 1
         # nonce exhausted: bump the coinbase extranonce -> new merkle root
         extranonce += 1
         cb = block.txs[0]
@@ -118,3 +136,4 @@ def mine_block(block: Block, pow_limit_bits: int, max_tries: int | None = None,
             encode_script_num(extranonce))
         block.compute_merkle()
         block.header.nonce = 0
+        buf = bytearray(block.header.serialize())

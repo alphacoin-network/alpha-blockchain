@@ -469,14 +469,22 @@ class Node:
     # ------------------------------------------------------------------
     # mining
     # ------------------------------------------------------------------
-    def generate_block(self, payout_script: bytes) -> Block:
+    def generate_block(self, payout_script: bytes, extranonce: int = 0,
+                       max_tries: int | None = None) -> Block:
         block = miner.create_block_template(self.chain, self.mempool,
-                                            payout_script)
-        if not miner.mine_block(block, self.params.pow_limit_bits):
+                                            payout_script,
+                                            extranonce=extranonce)
+        if not miner.mine_block(block, self.params.pow_limit_bits,
+                                max_tries=max_tries,
+                                extranonce_start=extranonce):
             raise ChainError("failed to find PoW")
         self.submit_block(block)
         return block
 
-    def get_block_template(self, payout_script: bytes) -> Block:
+    def get_block_template(self, payout_script: bytes,
+                           extranonce: int = 0,
+                           reserved: bytes | None = None) -> Block:
         return miner.create_block_template(self.chain, self.mempool,
-                                           payout_script)
+                                           payout_script,
+                                           extranonce=extranonce,
+                                           reserved=reserved)
