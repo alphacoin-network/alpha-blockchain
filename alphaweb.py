@@ -114,7 +114,7 @@ class API:
         try:
             tip = self.call("getblockcount")
             h = tip
-            while len(txs) < 30 and h > tip - 50:
+            while len(txs) < 30 and h > tip - 150:
                 b = self.call("getblock", self.call("getblockhash", h), 2)
                 for t in reversed(b["tx"]):
                     amt = 0.0
