@@ -1,0 +1,521 @@
+
+const el=()=>new Proxy({style:{}},{get:(t,k)=>{if(k==='classList')return{add(){},remove(){},toggle(){},contains:()=>false};if(k in t)return t[k];return el()},set:(t,k,v)=>(t[k]=v,true)});
+global.document={getElementById:()=>el(),querySelector:()=>el(),querySelectorAll:()=>[],createElement:()=>({getContext:()=>new Proxy({},{get:()=>()=>({})}),style:{},width:0,height:0}),addEventListener(){}};
+global.localStorage={getItem:()=>null,setItem(){},removeItem(){}};
+global.navigator={clipboard:{writeText(){}}};global.prompt=()=>null;global.alert=()=>{};
+global.fetch=()=>Promise.reject(new Error('no'));global.location={reload(){}};
+const fs=require('fs');const V=JSON.parse(fs.readFileSync('lvec.json','utf8'));
+
+/* ============ crypto primitives (pure JS, client-side only) ============ */
+const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+const H0=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+const rotr=(x,n)=>(x>>>n)|(x<<(32-n));
+function sha256(bytes){
+  const l=bytes.length,pl=((l+9+63)>>6)<<6,b=new Uint8Array(pl);b.set(bytes);b[l]=0x80;
+  const dv=new DataView(b.buffer);dv.setUint32(pl-4,l*8>>>0);
+  const H=H0.slice(),w=new Uint32Array(64);
+  for(let i=0;i<pl;i+=64){
+    for(let j=0;j<16;j++)w[j]=dv.getUint32(i+j*4);
+    for(let j=16;j<64;j++){
+      const s0=rotr(w[j-15],7)^rotr(w[j-15],18)^(w[j-15]>>>3),s1=rotr(w[j-2],17)^rotr(w[j-2],19)^(w[j-2]>>>10);
+      w[j]=(w[j-16]+s0+w[j-7]+s1)>>>0;
+    }
+    let a=H[0],b2=H[1],c=H[2],d=H[3],e=H[4],f=H[5],g=H[6],h=H[7];
+    for(let j=0;j<64;j++){
+      const t1=(h+(rotr(e,6)^rotr(e,11)^rotr(e,25))+((e&f)^(~e&g))+K[j]+w[j])>>>0;
+      const t2=((rotr(a,2)^rotr(a,13)^rotr(a,22))+((a&b2)^(a&c)^(b2&c)))>>>0;
+      h=g;g=f;f=e;e=(d+t1)>>>0;d=c;c=b2;b2=a;a=(t1+t2)>>>0;
+    }
+    H[0]=(H[0]+a)>>>0;H[1]=(H[1]+b2)>>>0;H[2]=(H[2]+c)>>>0;H[3]=(H[3]+d)>>>0;
+    H[4]=(H[4]+e)>>>0;H[5]=(H[5]+f)>>>0;H[6]=(H[6]+g)>>>0;H[7]=(H[7]+h)>>>0;
+  }
+  const o=new Uint8Array(32),od=new DataView(o.buffer);
+  for(let i=0;i<8;i++)od.setUint32(i*4,H[i]);return o;
+}
+function sha256d(b){return sha256(sha256(b));}
+
+/* RIPEMD-160 (for hash160) — spec tables, verified against test vectors */
+function ripemd160(msg){
+  const rl=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,
+            7,4,13,1,10,6,15,3,12,0,9,5,2,14,11,8,
+            3,10,14,4,9,15,8,1,2,7,0,6,13,11,5,12,
+            1,9,11,10,0,8,12,4,13,3,7,15,14,5,6,2,
+            4,0,5,9,7,12,2,10,14,1,3,8,11,6,15,13];
+  const rr=[5,14,7,0,9,2,11,4,13,6,15,8,1,10,3,12,
+            6,11,3,7,0,13,5,10,14,15,8,12,4,9,1,2,
+            15,5,1,3,7,14,6,9,11,8,12,2,10,0,4,13,
+            8,6,4,1,3,11,15,0,5,12,2,13,9,7,10,14,
+            12,15,10,4,1,5,8,7,6,2,13,14,0,3,9,11];
+  const sl=[11,14,15,12,5,8,7,9,11,13,14,15,6,7,9,8,
+            7,6,8,13,11,9,7,15,7,12,15,9,11,7,13,12,
+            11,13,6,7,14,9,13,15,14,8,13,6,5,12,7,5,
+            11,12,14,15,14,15,9,8,9,14,5,6,8,6,5,12,
+            9,15,5,11,6,8,13,12,5,12,13,14,11,8,5,6];
+  const sr=[8,9,9,11,13,15,15,5,7,7,8,11,14,14,12,6,
+            9,13,15,7,12,8,9,11,7,7,12,7,6,15,13,11,
+            9,7,15,11,8,6,6,14,12,13,5,14,13,13,7,5,
+            15,5,8,11,14,14,6,14,6,9,12,9,12,5,15,8,
+            8,5,12,9,12,5,14,6,8,13,6,5,15,13,11,11];
+  const f=(j,x,y,z)=>j<16?(x^y^z):j<32?((x&y)|(~x&z)):j<48?((x|~y)^z):j<64?((x&z)|(y&~z)):(x^(y|~z));
+  const kl=[0,0x5a827999,0x6ed9eba1,0x8f1bbcdc,0xa953fd4e];
+  const kr=[0x50a28be6,0x5c4dd124,0x6d703ef3,0x7a6d76e9,0];
+  const l=msg.length,pl=((l+9+63)>>6)<<6;
+  const b=new Uint8Array(pl);b.set(msg);b[l]=0x80;
+  const dv=new DataView(b.buffer);dv.setUint32(pl-8,l*8>>>0,true);
+  let h0=0x67452301,h1=0xefcdab89,h2=0x98badcfe,h3=0x10325476,h4=0xc3d2e1f0;
+  const rotl=(x,n)=>((x<<n)|(x>>>(32-n)))>>>0;
+  for(let i=0;i<pl;i+=64){
+    const X=new Uint32Array(16);
+    for(let j=0;j<16;j++)X[j]=dv.getUint32(i+j*4,true);
+    let al=h0,bl=h1,cl=h2,dl=h3,el=h4,ar=h0,br=h1,cr=h2,dr=h3,er=h4;
+    for(let j=0;j<80;j++){
+      let t=(rotl((al+f(j,bl,cl,dl)+X[rl[j]]+kl[j>>4])>>>0,sl[j])+el)>>>0;
+      al=el;el=dl;dl=rotl(cl,10);cl=bl;bl=t;
+      t=(rotl((ar+f(79-j,br,cr,dr)+X[rr[j]]+kr[j>>4])>>>0,sr[j])+er)>>>0;
+      ar=er;er=dr;dr=rotl(cr,10);cr=br;br=t;
+    }
+    const t=(h1+cl+dr)>>>0;
+    h1=(h2+dl+er)>>>0;h2=(h3+el+ar)>>>0;h3=(h4+al+br)>>>0;
+    h4=(h0+bl+cr)>>>0;h0=t;
+  }
+  const o=new Uint8Array(20),od=new DataView(o.buffer);
+  [h0,h1,h2,h3,h4].forEach((x,i)=>od.setUint32(i*4,x,true));return o;
+}
+function hash160(b){return ripemd160(sha256(b));}
+
+/* Base58Check */
+const B58="123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+function b58encCheck(payload){
+  const data=new Uint8Array(payload.length+4);data.set(payload);
+  data.set(sha256d(payload).slice(0,4),payload.length);
+  let n=0n;for(const x of data)n=n*256n+BigInt(x);
+  let s="";while(n>0n){s=B58[Number(n%58n)]+s;n/=58n;}
+  for(const x of data){if(x===0)s="1"+s;else break;}return s;
+}
+function b58decCheck(s){
+  let n=0n;for(const ch of s)n=n*58n+BigInt(B58.indexOf(ch));
+  let hex=n.toString(16);if(hex.length%2)hex="0"+hex;
+  const a=[];for(let i=0;i<hex.length;i+=2)a.push(parseInt(hex.substr(i,2),16));
+  for(const ch of s){if(ch==="1")a.unshift(0);else break;}
+  const u=new Uint8Array(a);
+  const chk=sha256d(u.slice(0,-4));
+  for(let i=0;i<4;i++)if(u[u.length-4+i]!==chk[i])throw new Error("bad checksum");
+  return u.slice(0,-4);
+}
+
+/* secp256k1 (BigInt) */
+const P=0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2Fn;
+const N=0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141n;
+const Gx=0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798n;
+const Gy=0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8n;
+const mod=(a)=>((a%P)+P)%P;   // BigInt % keeps sign — wrap to [0,P)
+const modN=(a)=>((a%N)+N)%N;  // wrap to [0,N) — group order (for ECDSA)
+const _invm=(x,m)=>{let a=((x%m)+m)%m,b=m,u=1n,v=0n;while(b){const q=a/b;[a,b]=[b,a%b];[u,v]=[v,u-q*v];}return ((u%m)+m)%m;};
+const inv=(x)=>_invm(x,P);     // field inverse (point math)
+const invN=(x)=>_invm(x,N);    // scalar inverse mod n (ECDSA)
+function padd(p,q){
+  if(!p)return q;if(!q)return p;
+  const[x1,y1]=p,[x2,y2]=q;
+  if(x1===x2)return mod(y1+y2)===0n?null:pdouble(p);
+  const m=mod(mod(y2-y1)*inv(x2-x1)),x3=mod(m*m-x1-x2);
+  return[x3,mod(m*(x1-x3)-y1)];
+}
+function pdouble(p){
+  if(!p)return null;const[x,y]=p;
+  const m=mod(3n*x*x*inv(2n*y)),x3=mod(m*m-2n*x);
+  return[x3,mod(m*(x-x3)-y)];
+}
+function pmult(k,p=[Gx,Gy]){
+  let r=null;while(k){if(k&1n)r=padd(r,p);p=pdouble(p);k>>=1n;}return r;
+}
+const b2hex=b=>[...b].map(x=>x.toString(16).padStart(2,"0")).join("");
+const n2b=(n,len)=>{const a=new Uint8Array(len);for(let i=len-1;i>=0;i--){a[i]=Number(n&255n);n>>=8n;}return a;};
+const b2n=b=>{let n=0n;for(const x of b)n=(n<<8n)+BigInt(x);return n;};
+function privToPub(priv,compressed=true){
+  const[x,y]=pmult(priv);
+  if(!compressed)return Uint8Array.from([4,...n2b(x,32),...n2b(y,32)]);
+  return Uint8Array.from([y&1n?3:2,...n2b(x,32)]);
+}
+function ecdsaSign(z,priv){
+  let k,r,s;
+  do{
+    const rb=crypto.getRandomValues(new Uint8Array(32));
+    k=(b2n(rb)% (N-1n))+1n;
+    [r]=pmult(k);r=r%N;
+  }while(r===0n);
+  s=(invN(k)*modN(b2n(z)+r*priv))%N;
+  if(s>N/2n)s=N-s;
+  // DER
+  const der=v=>{let b=n2b(v,32);let i=0;while(i<31&&b[i]===0&&!(b[i+1]&0x80))i++;b=b.slice(i);if(b[0]&0x80)b=Uint8Array.from([0,...b]);return b;};
+  const dr=der(r),ds=der(s);
+  return Uint8Array.from([0x30,4+dr.length+ds.length,2,dr.length,...dr,2,ds.length,...ds]);
+}
+
+/* address + WIF (legacy P2PKH — "1…" prefix) */
+function wifEncode(priv){
+  return b58encCheck(Uint8Array.from([0x80,...n2b(priv,32),1]));
+}
+function wifDecode(w){
+  const d=b58decCheck(w);
+  if(d[0]!==0x80)throw new Error("not a mainnet WIF");
+  return b2n(d.slice(1,33));
+}
+function addrFromPub(pub){           // P2PKH
+  return b58encCheck(Uint8Array.from([0,...hash160(pub)]));
+}
+/* bech32 (BIP173) — "alpha1…" segwit addresses, same key as P2PKH */
+const B32="qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+function b32pm(v){let c=1;for(const d of v){const c0=c>>25;c=((c&0x1ffffff)<<5)^d;
+  for(let i=0;i<5;i++)if(c0&(1<<i))c^=[0x3b6a57b2,0x26508e6d,0x1ea119fa,0x3d4233dd,0x2a1462b3][i];}return c;}
+function b32hrp(h){return[...h].map(c=>c.charCodeAt(0)>>5).concat(0,[...h].map(c=>c.charCodeAt(0)&31));}
+function b32chk(h,d){const v=b32hrp(h).concat(d,[0,0,0,0,0,0]);const p=b32pm(v)^1;
+  return[0,1,2,3,4,5].map(i=>(p>>5*(5-i))&31);}
+function b32enc(h,d){return h+"1"+[...d,...b32chk(h,d)].map(x=>B32[x]).join("");}
+function c8to5(d){let a=0,b=0,o=[];for(const v of d){a=(a<<8)|v;b+=8;
+  while(b>=5){b-=5;o.push((a>>b)&31);}}if(b)o.push((a<<(5-b))&31);return o;}
+function segwitAddr(pub){return b32enc("alpha",[0,...c8to5(hash160(pub))]);}
+function bech32ToSpk(a){   // alpha1… v0/20B → witness_v0_keyhash spk
+  const s=a.toLowerCase(),pos=s.lastIndexOf("1");
+  if(pos<1)throw new Error("bad bech32 address");
+  const hrp=s.slice(0,pos);
+  const d=[...s.slice(pos+1)].map(c=>B32.indexOf(c));
+  if(d.some(x=>x<0))throw new Error("bad bech32 character");
+  if(b32pm(b32hrp(hrp).concat(d))!==1)throw new Error("bad bech32 checksum");
+  const d5=d.slice(0,-6);
+  if(d5[0]!==0)throw new Error("only segwit v0 supported");
+  let acc=0,bits=0,prog=[];
+  for(const v of d5.slice(1)){acc=(acc<<5)|v;bits+=5;
+    if(bits>=8){bits-=8;prog.push((acc>>bits)&255);}}
+  if(prog.length!==20)throw new Error("bad witness program");
+  return Uint8Array.from([0x00,0x14,...prog]);
+}
+function anyAddrToSpk(a){
+  if(a.startsWith("alpha1"))return bech32ToSpk(a);
+  return spkP2pkh(addrToPkh(a));
+}
+
+/* ---------- tx build/sign (legacy P2PKH, SIGHASH_ALL) ---------- */
+function varint(n){
+  if(n<0xfd)return[n];if(n<=0xffff)return[0xfd,n&255,n>>8];
+  if(n<=0xffffffff)return[0xfe,n&255,(n>>8)&255,(n>>16)&255,(n>>24)&255];
+  throw new Error("varint too big");
+}
+function push(d){return varint(d.length).concat([...d]);}
+function serTx(ins,outs,forSighash=false,sigIdx=-1,spk=null){
+  const b=[2,0,0,0,...varint(ins.length)];
+  for(let i=0;i<ins.length;i++){
+    const x=ins[i];
+    b.push(...x.txid.slice().reverse());
+    b.push(x.vout&255,(x.vout>>8)&255,(x.vout>>16)&255,(x.vout>>24)&255);
+    const ss=forSighash?(i===sigIdx?spk:[]):x.scriptSig;
+    b.push(...varint(ss.length),...ss);
+    b.push(0xff,0xff,0xff,0xff);
+  }
+  b.push(...varint(outs.length));
+  for(const o of outs){
+    const v=BigInt(Math.round(o.value));
+    for(let i=0;i<8;i++)b.push(Number((v>>BigInt(8*i))&255n));
+    b.push(...varint(o.spk.length),...o.spk);
+  }
+  b.push(0,0,0,0);
+  if(forSighash)b.push(1,0,0,0);
+  return new Uint8Array(b);
+}
+function spkP2pkh(pkh){return Uint8Array.from([0x76,0xa9,0x14,...pkh,0x88,0xac]);}
+function addrToPkh(addr){
+  const d=b58decCheck(addr);
+  if(d.length!==21||d[0]!==0)throw new Error("only legacy (1…) addresses can be spent to/from in web wallet v1");
+  return d.slice(1);
+}
+
+/* ---------- QR generator (byte mode, minimal) ---------- */
+function qrGen(text){
+  // minimal QR: version 3 (29x29), EC level M, byte mode
+  const V=3,size=29,cap=44; // byte-mode capacity v3-M ≈ 44
+  if(text.length>cap)return null;
+  const data=[0x40| (text.length>>4), ((text.length&15)<<4)];
+  for(let i=0;i<text.length;i++){const c=text.charCodeAt(i);data.push((data.pop()&0xf0)|(c>>4),((c&15)<<4));}
+  data[data.length-1]|=0; // last nibble
+  // terminate + pad
+  while(data.length%2)data.push(0xec,0x11);
+  data.splice(cap);
+  while(data.length<cap)data.push(data.length%4===0?0xec:0x11);
+  // RS ECC — gf(256) poly 285, 10 ec codewords (v3-M has 10 ec in 1 block)
+  const gfexp=new Uint8Array(512),gflog=new Uint8Array(256);
+  let x=1;for(let i=0;i<255;i++){gfexp[i]=x;gflog[x]=i;x<<=1;if(x&0x100)x^=0x11d;}
+  for(let i=255;i<512;i++)gfexp[i]=gfexp[i-255];
+  const gen=[0xd4,0xf9,0x43,0x77,0x77,0xeb,0xde,0x0f,0xbf,0x01]; // degree 10
+  const ec=new Uint8Array(10);
+  for(let i=0;i<cap;i++){
+    const f=data[i]^ec[0];
+    ec.copyWithin(0,1);ec[9]=0;
+    for(let j=0;j<10;j++)ec[j]^=f?gfexp[(gflog[f]+gflog[gen[j]])%255]:0;
+  }
+  const all=[...data,...ec];
+  const M=Array.from({length:size},()=>new Uint8Array(size));
+  const R=Array.from({length:size},()=>new Uint8Array(size));
+  const finder=(r,c)=>{for(let i=-1;i<8;i++)for(let j=-1;j<8;j++){
+    const rr=r+i,cc=c+j;if(rr<0||cc<0||rr>=size||cc>=size)continue;
+    M[rr][cc]=(i>=0&&i<7&&j>=0&&j<7&&(i===0||i===6||j===0||j===6||(i>1&&i<5&&j>1&&j<5)))?1:0;R[rr][cc]=1;}};
+  finder(0,0);finder(0,size-7);finder(size-7,0);
+  for(let i=8;i<size-8;i++){M[6][i]=M[i][6]=i%2?0:1;R[6][i]=R[i][6]=1;}
+  // alignment pattern (v3: center 22)
+  for(let i=-2;i<=2;i++)for(let j=-2;j<=2;j++){M[22+i][22+j]=Math.max(Math.abs(i),Math.abs(j))!==1?1:0;R[22+i][22+j]=1;}
+  // format info (M, mask 0) = 101010000010010
+  const fmt=[1,0,1,0,1,0,0,0,0,1,0,0,1,0,0];
+  for(let i=0;i<6;i++){M[8][i]=fmt[i];R[8][i]=1;}
+  M[8][7]=fmt[6];M[8][8]=fmt[7];M[7][8]=fmt[8];R[8][7]=R[8][8]=R[7][8]=1;
+  for(let i=9;i<15;i++){M[14-i][8]=fmt[i];R[14-i][8]=1;}
+  for(let i=0;i<8;i++){M[8][size-1-i]=fmt[i];R[8][size-1-i]=1;}
+  for(let i=8;i<15;i++){M[size-15+i][8]=fmt[i];R[size-15+i][8]=1;}
+  M[size-8][8]=1;
+  // data bits (zigzag)
+  const bits=[];for(const byte of all)for(let i=7;i>=0;i--)bits.push((byte>>i)&1);
+  let bi=0,up=true;
+  for(let col=size-1;col>0;col-=2){
+    if(col===6)col--;
+    for(let i=0;i<size;i++){
+      const r=up?size-1-i:i;
+      for(let c=0;c<2;c++){const cc=col-c;
+        if(!R[r][cc]){M[r][cc]=bi<bits.length?bits[bi++]:0;}}
+    }up=!up;
+  }
+  // mask 0: (r+c)%2==0 → flip
+  for(let r=0;r<size;r++)for(let c=0;c<size;c++)if(!R[r][c]&&(r+c)%2===0)M[r][c]^=1;
+  return M;
+}
+function drawQR(text){
+  const m=qrGen(text);if(!m)return;
+  const cv=document.createElement("canvas"),px=6;
+  cv.width=cv.height=m.length*px;
+  const ctx=cv.getContext("2d");
+  ctx.fillStyle="#fff";ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.fillStyle="#000";
+  m.forEach((row,r)=>row.forEach((v,c)=>{if(v)ctx.fillRect(c*px,r*px,px,px);}));
+  document.getElementById("qrc").innerHTML="";document.getElementById("qrc").appendChild(cv);
+}
+
+/* ============================ wallet logic ============================ */
+let KEY=null,ADDR=null,ADDR2=null;   // ADDR=P2PKH, ADDR2=bech32 (same key)
+async function saveKey(){
+  const wif=wifEncode(KEY.priv);
+  const pass=document.getElementById("pass").value;
+  if(!pass){localStorage.setItem("alpha_wif",wif);return;}
+  const enc=new TextEncoder();
+  const key=await crypto.subtle.importKey("raw",await crypto.subtle.digest("SHA-256",enc.encode(pass)),"AES-GCM",false,["encrypt"]);
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const ct=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,enc.encode(wif));
+  localStorage.setItem("alpha_wif_enc",JSON.stringify({iv:b2hex(iv),ct:b2hex(new Uint8Array(ct))}));
+  localStorage.removeItem("alpha_wif");
+}
+async function loadKey(){
+  const enc=localStorage.getItem("alpha_wif_enc");
+  if(enc){
+    const pass=prompt("Wallet passphrase:");
+    const{iv,ct}=JSON.parse(enc);
+    const key=await crypto.subtle.importKey("raw",await crypto.subtle.digest("SHA-256",new TextEncoder().encode(pass||"")),"AES-GCM",false,["decrypt"]);
+    const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:hexToB(iv)},key,hexToB(ct));
+    return wifDecode(new TextDecoder().decode(pt));
+  }
+  const w=localStorage.getItem("alpha_wif");
+  return w?wifDecode(w):null;
+}
+const hexToB=h=>{const a=new Uint8Array(h.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16);return a;};
+
+function useKey(priv){
+  KEY={priv,pub:privToPub(priv)};
+  ADDR=addrFromPub(KEY.pub);
+  ADDR2=segwitAddr(KEY.pub);
+  document.getElementById("setup").classList.add("hidden");
+  document.getElementById("wallet").classList.remove("hidden");
+  document.getElementById("myaddr").innerHTML=
+    "legacy: <b>"+ADDR+"</b><br>segwit: <b style='color:var(--gold)'>"+ADDR2+"</b>";
+  drawQR("alpha:"+ADDR2);
+  refresh();
+}
+async function createWallet(){
+  const priv=(b2n(crypto.getRandomValues(new Uint8Array(32)))%(N-1n))+1n;
+  KEY={priv,pub:null};await saveKey();useKey(priv);
+  alert("Wallet created! Copy your WIF (Show WIF) and keep it SAFE — it's the only backup.");
+}
+function showImport(){document.getElementById("import").classList.toggle("hidden");}
+async function importWif(){
+  try{const priv=wifDecode(document.getElementById("wifin").value.trim());
+    KEY={priv};await saveKey();useKey(priv);}
+  catch(e){alert("Invalid WIF: "+e.message);}
+}
+function copyAddr(){navigator.clipboard.writeText(ADDR);}
+function showWif(){
+  const el=document.getElementById("wifout");
+  el.classList.toggle("hidden");
+  el.innerHTML="WIF (secret — never share): <b class='wif'>"+wifEncode(KEY.priv)+"</b>";
+}
+function logout(){localStorage.removeItem("alpha_wif");localStorage.removeItem("alpha_wif_enc");location.reload();}
+
+async function refresh(){
+  const r=await fetch("/api/address/"+ADDR);const j=await r.json();
+  let bal=j.balance||0;
+  try{const j2=await(await fetch("/api/address/"+ADDR2)).json();bal+=j2.balance||0;}catch(e){}
+  document.getElementById("bal").textContent=bal.toFixed(4);
+  const txs=document.getElementById("txs");
+  let sent=[];try{sent=JSON.parse(localStorage.getItem("alpha_sent")||"[]");}catch(e){}
+  const seen=new Set((j.transactions||[]).map(t=>t.txid));
+  const merged=[...(j.transactions||[]),
+    ...sent.filter(s=>!seen.has(s.txid)).map(s=>({txid:s.txid,height:s.height,time:s.time,sent:true,amount:-s.amount}))];
+  merged.sort((a,b)=>(b.height||0)-(a.height||0));
+  if(merged.length)
+    txs.innerHTML=merged.slice(0,15).map(t=>`<div class="txrow"><a href="explorer.html" style="color:var(--accent)">${(t.txid||"").slice(0,20)}…</a>${t.sent?' <span style="color:#ff7b72">sent</span>':' <span style="color:var(--green)">+'+t.amount.toFixed(4)+' α</span>'}</div>`).join("");
+  else txs.innerHTML='<div class="txrow" style="color:var(--dim)">no activity yet</div>';
+}
+async function send(){
+  const st=document.getElementById("sendstatus");
+  try{
+    const to=document.getElementById("toaddr").value.trim();
+    const amt=parseFloat(document.getElementById("amount").value);
+    if(!amt||amt<=0)throw new Error("enter amount");
+    const sats=Math.round(amt*1e8);
+    st.textContent="fetching utxos…";
+    const fee=1000,toSpk=anyAddrToSpk(to);
+    // gather mature UTXOs from BOTH own addresses (legacy + segwit)
+    const u1=(await(await fetch("/api/utxos/"+ADDR)).json());
+    const u2=await fetch("/api/utxos/"+ADDR2).then(r=>r.json()).catch(()=>({utxos:[],height:0}));
+    const tip=Math.max(u1.height||0,u2.height||0);
+    // exclude coins already spent by mempool txs (avoids conflict errors)
+    const spent=new Set();
+    try{
+      const mp=await(await fetch("/api/mempool")).json();
+      for(const tid of (mp.txids||[]).slice(0,50)){
+        try{const t=await(await fetch("/api/tx/"+tid)).json();
+          for(const vin of t.vin||[])if(vin.txid)spent.add(vin.txid+":"+vin.vout);
+        }catch(e){}
+      }
+    }catch(e){}
+    const pkh=addrToPkh(ADDR),pkh2=hash160(KEY.pub);
+    const spkLeg=spkP2pkh(pkh),spkSeg=Uint8Array.from([0x00,0x14,...pkh2]);
+    const legHex=b2hex(spkLeg),segHex=b2hex(spkSeg);
+    const cands=[];
+    for(const x of u1.utxos||[])if(x.scriptPubKey===legHex&&(tip-x.height)>=0&&!spent.has(x.txid+":"+x.vout))cands.push({...x,type:0,spk:spkLeg});
+    for(const x of u2.utxos||[])if(x.scriptPubKey===segHex&&(tip-x.height)>=0&&!spent.has(x.txid+":"+x.vout))cands.push({...x,type:1,spk:spkSeg});
+    cands.sort((a,b)=>b.amount-a.amount);
+    const ins=[];let sum=0;
+    for(const x of cands){ins.push(x);sum+=Math.round(x.amount*1e8);if(sum>=sats+fee)break;}
+    if(sum<sats+fee)throw new Error("insufficient mature funds");
+    const change=sum-sats-fee;
+    const outs=[{value:sats,spk:toSpk}];
+    if(change>0)outs.push({value:change,spk:spkLeg});
+    st.textContent="signing…";
+    const txins=ins.map(x=>({txid:hexToB(x.txid),vout:x.vout,type:x.type,spk:x.spk,
+      sc:x.type===1?spkP2pkh(pkh2):x.spk,
+      amount:Math.round(x.amount*1e8),scriptSig:[],witSig:null,witPub:null}));
+    const hasSeg=txins.some(x=>x.type===1);
+    for(let i=0;i<txins.length;i++){
+      const x=txins[i];
+      if(x.type===1){
+        const sig=Uint8Array.from([...ecdsaSign(sha256d(bip143Preimage(txins,outs,i)),KEY.priv),1]);
+        x.witSig=sig;x.witPub=KEY.pub;
+      }else{
+        const sighash=sha256d(serTx(txins,outs,true,i,x.spk));
+        const sig=Uint8Array.from([...ecdsaSign(sighash,KEY.priv),1]);
+        x.scriptSig=Uint8Array.from(push(sig).concat(push(KEY.pub)));
+      }
+    }
+    const raw=b2hex(hasSeg?serTxWit(txins,outs):serTx(txins,outs));
+    st.textContent="broadcasting…";
+    const r=await(await fetch("/api/broadcast?hex="+raw)).json();
+    if(r.error)throw new Error(r.error);
+    const txid=(r.result||r).toString();
+    try{const log=JSON.parse(localStorage.getItem("alpha_sent")||"[]");
+      log.unshift({txid,height:tip,time:Math.floor(Date.now()/1000),sent:true,amount:sats/1e8});
+      localStorage.setItem("alpha_sent",JSON.stringify(log.slice(0,50)));
+    }catch(e){}
+    st.innerHTML='<span style="color:var(--green)">✓ sent! txid '+txid.slice(0,24)+"…</span>";
+    setTimeout(refresh,3000);
+  }catch(e){st.innerHTML='<span style="color:#ff7b72">'+(e.stack||e.message).replace(/\n/g,"<br>")+"</span>";}
+}
+function pushdata(d){return d.length<76?[d.length,...d]:(d.length<256?[0x4c,d.length,...d]:[0x4d,d.length&255,(d.length>>8)&255,...d]);}
+function spkOpReturn(data){return Uint8Array.from([0x6a,...pushdata(data)]);}
+/* ---- segwit (BIP143/144) spend support ---- */
+function u32(n){return[n&255,(n>>8)&255,(n>>16)&255,(n>>24)&255];}
+function catArr(list){const o=[];for(const a of list)o.push(...a);return new Uint8Array(o);}
+function outPointSer(x){return catArr([x.txid.slice().reverse(),u32(x.vout)]);}
+function outSer(o){const v=BigInt(Math.round(o.value));
+  const b=[];for(let i=0;i<8;i++)b.push(Number((v>>BigInt(8*i))&255n));
+  return catArr([b,varint(o.spk.length),o.spk]);}
+function bip143Preimage(ins,outs,idx){
+  const x=ins[idx];
+  const hp=sha256d(catArr(ins.map(outPointSer)));
+  const hs=sha256d(catArr(ins.map(()=>u32(0xffffffff))));
+  const ho=sha256d(catArr(outs.map(outSer)));
+  const sc=catArr([[...varint(x.sc.length),...x.sc]]);  // scriptCode (P2PKH form)
+  const amt=[];let av=BigInt(x.amount);for(let i=0;i<8;i++)amt.push(Number((av>>BigInt(8*i))&255n));
+  // BIP143: version|hp|hs|outpoint|scriptCode|amount|seq|hashOutputs|locktime|hashType
+  return catArr([[2,0,0,0],hp,hs,outPointSer(x),sc,amt,u32(0xffffffff),ho,[0,0,0,0],[1,0,0,0]]);
+}
+function serTxWit(txins,outs){
+  // BIP144: version | marker+flag | vin | vout | witness-stacks | locktime
+  const b=[2,0,0,0,0,1,...varint(txins.length)];
+  for(const x of txins){
+    b.push(...x.txid.slice().reverse(),...u32(x.vout));
+    b.push(...varint(x.scriptSig.length),...x.scriptSig);
+    b.push(...u32(0xffffffff));
+  }
+  b.push(...varint(outs.length));
+  for(const o of outs)b.push(...outSer(o));
+  for(const x of txins){
+    if(x.type===1)b.push(2,...push(x.witSig),...push(x.witPub));
+    else b.push(0);
+  }
+  b.push(0,0,0,0);
+  return new Uint8Array(b);
+}
+async function createToken(){
+  const st=document.getElementById("tstatus");
+  try{
+    const name=document.getElementById("tname").value.trim();
+    const dec=parseInt(document.getElementById("tdec").value||"0",10);
+    const sup=parseFloat(document.getElementById("tsupply").value);
+    if(!name)throw new Error("enter a token name");
+    if(!(dec>=0&&dec<=8))throw new Error("decimals 0–8");
+    if(!sup||sup<=0)throw new Error("enter a supply");
+    const base=BigInt(Math.round(sup*(10**dec)));
+    const nb=new TextEncoder().encode(name.slice(0,64));
+    st.textContent="building ALP issue payload…";
+    const payload=[0x41,0x4c,0x50,1,1,nb.length,...nb,dec];
+    for(let i=0;i<8;i++)payload.push(Number((base>>BigInt(8*i))&255n));
+    st.textContent="fetching utxos…";
+    const u=(await(await fetch("/api/utxos/"+ADDR)).json());
+    const tip=u.height,pkh=addrToPkh(ADDR);
+    const mine=u.utxos.filter(x=>x.scriptPubKey===b2hex(spkP2pkh(pkh))&&(tip-x.height)>=0);
+    mine.sort((a,b)=>b.amount-a.amount);
+    const fee=2000,value=546;
+    const ins=[];let sum=0;
+    for(const x of mine){ins.push(x);sum+=Math.round(x.amount*1e8);if(sum>=value+fee)break;}
+    if(sum<value+fee)throw new Error("insufficient mature funds (need ~"+((value+fee)/1e8).toFixed(5)+" ALPHA)");
+    const change=sum-value-fee;
+    const outs=[{value:value,spk:spkP2pkh(pkh)},{value:0,spk:spkOpReturn(payload)}];
+    if(change>0)outs.push({value:change,spk:spkP2pkh(pkh)});
+    st.textContent="signing…";
+    const txins=ins.map(x=>({txid:hexToB(x.txid),vout:x.vout,scriptSig:[]}));
+    for(let i=0;i<txins.length;i++){
+      const sighash=sha256d(serTx(txins,outs,true,i,spkP2pkh(pkh)));
+      const sig=Uint8Array.from([...ecdsaSign(sighash,KEY.priv),1]);
+      txins[i].scriptSig=Uint8Array.from(push(sig).concat(push(KEY.pub)));
+    }
+    st.textContent="broadcasting…";
+    const r=await(await fetch("/api/broadcast?hex="+b2hex(serTx(txins,outs)))).json();
+    if(r.error)throw new Error(r.error);
+    const tid=(r.result||r).toString();
+    st.innerHTML='<span style="color:var(--green)">✓ token issued! token_id = <b>'+tid.slice(0,32)+'…</b><br>shows on the <a href="tokens.html" style="color:var(--accent)">tokens page</a> after 1 confirmation (~10 min)</span>';
+    setTimeout(refresh,3000);
+  }catch(e){st.innerHTML='<span style="color:#ff7b72">'+e.message+"</span>";}
+}
+/* restore on load */
+loadKey().then(p=>{if(p){KEY={priv:p};useKey(p);}}).catch(()=>{});
+
+
+const txins=V.prevouts.map(p=>({txid:hexToB(p[0]),vout:p[1],scriptSig:[]}));
+const outs=V.outs.map(o=>({value:o[0],spk:hexToB(o[1])}));
+const sc=hexToB(V.scriptCode);
+const pre=serTx(txins,outs,true,V.n_in,sc);
+const got=[...sha256d(pre)].map(b=>b.toString(16).padStart(2,'0')).join('');
+console.log('GOT     :',got);console.log('EXPECTED:',V.expected);console.log(got===V.expected?'MATCH':'MISMATCH');

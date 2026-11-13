@@ -520,6 +520,7 @@ async function send(){
       }
     }
     const raw=b2hex(hasSeg?serTxWit(txins,outs):serTx(txins,outs));
+    try{localStorage.setItem("alpha_lastraw",raw);}catch(e){}
     st.textContent="broadcasting…";
     const r=await(await fetch("/api/broadcast?hex="+raw)).json();
     if(r.error)throw new Error(r.error);
