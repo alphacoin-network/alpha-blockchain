@@ -127,11 +127,15 @@ class Ausd:
         """Find the AUSD token in the registry by name (lazy)."""
         if self.token_id is not None:
             return self.token_id
+        best = None
         for tid, info in self.node.tokens.registry.items():
             if getattr(info, "name", "") == "AUSD":
-                self.token_id = tid
-                self._save()
-                return tid
+                if best is None or info.created_height > best[1]:
+                    best = (tid, info.created_height)
+        if best is not None:
+            self.token_id = best[0]
+            self._save()
+            return self.token_id
         return None
 
     # -- sync ---------------------------------------------------------------------
