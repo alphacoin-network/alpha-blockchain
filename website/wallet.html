@@ -458,8 +458,13 @@ async function refresh(){
   try{const j2=await(await fetch("/api/address/"+ADDR2)).json();bal+=j2.balance||0;}catch(e){}
   document.getElementById("bal").textContent=bal.toFixed(4);
   const txs=document.getElementById("txs");
-  if(j.transactions&&j.transactions.length)
-    txs.innerHTML=j.transactions.slice(0,15).map(t=>`<div class="txrow"><a href="explorer.html" style="color:var(--accent)">${(t.txid||"").slice(0,20)}…</a></div>`).join("");
+  let sent=[];try{sent=JSON.parse(localStorage.getItem("alpha_sent")||"[]");}catch(e){}
+  const seen=new Set((j.transactions||[]).map(t=>t.txid));
+  const merged=[...(j.transactions||[]),
+    ...sent.filter(s=>!seen.has(s.txid)).map(s=>({txid:s.txid,height:s.height,time:s.time,sent:true,amount:-s.amount}))];
+  merged.sort((a,b)=>(b.height||0)-(a.height||0));
+  if(merged.length)
+    txs.innerHTML=merged.slice(0,15).map(t=>`<div class="txrow"><a href="explorer.html" style="color:var(--accent)">${(t.txid||"").slice(0,20)}…</a>${t.sent?' <span style="color:#ff7b72">sent</span>':' <span style="color:var(--green)">+'+t.amount.toFixed(4)+' α</span>'}</div>`).join("");
   else txs.innerHTML='<div class="txrow" style="color:var(--dim)">no activity yet</div>';
 }
 async function send(){
@@ -475,12 +480,22 @@ async function send(){
     const u1=(await(await fetch("/api/utxos/"+ADDR)).json());
     const u2=await fetch("/api/utxos/"+ADDR2).then(r=>r.json()).catch(()=>({utxos:[],height:0}));
     const tip=Math.max(u1.height||0,u2.height||0);
+    // exclude coins already spent by mempool txs (avoids conflict errors)
+    const spent=new Set();
+    try{
+      const mp=await(await fetch("/api/mempool")).json();
+      for(const tid of (mp.txids||[]).slice(0,50)){
+        try{const t=await(await fetch("/api/tx/"+tid)).json();
+          for(const vin of t.vin||[])if(vin.txid)spent.add(vin.txid+":"+vin.vout);
+        }catch(e){}
+      }
+    }catch(e){}
     const pkh=addrToPkh(ADDR),pkh2=hash160(KEY.pub);
     const spkLeg=spkP2pkh(pkh),spkSeg=Uint8Array.from([0x00,0x14,...pkh2]);
     const legHex=b2hex(spkLeg),segHex=b2hex(spkSeg);
     const cands=[];
-    for(const x of u1.utxos||[])if(x.scriptPubKey===legHex&&(tip-x.height)>=0)cands.push({...x,type:0,spk:spkLeg});
-    for(const x of u2.utxos||[])if(x.scriptPubKey===segHex&&(tip-x.height)>=0)cands.push({...x,type:1,spk:spkSeg});
+    for(const x of u1.utxos||[])if(x.scriptPubKey===legHex&&(tip-x.height)>=0&&!spent.has(x.txid+":"+x.vout))cands.push({...x,type:0,spk:spkLeg});
+    for(const x of u2.utxos||[])if(x.scriptPubKey===segHex&&(tip-x.height)>=0&&!spent.has(x.txid+":"+x.vout))cands.push({...x,type:1,spk:spkSeg});
     cands.sort((a,b)=>b.amount-a.amount);
     const ins=[];let sum=0;
     for(const x of cands){ins.push(x);sum+=Math.round(x.amount*1e8);if(sum>=sats+fee)break;}
@@ -508,7 +523,12 @@ async function send(){
     st.textContent="broadcasting…";
     const r=await(await fetch("/api/broadcast?hex="+raw)).json();
     if(r.error)throw new Error(r.error);
-    st.innerHTML='<span style="color:var(--green)">✓ sent! txid '+(r.result||r).toString().slice(0,24)+"…</span>";
+    const txid=(r.result||r).toString();
+    try{const log=JSON.parse(localStorage.getItem("alpha_sent")||"[]");
+      log.unshift({txid,height:tip,time:Math.floor(Date.now()/1000),sent:true,amount:sats/1e8});
+      localStorage.setItem("alpha_sent",JSON.stringify(log.slice(0,50)));
+    }catch(e){}
+    st.innerHTML='<span style="color:var(--green)">✓ sent! txid '+txid.slice(0,24)+"…</span>";
     setTimeout(refresh,3000);
   }catch(e){st.innerHTML='<span style="color:#ff7b72">'+(e.stack||e.message).replace(/\n/g,"<br>")+"</span>";}
 }
