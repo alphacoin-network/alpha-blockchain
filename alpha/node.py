@@ -95,6 +95,7 @@ class Node:
         self.ausd = Ausd(self)
         self.peers: list = []
         self.peers_lock = threading.RLock()
+        self.addr_pool: set = set()          # learned (ip,port) peers
         self._pending_compact: dict = {}
         self.stopped = False
         self.server = None
@@ -102,6 +103,40 @@ class Node:
         if listen:
             self.server = net.PeerServer(self, "0.0.0.0", self.port)
             self.server.start()
+        threading.Thread(target=self._addr_maintainer, daemon=True).start()
+        # seed the addr pool with public seeds so the maintainer has targets
+        try:
+            import socket as _s
+            for s in getattr(self.params, "seed_nodes", ()):
+                host = s.split(":")[0]
+                try:
+                    self.addr_pool.add((_s.gethostbyname(host), self.port))
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    def _addr_maintainer(self):
+        """Keep outbound connections topped up from the learned addr pool."""
+        import random, time
+        while not self.stopped:
+            time.sleep(45)
+            try:
+                with self.peers_lock:
+                    connected = {p.addr[0] for p in self.peers if p.addr}
+                    want = 8 - len(self.peers)
+                if want <= 0:
+                    continue
+                cands = [a for a in self.addr_pool
+                         if a[0] not in connected]
+                random.shuffle(cands)
+                for ip, port in cands[:want]:
+                    try:
+                        self.connect(ip, port)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
 
     # ------------------------------------------------------------------
     # lifecycle
@@ -315,6 +350,9 @@ class Node:
 
     def _msg_addr(self, peer, payload: bytes) -> None:
         for ts, services, ip, port in net.unpack_addr(payload):
+            self.addr_pool.add((ip, port))
+            if len(self.addr_pool) > 2000:
+                self.addr_pool = set(list(self.addr_pool)[-2000:])
             if not any(p.addr[0] == ip for p in self.peers):
                 net.connect_peer(self, ip, port, timeout=5)
 
@@ -331,6 +369,9 @@ class Node:
         """BIP155 variable-length network addresses."""
         for services, ip, port, ts, netid in net.unpack_addrv2(payload):
             if netid in (net.ADDRV2_IPV4, net.ADDRV2_IPV6):
+                self.addr_pool.add((ip, port))
+                if len(self.addr_pool) > 2000:
+                    self.addr_pool = set(list(self.addr_pool)[-2000:])
                 if not any(p.addr[0] == ip for p in self.peers):
                     net.connect_peer(self, ip, port, timeout=5)
 
