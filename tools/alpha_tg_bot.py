@@ -138,6 +138,8 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         "Welcome to Alpha Blockchain! ⛓\n\n"
         f"Your referral code: {code}\n"
         "Share it — earn rewards when friends join.\n\n"
+        "Link your wallet to receive rewards:\n"
+        "/link alpha1...your_address\n\n"
         "/stats — network live stats\n"
         "/balance <address> — check ALPHA balance\n"
         "/ausd — stablecoin info\n"
