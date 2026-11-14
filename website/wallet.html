@@ -528,7 +528,8 @@ async function send(){
     const raw=b2hex(hasSeg?serTxWit(txins,outs):serTx(txins,outs));
     try{localStorage.setItem("alpha_lastraw",raw);}catch(e){}
     st.textContent="broadcasting…";
-    const r=await(await fetch("/api/broadcast?hex="+raw)).json();
+    let r;
+    for(let a=0;a<3;a++){try{r=await(await fetch("/api/broadcast?hex="+raw)).json();break;}catch(e){if(a==2)throw e;await new Promise(s=>setTimeout(s,3000));}}
     if(r.error)throw new Error(r.error);
     const txid=(r.result||r).toString();
     try{const log=JSON.parse(localStorage.getItem("alpha_sent")||"[]");
