@@ -1682,6 +1682,7 @@ class RPCMethods:
                 "txid": hash_to_hex(txid), "vout": n,
                 "amount": coins(c.txout.value),
                 "height": c.height,
+                "coinbase": c.is_coinbase,
                 "scriptPubKey": c.txout.script_pubkey.hex(),
                 "address": script.extract_destination(c.txout.script_pubkey,
                                                       self.node.params),

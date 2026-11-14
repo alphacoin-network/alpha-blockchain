@@ -498,8 +498,9 @@ async function send(){
     const spkLeg=spkP2pkh(pkh),spkSeg=Uint8Array.from([0x00,0x14,...pkh2]);
     const legHex=b2hex(spkLeg),segHex=b2hex(spkSeg);
     const cands=[];
-    for(const x of u1.utxos||[])if(x.scriptPubKey===legHex&&(tip-x.height)>=0&&!spent.has(x.txid+":"+x.vout))cands.push({...x,type:0,spk:spkLeg});
-    for(const x of u2.utxos||[])if(x.scriptPubKey===segHex&&(tip-x.height)>=0&&!spent.has(x.txid+":"+x.vout))cands.push({...x,type:1,spk:spkSeg});
+    const mature=x=>!(x.coinbase&&(tip-x.height)<100);
+    for(const x of u1.utxos||[])if(x.scriptPubKey===legHex&&(tip-x.height)>=0&&mature(x)&&!spent.has(x.txid+":"+x.vout))cands.push({...x,type:0,spk:spkLeg});
+    for(const x of u2.utxos||[])if(x.scriptPubKey===segHex&&(tip-x.height)>=0&&mature(x)&&!spent.has(x.txid+":"+x.vout))cands.push({...x,type:1,spk:spkSeg});
     cands.sort((a,b)=>b.amount-a.amount);
     const ins=[];let sum=0;
     for(const x of cands){ins.push(x);sum+=Math.round(x.amount*1e8);if(sum>=sats+fee)break;}
