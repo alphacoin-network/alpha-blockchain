@@ -93,17 +93,6 @@
     </div>
 
     <div class="card">
-      <h3>Create a Token (ALP)</h3>
-      <div style="color:var(--dim);font-size:12.5px;margin-bottom:10px">Issue your own
-        on-chain asset — supply goes to your address, token ID = the txid.</div>
-      <input id="tname" class="field" placeholder="Token name (max 64 chars)" maxlength="64">
-      <input id="tdec" class="field" placeholder="Decimals (0–8)" type="number" min="0" max="8" value="0">
-      <input id="tsupply" class="field" placeholder="Total supply" type="number" step="any" min="1">
-      <button class="btn btn-gold" onclick="createToken()" style="width:100%">Create token</button>
-      <div id="tstatus" style="margin-top:10px;font-size:13px;color:var(--dim)"></div>
-    </div>
-
-    <div class="card">
       <h3>My Tokens</h3>
       <div id="mytokens"><div class="txrow" style="color:var(--dim)">none</div></div>
     </div>
@@ -823,13 +812,17 @@ async function cpfp(){
 }
 function checkMintParams(){
   const q=new URLSearchParams(location.search);
-  if(q.get("mint")==="1"){
-    const n=q.get("n"),d=q.get("d"),s=q.get("s");
-    if(n)document.getElementById("tname").value=n;
-    if(d)document.getElementById("tdec").value=d;
-    if(s)document.getElementById("tsupply").value=s;
-    setTimeout(()=>document.getElementById("tname").scrollIntoView({behavior:"smooth"}),400);
-  }
+  if(q.get("mint")!=="1")return;
+  // inject a temporary create-token card (only when arriving from tokens page)
+  const card=document.createElement("div");card.className="card";card.id="mintcard";
+  card.innerHTML=`<h3>Create Token (ALP)</h3>
+    <input id="tname" class="field" placeholder="Token name" maxlength="64" value="${(q.get("n")||"").replace(/"/g,"&quot;")}">
+    <input id="tdec" class="field" placeholder="Decimals (0-8)" type="number" min="0" max="8" value="${q.get("d")||0}">
+    <input id="tsupply" class="field" placeholder="Total supply" type="number" step="any" min="1" value="${q.get("s")||""}">
+    <button class="btn btn-gold" onclick="createToken()" style="width:100%">Create token</button>
+    <div id="tstatus" style="margin-top:10px;font-size:13px;color:var(--dim)"></div>`;
+  document.querySelector(".w").insertBefore(card,document.getElementById("wallet").nextSibling);
+  card.scrollIntoView({behavior:"smooth"});
 }
 function pushdata(d){return d.length<76?[d.length,...d]:(d.length<256?[0x4c,d.length,...d]:[0x4d,d.length&255,(d.length>>8)&255,...d]);}
 function spkOpReturn(data){return Uint8Array.from([0x6a,...pushdata(data)]);}
