@@ -682,6 +682,10 @@ async function hdSend(){
     }
     const raw=b2hex(serTxWit(txins,outs));
     try{localStorage.setItem("alpha_lastraw",raw);}catch(e){}
+    const txidGuess=b2hex(Uint8Array.from(sha256d(hexToB(raw))).reverse());
+    try{const ex=await(await fetch("/api/tx/"+txidGuess)).json();
+      if(ex&&(ex.txid||ex.result)){st.innerHTML='<span style="color:var(--gold)">⚠ This transaction was already broadcast — txid '+txidGuess.slice(0,20)+'… (check Activity)</span>';return;}
+    }catch(e){}
     st.textContent="broadcasting…";
     let r;
     for(let a=0;a<3;a++){try{r=await(await fetch("/api/broadcast",{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},body:"hex="+raw})).json();break;}catch(e){if(a==2)throw e;await new Promise(s=>setTimeout(s,3000));}}
