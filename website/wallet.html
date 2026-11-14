@@ -469,7 +469,7 @@ async function useHD(){
   document.getElementById("wallet").classList.remove("hidden");
   document.getElementById("myaddr").innerHTML=
     "hd wallet · addr "+HD.addrs.length+" of ∞<br><b style='color:var(--gold)'>"+ADDR2+"</b>";
-  drawQR("alpha:"+ADDR2);refresh();checkMintParams();
+  drawQR(ADDR2);refresh();checkMintParams();
 }
 async function loadKey(){
   const enc=localStorage.getItem("alpha_wif_enc");
@@ -493,7 +493,7 @@ function useKey(priv){
   document.getElementById("wallet").classList.remove("hidden");
   document.getElementById("myaddr").innerHTML=
     "<b style='color:var(--gold)'>"+ADDR2+"</b><br><span style='font-size:11px;color:var(--dim)'>legacy: "+ADDR+"</span>";
-  drawQR("alpha:"+ADDR2);
+  drawQR(ADDR2);
   refresh();checkMintParams();
 }
 async function createWallet(){
@@ -607,7 +607,7 @@ async function hdSend(){
     }catch(e){}
     ADDR=ADDR2=HD.addrs[HD.addrs.length-1];
     document.getElementById("myaddr").innerHTML="hd wallet · addr "+HD.addrs.length+" of ∞<br><b style='color:var(--gold)'>"+ADDR2+"</b>";
-    drawQR("alpha:"+ADDR2);
+    drawQR(ADDR2);
     st.innerHTML='<span style="color:var(--green)">✓ sent! txid '+txid.slice(0,24)+"…</span>";
     setTimeout(refresh,3000);
   }catch(e){st.innerHTML='<span style="color:#ff7b72">'+(e.stack||e.message).replace(/\n/g,"<br>")+"</span>";}
