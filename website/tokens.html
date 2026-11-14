@@ -59,10 +59,29 @@
   </table></div>
   <div class="card" style="text-align:center;margin-top:18px">
     <h3 style="margin:0 0 8px">Issue your own token (ALP)</h3>
-    <p class="sub" style="margin:0 0 12px">Create an on-chain asset in seconds — name, decimals, supply.
+    <p class="sub" style="margin:0 0 12px">Create an on-chain asset — name, decimals, supply.
       Requires a funded wallet.</p>
-    <a class="btn btn-gold" href="wallet.html">✦ Open Web Wallet → Create Token</a>
+    <div class="wrow" style="max-width:420px;margin:0 auto">
+      <input id="it_name" class="field" placeholder="Token name" maxlength="64" style="margin:4px">
+      <input id="it_dec" class="field" placeholder="Decimals (0-8)" type="number" min="0" max="8" value="0" style="margin:4px">
+      <input id="it_sup" class="field" placeholder="Total supply" type="number" step="any" min="1" style="margin:4px">
+    </div>
+    <button class="btn btn-gold" onclick="issueToken()" style="margin-top:8px">✦ Issue Token</button>
+    <div id="it_status" style="margin-top:8px;font-size:13px;color:var(--dim)"></div>
   </div>
+</div></section>
+<script>
+function issueToken(){
+  const n=document.getElementById("it_name").value.trim();
+  const d=document.getElementById("it_dec").value||"0";
+  const s=document.getElementById("it_sup").value;
+  const st=document.getElementById("it_status");
+  if(!n){st.textContent="enter a token name";return;}
+  if(!s||s<=0){st.textContent="enter a supply";return;}
+  st.textContent="opening wallet…";
+  location.href="wallet.html?mint=1&n="+encodeURIComponent(n)+"&d="+d+"&s="+s;
+}
+</script>
 </div></section>
 <footer>Alpha Blockchain · ALP token protocol</footer>
 <script src="app.js"></script>

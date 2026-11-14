@@ -104,6 +104,11 @@
     </div>
 
     <div class="card">
+      <h3>My Tokens</h3>
+      <div id="mytokens"><div class="txrow" style="color:var(--dim)">none</div></div>
+    </div>
+
+    <div class="card">
       <h3>Activity</h3>
       <div id="txs"><div class="txrow" style="color:var(--dim)">loading…</div></div>
     </div>
@@ -475,7 +480,7 @@ async function useHD(){
   document.getElementById("wallet").classList.remove("hidden");
   document.getElementById("myaddr").innerHTML=
     "hd wallet · addr "+HD.addrs.length+" of ∞<br><b style='color:var(--gold)'>"+ADDR2+"</b>";
-  drawQR("alpha:"+ADDR2);refresh();
+  drawQR("alpha:"+ADDR2);refresh();checkMintParams();
 }
 async function loadKey(){
   const enc=localStorage.getItem("alpha_wif_enc");
@@ -500,7 +505,7 @@ function useKey(priv){
   document.getElementById("myaddr").innerHTML=
     "legacy: <b>"+ADDR+"</b><br>segwit: <b style='color:var(--gold)'>"+ADDR2+"</b>";
   drawQR("alpha:"+ADDR2);
-  refresh();
+  refresh();checkMintParams();
 }
 async function createWallet(){
   const priv=(b2n(crypto.getRandomValues(new Uint8Array(32)))%(N-1n))+1n;
@@ -526,11 +531,18 @@ async function refresh(){
   txs.innerHTML='<div class="txrow" style="color:var(--dim)">loading…</div>';
   try{
   const addrs=HD?HD.addrs:[ADDR,ADDR2];
-  let bal=0,txs0=[];
+  let bal=0,txs0=[],tokAll=[];
   for(const ad of addrs){
-    try{const j=await(await fetch("/api/address/"+ad)).json();bal+=j.balance||0;txs0=txs0.concat(j.transactions||[]);}catch(e){}
+    try{const j=await(await fetch("/api/address/"+ad)).json();bal+=j.balance||0;txs0=txs0.concat(j.transactions||[]);
+      for(const t of j.tokens||[])tokAll.push(t);}catch(e){}
   }
   document.getElementById("bal").textContent=bal.toFixed(4);
+  const mt=document.getElementById("mytokens");
+  if(tokAll.length){
+    const seen=new Set();
+    mt.innerHTML=tokAll.filter(t=>{const k=t.token_id||t.id;if(seen.has(k))return false;seen.add(k);return true;})
+      .map(t=>`<div class="txrow"><a href="tokens.html" style="color:var(--accent)">${(t.name||t.token_id||"").slice(0,24)}</a> <span style="color:var(--green)">bal ${t.balance??t.amount??""}</span></div>`).join("");
+  }else mt.innerHTML='<div class="txrow" style="color:var(--dim)">none</div>';
   const j={transactions:txs0};
   let sent=[];try{sent=JSON.parse(localStorage.getItem("alpha_sent")||"[]");}catch(e){}
   const seen=new Set((j.transactions||[]).map(t=>t.txid));
