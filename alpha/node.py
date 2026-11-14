@@ -107,10 +107,17 @@ class Node:
         # seed the addr pool with public seeds so the maintainer has targets
         try:
             import socket as _s
+            default_port = getattr(self.params, "port", 8333) or 8333
             for s in getattr(self.params, "seed_nodes", ()):
-                host = s.split(":")[0]
+                parts = s.split(":")
+                host = parts[0]
+                sp = int(parts[1]) if len(parts) > 1 else default_port
                 try:
-                    self.addr_pool.add((_s.gethostbyname(host), self.port))
+                    ip = _s.gethostbyname(host)
+                    self.addr_pool.add((ip, sp))
+                    # same-host nodes: also try loopback (hairpin-safe)
+                    if ip != "127.0.0.1":
+                        self.addr_pool.add(("127.0.0.1", sp))
                 except Exception:
                     pass
         except Exception:
