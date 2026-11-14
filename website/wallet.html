@@ -386,8 +386,83 @@ function qrGen(text){
   for(let r=0;r<size;r++)for(let c=0;c<size;c++)if(!R[r][c]&&(r+c)%2===0)M[r][c]^=1;
   return M;
 }
+/* ---------- QR v5-M encoder (byte mode, spec-correct) ---------- */
+const _gfE=new Uint8Array(512),_gfL=new Uint8Array(256);
+{let x=1;for(let i=0;i<255;i++){_gfE[i]=x;_gfL[x]=i;x<<=1;if(x&0x100)x^=0x11d;}for(let i=255;i<512;i++)_gfE[i]=_gfE[i-255];}
+const _gfm=(a,b)=>a&&b?_gfE[(_gfL[a]+_gfL[b])%255]:0;
+function _rsGen(d){let g=[1];for(let i=0;i<d;i++){const ng=new Array(g.length+1).fill(0);
+  for(let j=0;j<g.length;j++){ng[j]^=g[j];ng[j+1]^=_gfm(g[j],_gfE[i]);}g=ng;}return g;}
+const _RSGEN=_rsGen(24);
+function _rsEnc(data){ // data: array of cw → returns 24 ec cw
+  const res=new Array(24).fill(0);
+  for(const b of data){const f=b^res[0];res.copyWithin(0,1);res[23]=0;
+    for(let j=0;j<24;j++)res[j]^=f?_gfm(f,_RSGEN[j+1]):0;}
+  return res;
+}
+function qrGen5(text){
+  // version 5, EC level M, byte mode — 86 data cw, 2 blocks ×(43 data + 24 ec)
+  const size=37,DATA_CW=86,BLOCKS=2,DBC=43,EC=24;
+  const bytes=[...new TextEncoder().encode(text)];
+  if(bytes.length>84)return null;
+  // bit stream: 0100 mode | 8-bit count | data | terminator | pad
+  const bits=[];
+  const put=(v,n)=>{for(let i=n-1;i>=0;i--)bits.push((v>>i)&1);};
+  put(4,4);put(bytes.length,8);
+  for(const b of bytes)put(b,8);
+  put(0,Math.min(4,DATA_CW*8-bits.length));
+  while(bits.length%8)bits.push(0);
+  const cw=[];for(let i=0;i<bits.length;i+=8){let v=0;for(let j=0;j<8;j++)v=(v<<1)|bits[i+j];cw.push(v);}
+  const pads=[0xec,0x11];let pi=0;
+  while(cw.length<DATA_CW)cw.push(pads[pi++&1]);
+  // split + EC + interleave
+  const b0=cw.slice(0,DBC),b1=cw.slice(DBC);
+  const e0=_rsEnc(b0),e1=_rsEnc(b1),all=[];
+  for(let i=0;i<DBC;i++){all.push(b0[i],b1[i]);}
+  for(let i=0;i<EC;i++){all.push(e0[i],e1[i]);}
+  // final bit stream + 7 remainder bits
+  const fbits=[];for(const b of all)for(let i=7;i>=0;i--)fbits.push((b>>i)&1);
+  while(fbits.length<1079)fbits.push(0);
+  // function-pattern mask
+  const R=Array.from({length:size},()=>new Uint8Array(size).fill(1));
+  const M=Array.from({length:size},()=>new Uint8Array(size));
+  const finder=(r,c)=>{for(let i=-1;i<8;i++)for(let j=-1;j<8;j++){
+    const rr=r+i,cc=c+j;if(rr<0||cc<0||rr>=size||cc>=size)continue;
+    const inF=i>=0&&i<7&&j>=0&&j<7;
+    M[rr][cc]=(inF&&(i===0||i===6||j===0||j===6||(i>1&&i<5&&j>1&&j<5)))?1:0;R[rr][cc]=0;}};
+  finder(0,0);finder(0,size-7);finder(size-7,0);
+  for(let i=8;i<size-8;i++){if(R[6][i]){M[6][i]=i%2?0:1;R[6][i]=0;}if(R[i][6]){M[i][6]=i%2?0:1;R[i][6]=0;}}
+  // alignment centers [6,30] — skip (6,6)
+  for(const[ar,ac]of[[6,30],[30,6],[30,30]]){
+    for(let i=-2;i<=2;i++)for(let j=-2;j<=2;j++){M[ar+i][ac+j]=Math.max(Math.abs(i),Math.abs(j))!==1?1:0;R[ar+i][ac+j]=0;}}
+  // format-info areas reserved (R stays 1)
+  for(let i=0;i<9;i++){if(i!==6)R[8][i]=1,R[i][8]=1;}
+  for(let i=0;i<8;i++){R[8][size-1-i]=1;R[size-1-i][8]=1;}
+  R[8][8]=1;R[size-8][8]=0;M[size-8][8]=1; // dark module
+  // zigzag data placement (record data-module positions for masking)
+  const dpos=[];
+  let bi=0,up=true;
+  for(let col=size-1;col>0;col-=2){
+    if(col===6)col--;
+    for(let i=0;i<size;i++){
+      const r=up?size-1-i:i;
+      for(let c=0;c<2;c++){const cc=col-c;
+        if(R[r][cc]){M[r][cc]=bi<fbits.length?fbits[bi++]:0;R[r][cc]=0;dpos.push([r,cc]);}}
+    }up=!up;
+  }
+  // format info: ec=M(00), mask=0 → 5-bit 00000 → BCH + 0x5412
+  let v=0x00<<10;for(let i=14;i>=10;i--)if(v&(1<<i))v^=0x537<<(i-10);
+  const fmt=((0x00)<<10|v)^0x5412;
+  const fb=[...Array(15)].map((_,i)=>(fmt>>(14-i))&1);
+  for(let i=0;i<6;i++){M[8][i]=fb[i];M[i][8]=fb[i];}
+  M[8][7]=fb[6];M[8][8]=fb[7];M[7][8]=fb[8];
+  for(let i=9;i<15;i++){M[14-i][8]=fb[i];M[8][size-15+i]=fb[i];}
+  for(let i=0;i<8;i++){M[8][size-1-i]=fb[i];M[size-15+i][8]=fb[i];}
+  // mask 0 on data modules only: (r+c)%2==0 → flip
+  for(const[r,c]of dpos)if((r+c)%2===0)M[r][c]^=1;
+  return M;
+}
 function drawQR(text){
-  const m=qrGen(text);if(!m)return;
+  const m=qrGen5(text);if(!m)return;
   const cv=document.createElement("canvas"),px=6;
   cv.width=cv.height=m.length*px;
   const ctx=cv.getContext("2d");
@@ -507,7 +582,18 @@ async function importWif(){
     KEY={priv};await saveKey();useKey(priv);}
   catch(e){alert("Invalid WIF: "+e.message);}
 }
-function copyAddr(){navigator.clipboard.writeText(ADDR);}
+function copyAddr(){
+  const t=ADDR2||ADDR;
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(()=>alert("Address copied")).catch(()=>fallbackCopy(t));
+  }else fallbackCopy(t);
+}
+function fallbackCopy(t){
+  const ta=document.createElement("textarea");ta.value=t;ta.style.position="fixed";ta.style.opacity="0";
+  document.body.appendChild(ta);ta.select();
+  try{document.execCommand("copy");alert("Address copied");}catch(e){prompt("Copy this address:",t);}
+  document.body.removeChild(ta);
+}
 function showWif(){
   const el=document.getElementById("wifout");
   el.classList.toggle("hidden");
