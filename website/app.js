@@ -24,6 +24,7 @@ function nav(active) {
     <a href="stake.html" ${active === 'stake' ? 'class="active"' : ''}>◇ Stake</a>
     <a href="referral.html" ${active === 'ref' ? 'class="active"' : ''}>🎁 Refer &amp; Earn</a>
     <a href="support.html" ${active === 'support' ? 'class="active"' : ''}>🆘 Support</a>
+    <a href="https://t.me/alpha_blockchain_bot" target="_blank" rel="noopener" style="color:var(--accent)">💬 TG Bot</a>
     <a href="api.html" ${active === 'api' ? 'class="active"' : ''}>API</a>
     <a href="wallet.html" ${active === 'wallet' ? 'class="active"' : ''}>◈ Wallet</a>
     <a href="mine.html" ${active === 'mine' ? 'class="active"' : ''}>⛏ Mine</a>
