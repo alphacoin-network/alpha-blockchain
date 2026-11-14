@@ -65,6 +65,18 @@ def db():
         tg_id INTEGER PRIMARY KEY, code TEXT UNIQUE,
         ref_by TEXT, referrals INTEGER DEFAULT 0,
         rewarded INTEGER DEFAULT 0, joined TEXT)""")
+    # referral v2 columns (activity-verified, tiered rewards)
+    for col, typ in [("wallet", "TEXT"), ("stage1", "INTEGER DEFAULT 0"),
+                     ("stage2", "INTEGER DEFAULT 0"), ("stage3", "INTEGER DEFAULT 0"),
+                     ("earned", "REAL DEFAULT 0"), ("paid", "REAL DEFAULT 0")]:
+        try:
+            c.execute(f"ALTER TABLE users ADD COLUMN {col} {typ}")
+        except sqlite3.OperationalError:
+            pass
+    c.execute("""CREATE TABLE IF NOT EXISTS payouts(
+        id INTEGER PRIMARY KEY AUTOINCREMENT, tg_id INTEGER,
+        amount REAL, stage INTEGER, txid TEXT, ts TEXT,
+        UNIQUE(tg_id, stage))""")
     return c
 
 
@@ -139,6 +151,7 @@ async def help_cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         "/ausd — AUSD stablecoin\n"
         "/blocks — latest blocks\n"
         "/ref [code] — set/see referral\n"
+        "/link <address> — link wallet for rewards\n"
         "/support — contact support\n"
         "/start — welcome")
 
@@ -190,6 +203,23 @@ async def blocks(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(txt)
 
 
+async def link(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Link your ALPHA address to receive referral rewards."""
+    ensure_user(update.effective_user.id)
+    if not ctx.args:
+        u = db().execute("SELECT wallet FROM users WHERE tg_id=?",
+                         (update.effective_user.id,)).fetchone()
+        await update.message.reply_text(
+            "Usage: /link <your ALPHA address>\n" +
+            (f"Current: {u[0]}" if u and u[0] else "No address linked yet."))
+        return
+    addr = ctx.args[0].strip()
+    c = db()
+    c.execute("UPDATE users SET wallet=? WHERE tg_id=?", (addr, update.effective_user.id))
+    c.commit(); c.close()
+    await update.message.reply_text(f"✅ Wallet linked: {addr}\nReferral rewards will be paid here.")
+
+
 async def ref(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ensure_user(update.effective_user.id)
     u = get_user(update.effective_user.id)
@@ -197,11 +227,20 @@ async def ref(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         set_referrer(update.effective_user.id, ctx.args[0].upper())
         await update.message.reply_text("Referral code saved! ✅")
         return
+    c = db()
+    row = c.execute("""SELECT code,ref_by,referrals,rewarded,wallet,
+        stage1,stage2,stage3,earned,paid FROM users WHERE tg_id=?""",
+        (update.effective_user.id,)).fetchone()
+    c.close()
     await update.message.reply_text(
-        f"🔗 Your code: {u[0]}\n"
-        f"Referrals: {u[2]}\n"
-        f"Rewarded: {'yes' if u[3] else 'no'}\n\n"
-        f"Share: t.me/<your_bot>?start={u[0]}")
+        f"🔗 Your code: {row[0]}\n"
+        f"Referrals: {row[2]}\n"
+        f"Wallet: {row[4] or 'not linked — use /link <address>'}\n"
+        f"Milestones: {'✅' if row[5] else '⬜'} activated · "
+        f"{'✅' if row[6] else '⬜'} first tx · "
+        f"{'✅' if row[7] else '⬜'} 30-day\n"
+        f"Earned: {row[8] or 0} α · Paid: {row[9] or 0} α\n\n"
+        f"Share: t.me/<your_bot>?start={row[0]}")
 
 
 async def support(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -216,7 +255,7 @@ def main():
     for cmd, fn in [("start", start), ("help", help_cmd),
                     ("stats", stats), ("balance", balance),
                     ("ausd", ausd), ("blocks", blocks),
-                    ("ref", ref), ("support", support)]:
+                    ("ref", ref), ("link", link), ("support", support)]:
         app.add_handler(CommandHandler(cmd, fn))
     print("Alpha bot running…")
     app.run_polling()
