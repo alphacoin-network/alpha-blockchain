@@ -165,6 +165,15 @@ def make_handler(api: API):
             else:
                 self._static(path)
 
+        def do_POST(self):
+            path = urlparse(self.path).path
+            if path.startswith("/api/"):
+                n = int(self.headers.get("Content-Length", 0))
+                body = self.rfile.read(n).decode()
+                self._api(path, parse_qs(body))
+            else:
+                self.send_error(404)
+
         def _api(self, path, qs):
             route = path[5:].strip("/")
             try:

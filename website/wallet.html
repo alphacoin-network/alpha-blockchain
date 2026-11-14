@@ -529,7 +529,7 @@ async function send(){
     try{localStorage.setItem("alpha_lastraw",raw);}catch(e){}
     st.textContent="broadcasting…";
     let r;
-    for(let a=0;a<3;a++){try{r=await(await fetch("/api/broadcast?hex="+raw)).json();break;}catch(e){if(a==2)throw e;await new Promise(s=>setTimeout(s,3000));}}
+    for(let a=0;a<3;a++){try{r=await(await fetch("/api/broadcast",{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},body:"hex="+raw})).json();break;}catch(e){if(a==2)throw e;await new Promise(s=>setTimeout(s,3000));}}
     if(r.error)throw new Error(r.error);
     const txid=(r.result||r).toString();
     try{const log=JSON.parse(localStorage.getItem("alpha_sent")||"[]");
@@ -610,7 +610,7 @@ async function createToken(){
       txins[i].scriptSig=Uint8Array.from(push(sig).concat(push(KEY.pub)));
     }
     st.textContent="broadcasting…";
-    const r=await(await fetch("/api/broadcast?hex="+b2hex(serTx(txins,outs)))).json();
+    const r=await(await fetch("/api/broadcast",{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},body:"hex="+b2hex(serTx(txins,outs))})).json();
     if(r.error)throw new Error(r.error);
     const tid=(r.result||r).toString();
     st.innerHTML='<span style="color:var(--green)">✓ token issued! token_id = <b>'+tid.slice(0,32)+'…</b><br>shows on the <a href="tokens.html" style="color:var(--accent)">tokens page</a> after 1 confirmation (~10 min)</span>';
