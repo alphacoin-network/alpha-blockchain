@@ -821,6 +821,16 @@ async function cpfp(){
     st.innerHTML='<span style="color:var(--green)">✓ CPFP sent — parent tx should confirm soon</span>';
   }catch(e){st.innerHTML='<span style="color:#ff7b72">'+(e.message||e)+'</span>';}
 }
+function checkMintParams(){
+  const q=new URLSearchParams(location.search);
+  if(q.get("mint")==="1"){
+    const n=q.get("n"),d=q.get("d"),s=q.get("s");
+    if(n)document.getElementById("tname").value=n;
+    if(d)document.getElementById("tdec").value=d;
+    if(s)document.getElementById("tsupply").value=s;
+    setTimeout(()=>document.getElementById("tname").scrollIntoView({behavior:"smooth"}),400);
+  }
+}
 function pushdata(d){return d.length<76?[d.length,...d]:(d.length<256?[0x4c,d.length,...d]:[0x4d,d.length&255,(d.length>>8)&255,...d]);}
 function spkOpReturn(data){return Uint8Array.from([0x6a,...pushdata(data)]);}
 /* ---- segwit (BIP143/144) spend support ---- */
