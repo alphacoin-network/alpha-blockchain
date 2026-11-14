@@ -50,6 +50,7 @@
     <div class="wrow">
       <button class="btn btn-gold" onclick="createWallet()">✦ New wallet</button>
       <button class="btn btn-ghost" onclick="showImport()">⇩ Import WIF</button>
+      <button class="btn btn-gold" onclick="createHD()">✦ New HD wallet</button>
     </div>
     <div id="import" class="hidden">
       <input id="wifin" class="field" placeholder="WIF private key (starts with K/L/5…)" spellcheck="false">
@@ -399,7 +400,52 @@ function drawQR(text){
 }
 
 /* ============================ wallet logic ============================ */
-let KEY=null,ADDR=null,ADDR2=null;   // ADDR=P2PKH, ADDR2=bech32 (same key)
+let KEY=null,ADDR=null,ADDR2=null,HD=null;   // HD={seed,index,addrs[]}
+/* ---- BIP32 HD (m/44'/0'/0'/0/i) — one seed → unlimited segwit addresses ---- */
+const te=new TextEncoder();
+async function hmac512(key,data){
+  const k=await crypto.subtle.importKey("raw",key,{name:"HMAC",hash:"SHA-512"},false,["sign"]);
+  return new Uint8Array(await crypto.subtle.sign("HMAC",k,data));
+}
+async function bip32Master(seed){
+  const I=await hmac512(te.encode("Bitcoin seed"),seed);
+  return{priv:b2n(I.slice(0,32)),cc:I.slice(32)};
+}
+async function ckd(k,i){
+  const hard=i>=0x80000000;
+  const data=hard?catArr([[0],n2b(k.priv,32),u32(i)]):catArr([privToPub(k.priv,true),u32(i)]);
+  const I=await hmac512(k.cc,data);
+  return{priv:modN(b2n(I.slice(0,32))+k.priv),cc:I.slice(32)};
+}
+async function deriveAddr(seed,index){
+  let k=await bip32Master(seed);
+  for(const i of [44|0x80000000,0|0x80000000,0|0x80000000,0,index])k=await ckd(k,i);
+  const pub=privToPub(k.priv,true);
+  return{priv:k.priv,pub,addr:segwitAddr(pub)};
+}
+async function hdLoad(){
+  const s=localStorage.getItem("alpha_hd");
+  if(!s)return null;
+  const d=JSON.parse(s);
+  const a=await deriveAddr(hexToB(d.seed),d.index);
+  return{seed:d.seed,index:d.index,addrs:d.addrs||[a.addr],cur:a};
+}
+async function hdNewAddr(){
+  HD.index++;
+  const a=await deriveAddr(hexToB(HD.seed),HD.index);
+  HD.addrs.push(a.addr);HD.keymap[a.addr]={priv:a.priv,pub:a.pub};
+  localStorage.setItem("alpha_hd",JSON.stringify({seed:HD.seed,index:HD.index,addrs:HD.addrs}));
+  return a;
+}
+async function hdKeys(){   // derive priv/pub for every used address (small N)
+  if(!HD.keymap)HD.keymap={};
+  for(let i=0;i<HD.addrs.length;i++){
+    const ad=HD.addrs[i];
+    if(!HD.keymap[ad]){const a=await deriveAddr(hexToB(HD.seed),i);HD.keymap[ad]={priv:a.priv,pub:a.pub};}
+  }
+  return HD.keymap;
+}
+function hdSave(){localStorage.setItem("alpha_hd",JSON.stringify({seed:HD.seed,index:HD.index,addrs:HD.addrs}));}
 async function saveKey(){
   const wif=wifEncode(KEY.priv);
   const pass=document.getElementById("pass").value;
@@ -410,6 +456,22 @@ async function saveKey(){
   const ct=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,enc.encode(wif));
   localStorage.setItem("alpha_wif_enc",JSON.stringify({iv:b2hex(iv),ct:b2hex(new Uint8Array(ct))}));
   localStorage.removeItem("alpha_wif");
+}
+async function createHD(){
+  const seed=crypto.getRandomValues(new Uint8Array(64));
+  HD={seed:b2hex(seed),index:0,addrs:[],keymap:{}};
+  const a=await deriveAddr(seed,0);HD.addrs.push(a.addr);HD.keymap[a.addr]={priv:a.priv,pub:a.pub};
+  hdSave();useHD();
+  alert("HD wallet created! Write down your seed — it's the ONLY backup.\n\n"+HD.seed);
+}
+async function useHD(){
+  KEY={priv:HD.cur.priv,pub:HD.cur.pub};
+  ADDR=ADDR2=HD.addrs[HD.addrs.length-1];
+  document.getElementById("setup").classList.add("hidden");
+  document.getElementById("wallet").classList.remove("hidden");
+  document.getElementById("myaddr").innerHTML=
+    "hd wallet · addr "+HD.addrs.length+" of ∞<br><b style='color:var(--gold)'>"+ADDR2+"</b>";
+  drawQR("alpha:"+ADDR2);refresh();
 }
 async function loadKey(){
   const enc=localStorage.getItem("alpha_wif_enc");
@@ -459,10 +521,13 @@ async function refresh(){
   const txs=document.getElementById("txs");
   txs.innerHTML='<div class="txrow" style="color:var(--dim)">loading…</div>';
   try{
-  const r=await fetch("/api/address/"+ADDR);const j=await r.json();
-  let bal=j.balance||0;
-  try{const j2=await(await fetch("/api/address/"+ADDR2)).json();bal+=j2.balance||0;}catch(e){}
+  const addrs=HD?HD.addrs:[ADDR,ADDR2];
+  let bal=0,txs0=[];
+  for(const ad of addrs){
+    try{const j=await(await fetch("/api/address/"+ad)).json();bal+=j.balance||0;txs0=txs0.concat(j.transactions||[]);}catch(e){}
+  }
   document.getElementById("bal").textContent=bal.toFixed(4);
+  const j={transactions:txs0};
   let sent=[];try{sent=JSON.parse(localStorage.getItem("alpha_sent")||"[]");}catch(e){}
   const seen=new Set((j.transactions||[]).map(t=>t.txid));
   const merged=[...(j.transactions||[]),
@@ -473,7 +538,72 @@ async function refresh(){
   else txs.innerHTML='<div class="txrow" style="color:var(--dim)">no activity yet</div>';
   }catch(e){txs.innerHTML='<div class="txrow" style="color:#ff7b72">refresh failed: '+e.message+'</div>';}
 }
+/* ---- HD send: spends from any derived address, change → fresh address ---- */
+async function hdSend(){
+  const st=document.getElementById("sendstatus");
+  try{
+    const to=document.getElementById("toaddr").value.trim();
+    const amt=parseFloat(document.getElementById("amount").value);
+    if(!amt||amt<=0)throw new Error("enter amount");
+    const sats=Math.round(amt*1e8);
+    st.textContent="fetching utxos…";
+    let fee=1000;const toSpk=anyAddrToSpk(to);
+    const km=await hdKeys();
+    // gather mature segwit utxos across ALL used HD addresses
+    const cands=[];let tip=0;
+    for(const ad of HD.addrs){
+      try{
+        const u=await(await fetch("/api/utxos/"+ad)).json();
+        tip=Math.max(tip,u.height||0);
+        const pkh2=hash160(km[ad].pub);
+        const segHex=b2hex(Uint8Array.from([0x00,0x14,...pkh2]));
+        const mature=x=>!(x.coinbase&&(tip-x.height)<100);
+        for(const x of u.utxos||[])if(x.scriptPubKey===segHex&&(tip-x.height)>=0&&mature(x))
+          cands.push({...x,addr:ad,key:km[ad],sc:spkP2pkh(pkh2)});
+      }catch(e){}
+    }
+    cands.sort((a,b)=>b.amount-a.amount);
+    const ins=[];let sum=0;
+    for(const x of cands){ins.push(x);sum+=Math.round(x.amount*1e8);if(sum>=sats+fee)break;}
+    if(sum<sats+fee)throw new Error("insufficient mature funds");
+    if(ins.length>800)throw new Error(`transaction too large (${ins.length} inputs) — send smaller amount`);
+    const DUST=546;let change=sum-sats-fee;
+    if(change>0&&change<DUST){fee+=change;change=0;}
+    // change → brand-new HD address (address rotation!)
+    let chgSpk=null;
+    if(change>0){const na=await hdNewAddr();chgSpk=Uint8Array.from([0x00,0x14,...hash160(na.pub)]);}
+    const memo=(document.getElementById("memo").value||"").trim();
+    const outs=[{value:sats,spk:toSpk}];
+    if(change>0)outs.push({value:change,spk:chgSpk});
+    if(memo)outs.push({value:0,spk:spkOpReturn(new TextEncoder().encode(memo))});
+    st.textContent="signing…";
+    const txins=ins.map(x=>({txid:hexToB(x.txid),vout:x.vout,type:1,spk:x.sc,
+      amount:Math.round(x.amount*1e8),scriptSig:[],witSig:null,witPub:x.key.pub,kpriv:x.key.priv}));
+    for(let i=0;i<txins.length;i++){
+      const x=txins[i];
+      const sig=Uint8Array.from([...ecdsaSign(sha256d(bip143Preimage(txins,outs,i)),x.kpriv),1]);
+      x.witSig=sig;x.witPub=privToPub(x.kpriv);
+    }
+    const raw=b2hex(serTxWit(txins,outs));
+    try{localStorage.setItem("alpha_lastraw",raw);}catch(e){}
+    st.textContent="broadcasting…";
+    let r;
+    for(let a=0;a<3;a++){try{r=await(await fetch("/api/broadcast",{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},body:"hex="+raw})).json();break;}catch(e){if(a==2)throw e;await new Promise(s=>setTimeout(s,3000));}}
+    if(r.error)throw new Error(r.error);
+    const txid=(r.result||r).toString();
+    try{const log=JSON.parse(localStorage.getItem("alpha_sent")||"[]");
+      log.unshift({txid,height:tip,time:Math.floor(Date.now()/1000),sent:true,amount:sats/1e8});
+      localStorage.setItem("alpha_sent",JSON.stringify(log.slice(0,50)));
+    }catch(e){}
+    ADDR=ADDR2=HD.addrs[HD.addrs.length-1];
+    document.getElementById("myaddr").innerHTML="hd wallet · addr "+HD.addrs.length+" of ∞<br><b style='color:var(--gold)'>"+ADDR2+"</b>";
+    drawQR("alpha:"+ADDR2);
+    st.innerHTML='<span style="color:var(--green)">✓ sent! txid '+txid.slice(0,24)+"…</span>";
+    setTimeout(refresh,3000);
+  }catch(e){st.innerHTML='<span style="color:#ff7b72">'+(e.stack||e.message).replace(/\n/g,"<br>")+"</span>";}
+}
 async function send(){
+  if(HD)return hdSend();
   const st=document.getElementById("sendstatus");
   try{
     const to=document.getElementById("toaddr").value.trim();
@@ -685,6 +815,9 @@ async function createToken(){
   }catch(e){st.innerHTML='<span style="color:#ff7b72">'+e.message+"</span>";}
 }
 /* restore on load */
-loadKey().then(p=>{if(p){KEY={priv:p};useKey(p);}}).catch(()=>{});
+(async()=>{
+  try{const h=await hdLoad();if(h){HD=h;HD.cur=h.cur||await deriveAddr(hexToB(h.seed),h.index);await useHD();return;}}catch(e){}
+  loadKey().then(p=>{if(p){KEY={priv:p};useKey(p);}}).catch(()=>{});
+})();
 </script>
 </body></html>
