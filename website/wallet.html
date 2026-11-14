@@ -92,9 +92,9 @@
       <div id="sendstatus" style="margin-top:10px;font-size:13px;color:var(--dim)"></div>
     </div>
 
-    <div class="card">
+    <div class="card hidden" id="tokcard">
       <h3>My Tokens</h3>
-      <div id="mytokens"><div class="txrow" style="color:var(--dim)">none</div></div>
+      <div id="mytokens"></div>
     </div>
 
     <div class="card">
@@ -527,11 +527,13 @@ async function refresh(){
   }
   document.getElementById("bal").textContent=bal.toFixed(4);
   const mt=document.getElementById("mytokens");
+  const tc=document.getElementById("tokcard");
   if(tokAll.length){
+    tc.classList.remove("hidden");
     const seen=new Set();
     mt.innerHTML=tokAll.filter(t=>{const k=t.token_id||t.id;if(seen.has(k))return false;seen.add(k);return true;})
       .map(t=>`<div class="txrow"><a href="tokens.html" style="color:var(--accent)">${(t.name||t.token_id||"").slice(0,24)}</a> <span style="color:var(--green)">bal ${t.balance??t.amount??""}</span></div>`).join("");
-  }else mt.innerHTML='<div class="txrow" style="color:var(--dim)">none</div>';
+  }else tc.classList.add("hidden");
   const j={transactions:txs0};
   let sent=[];try{sent=JSON.parse(localStorage.getItem("alpha_sent")||"[]");}catch(e){}
   const seen=new Set((j.transactions||[]).map(t=>t.txid));
