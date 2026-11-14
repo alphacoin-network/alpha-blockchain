@@ -12,7 +12,9 @@ Usage:
 import argparse
 import json
 import os
+import sqlite3
 import sys
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
@@ -213,6 +215,44 @@ def make_handler(api: API):
                 elif route == "broadcast":
                     out = api.call("sendrawtransaction",
                                    qs.get("hex", [""])[0])
+                elif route == "support":
+                    name = qs.get("name", [""])[0][:80]
+                    contact = qs.get("contact", [""])[0][:120]
+                    topic = qs.get("topic", ["general"])[0][:40]
+                    msg = qs.get("message", [""])[0][:4000]
+                    if not msg.strip():
+                        out = {"error": "message required"}
+                    else:
+                        dbp = os.environ.get(
+                            "SUPPORT_DB",
+                            os.path.expanduser("~/alpha-data/support.db"))
+                        os.makedirs(os.path.dirname(dbp), exist_ok=True)
+                        c = sqlite3.connect(dbp)
+                        c.execute("""CREATE TABLE IF NOT EXISTS tickets(
+                            id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT,
+                            contact TEXT, topic TEXT, message TEXT,
+                            status TEXT DEFAULT 'open', ts TEXT)""")
+                        c.execute("INSERT INTO tickets(name,contact,topic,"
+                                  "message,ts) VALUES(?,?,?,?,"
+                                  "datetime('now'))",
+                                  (name, contact, topic, msg))
+                        c.commit(); c.close()
+                        # notify admin via bot if configured
+                        tok = os.environ.get("TG_BOT_TOKEN", "")
+                        chat = os.environ.get("SUPPORT_CHAT_ID", "")
+                        if tok and chat:
+                            try:
+                                body = json.dumps({
+                                    "chat_id": chat,
+                                    "text": f"🎫 Support ticket\n"
+                                            f"From: {name} ({contact})\n"
+                                            f"Topic: {topic}\n\n{msg}"}).encode()
+                                urllib.request.urlopen(
+                                    f"https://api.telegram.org/bot{tok}"
+                                    "/sendMessage", data=body, timeout=15)
+                            except Exception:
+                                pass
+                        out = {"ok": True, "message": "ticket submitted"}
                 elif route == "dexorders":
                     out = api.call("dexorders")
                 # ---- public read-only protocol APIs ----

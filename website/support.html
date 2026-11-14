@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Support — Alpha Blockchain</title>
+  <meta name="description" content="Get help with Alpha Blockchain — nodes, mining, wallet, AUSD, tokens and referrals.">
+  <link rel="canonical" href="https://alphacoin.network/support.html">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" type="image/svg+xml" href="coin.svg">
+</head>
+<body>
+<nav></nav>
+<section><div class="wrap" style="max-width:640px">
+  <h2 class="title">🆘 Support Center</h2>
+  <p class="sub">Stuck somewhere? Send us a ticket — the team replies on-chain
+     or via the contact you leave. For instant help try the Telegram bot:</p>
+  <div style="text-align:center;margin:10px 0 22px">
+    <a class="btn btn-ghost" href="https://t.me/alpha_blockchain_bot" target="_blank" rel="noopener">💬 Chat with Bot — /support</a>
+  </div>
+
+  <div class="card">
+    <h3>Submit a ticket</h3>
+    <input id="s_name" class="field" placeholder="Your name" maxlength="80">
+    <input id="s_contact" class="field" placeholder="Telegram / email (for reply)" maxlength="120">
+    <select id="s_topic" class="field">
+      <option value="general">General question</option>
+      <option value="node">Running a node / sync issues</option>
+      <option value="mining">Mining help</option>
+      <option value="wallet">Wallet / send issues</option>
+      <option value="ausd">AUSD stablecoin</option>
+      <option value="token">Tokens (ALP)</option>
+      <option value="referral">Referral rewards</option>
+      <option value="bug">Bug report</option>
+    </select>
+    <textarea id="s_msg" class="field" rows="6" placeholder="Describe your issue — include txid/address/tx hash if relevant" maxlength="4000"></textarea>
+    <button class="btn btn-gold" onclick="submitTicket()" style="width:100%">Submit Ticket</button>
+    <div id="s_status" style="margin-top:10px;font-size:13.5px;color:var(--dim)"></div>
+  </div>
+
+  <div class="card">
+    <h3>Common fixes</h3>
+    <ul style="color:var(--dim);font-size:13.5px;line-height:1.9;padding-left:18px;margin:0">
+      <li><b>"Windows protected your PC"</b> → More info → Run anyway (unsigned app, safe)</li>
+      <li><b>Node not syncing</b> → check <a href="guide.html" style="color:var(--accent)">guide.html</a>, restart alphad</li>
+      <li><b>Send fails "immature coinbase"</b> → wait 100 blocks (~coinbase maturity)</li>
+      <li><b>Send fails "too large"</b> → split into smaller amounts or use Consolidate (Options ▾)</li>
+      <li><b>AUSD mint</b> → send ALPHA to reserve with memo <code>AUSD-MINT:&lt;amount&gt;</code></li>
+    </ul>
+  </div>
+</div></section>
+<footer>Alpha Blockchain · Support</footer>
+<script src="app.js"></script>
+<script>nav('support');</script>
+<script>
+async function submitTicket(){
+  const st=document.getElementById("s_status");
+  const msg=document.getElementById("s_msg").value.trim();
+  if(!msg){st.textContent="Please describe your issue.";return;}
+  st.textContent="submitting…";
+  try{
+    const body="name="+encodeURIComponent(document.getElementById("s_name").value)+
+      "&contact="+encodeURIComponent(document.getElementById("s_contact").value)+
+      "&topic="+encodeURIComponent(document.getElementById("s_topic").value)+
+      "&message="+encodeURIComponent(msg);
+    const r=await(await fetch("/api/support",{method:"POST",
+      headers:{"content-type":"application/x-www-form-urlencoded"},body})).json();
+    if(r.error)throw new Error(r.error);
+    st.innerHTML='<span style="color:var(--green)">✓ Ticket submitted! We\'ll reply to your contact.</span>';
+    document.getElementById("s_msg").value="";
+  }catch(e){st.innerHTML='<span style="color:#ff7b72">'+(e.message||e)+'</span>';}
+}
+</script>
+</body></html>

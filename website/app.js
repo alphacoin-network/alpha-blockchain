@@ -23,6 +23,7 @@ function nav(active) {
     <a href="tokens.html" ${active === 'tok' ? 'class="active"' : ''}>Tokens</a>
     <a href="stake.html" ${active === 'stake' ? 'class="active"' : ''}>◇ Stake</a>
     <a href="referral.html" ${active === 'ref' ? 'class="active"' : ''}>🎁 Refer &amp; Earn</a>
+    <a href="support.html" ${active === 'support' ? 'class="active"' : ''}>🆘 Support</a>
     <a href="api.html" ${active === 'api' ? 'class="active"' : ''}>API</a>
     <a href="wallet.html" ${active === 'wallet' ? 'class="active"' : ''}>◈ Wallet</a>
     <a href="mine.html" ${active === 'mine' ? 'class="active"' : ''}>⛏ Mine</a>
