@@ -21,6 +21,16 @@ nav a:hover, nav a.active { color: var(--gold); }
 nav .spacer { flex: 1; }
 .chip { background: var(--card2); border: 1px solid var(--border); color: var(--green);
   padding: 5px 14px; border-radius: 20px; font-size: 12.5px; font-family: var(--mono); }
+nav .navmore { position: relative; }
+nav .navmore summary { color: var(--dim); font-size: 15px; font-weight: 500; cursor: pointer; list-style: none; }
+nav .navmore summary::-webkit-details-marker { display: none; }
+nav .navmore summary:hover { color: var(--gold); }
+nav .navdrop { position: absolute; right: 0; top: 100%; margin-top: 10px; min-width: 170px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+  padding: 8px; display: flex; flex-direction: column; gap: 2px;
+  box-shadow: 0 12px 32px rgba(0,0,0,.45); }
+nav .navdrop a { padding: 8px 14px; border-radius: 8px; font-size: 14px; }
+nav .navdrop a:hover, nav .navdrop a.active { color: var(--gold); background: var(--card2); }
 
 /* ---------- hero / 3d coin ---------- */
 .hero { display: flex; align-items: center; justify-content: center; gap: 70px;

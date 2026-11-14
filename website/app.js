@@ -23,13 +23,16 @@ function nav(active) {
     <a href="tokens.html" ${active === 'tok' ? 'class="active"' : ''}>Tokens</a>
     <a href="stake.html" ${active === 'stake' ? 'class="active"' : ''}>◇ Stake</a>
     <a href="referral.html" ${active === 'ref' ? 'class="active"' : ''}>🎁 Refer &amp; Earn</a>
-    <a href="api.html" ${active === 'api' ? 'class="active"' : ''}>API</a>
     <a href="wallet.html" ${active === 'wallet' ? 'class="active"' : ''}>◈ Wallet</a>
     <a href="mine.html" ${active === 'mine' ? 'class="active"' : ''}>⛏ Mine</a>
-    <a href="roadmap.html" ${active === 'rm' ? 'class="active"' : ''}>Roadmap</a>
-    <a href="whitepaper.html" ${active === 'wp' ? 'class="active"' : ''}>Whitepaper</a>
+    <details class="navmore"><summary>More ▾</summary>
+      <div class="navdrop">
+        <a href="api.html" ${active === 'api' ? 'class="active"' : ''}>API</a>
+        <a href="roadmap.html" ${active === 'rm' ? 'class="active"' : ''}>Roadmap</a>
+        <a href="whitepaper.html" ${active === 'wp' ? 'class="active"' : ''}>Whitepaper</a>
+        <a href="support.html" ${active === 'support' ? 'class="active"' : ''}>Support</a>
+      </div></details>
     <div class="spacer"></div>
-    <a href="support.html" ${active === 'support' ? 'class="active"' : ''} style="font-size:13px;opacity:.75">Support</a>
     <span class="chip" id="netchip">…</span>`;
   api('stats').then(s => {
     const c = el('netchip');
