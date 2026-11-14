@@ -479,7 +479,7 @@ async function send(){
     if(!amt||amt<=0)throw new Error("enter amount");
     const sats=Math.round(amt*1e8);
     st.textContent="fetching utxos…";
-    const fee=1000,toSpk=anyAddrToSpk(to);
+    let fee=1000,toSpk=anyAddrToSpk(to);
     // gather mature UTXOs from BOTH own addresses (legacy + segwit)
     const u1=(await(await fetch("/api/utxos/"+ADDR)).json());
     const u2=await fetch("/api/utxos/"+ADDR2).then(r=>r.json()).catch(()=>({utxos:[],height:0}));
@@ -505,10 +505,14 @@ async function send(){
     const ins=[];let sum=0;
     for(const x of cands){ins.push(x);sum+=Math.round(x.amount*1e8);if(sum>=sats+fee)break;}
     if(sum<sats+fee)throw new Error("insufficient mature funds");
-    const change=sum-sats-fee;
+    // Core-style: avoid creating a change output smaller than dust (546) —
+    // fold it into the fee instead of making an unspendable-dust UTXO
+    const DUST=546;
+    let change=sum-sats-fee;
+    if(change>0&&change<DUST){fee+=change;change=0;}
     const memo=(document.getElementById("memo").value||"").trim();
     const outs=[{value:sats,spk:toSpk}];
-    if(change>0)outs.push({value:change,spk:spkLeg});
+    if(change>0)outs.push({value:change,spk:spkSeg});  // segwit change = cheaper future spends
     if(memo)outs.push({value:0,spk:spkOpReturn(new TextEncoder().encode(memo))});
     st.textContent="signing…";
     const txins=ins.map(x=>({txid:hexToB(x.txid),vout:x.vout,type:x.type,spk:x.spk,
