@@ -83,6 +83,8 @@
       <input id="memo" class="field" placeholder="Memo / OP_RETURN (optional — e.g. AUSD-MINT:10000)" spellcheck="false" maxlength="80">
       <button class="btn btn-gold" onclick="send()" style="width:100%">Send</button>
       <div id="sendstatus" style="margin-top:10px;font-size:13px;color:var(--dim)"></div>
+      <button class="btn btn-ghost" onclick="consolidate()" style="width:100%;margin-top:8px">⛏ Consolidate UTXOs (merge small coins)</button>
+      <div style="font-size:11.5px;color:var(--dim);margin-top:6px">Merges thousands of tiny UTXOs into one — enables big sends. Costs ~0.00002 α per round.</div>
     </div>
 
     <div class="card">
@@ -548,6 +550,62 @@ async function send(){
     st.innerHTML='<span style="color:var(--green)">✓ sent! txid '+txid.slice(0,24)+"…</span>";
     setTimeout(refresh,3000);
   }catch(e){st.innerHTML='<span style="color:#ff7b72">'+(e.stack||e.message).replace(/\n/g,"<br>")+"</span>";}
+}
+/* ---- auto-consolidate: merge small UTXOs into one segwit output ---- */
+async function consolidate(){
+  const st=document.getElementById("sendstatus");
+  try{
+    st.textContent="fetching utxos…";
+    const u1=(await(await fetch("/api/utxos/"+ADDR)).json());
+    const u2=await fetch("/api/utxos/"+ADDR2).then(r=>r.json()).catch(()=>({utxos:[],height:0}));
+    const tip=Math.max(u1.height||0,u2.height||0);
+    const pkh=addrToPkh(ADDR),pkh2=hash160(KEY.pub);
+    const spkLeg=spkP2pkh(pkh),spkSeg=Uint8Array.from([0x00,0x14,...pkh2]);
+    const legHex=b2hex(spkLeg),segHex=b2hex(spkSeg);
+    const cands=[];
+    const mature=x=>!(x.coinbase&&(tip-x.height)<100);
+    for(const x of u1.utxos||[])if(x.scriptPubKey===legHex&&(tip-x.height)>=0&&mature(x))cands.push({...x,type:0,spk:spkLeg});
+    for(const x of u2.utxos||[])if(x.scriptPubKey===segHex&&(tip-x.height)>=0&&mature(x))cands.push({...x,type:1,spk:spkSeg});
+    if(cands.length<3){st.textContent="nothing to consolidate ("+cands.length+" utxos)";return;}
+    cands.sort((a,b)=>b.amount-a.amount);
+    // split into batches of ~350 inputs (safely under tx weight limit)
+    const BATCH=350,fee=1000,dust=546;
+    const batches=[];
+    for(let i=0;i<cands.length;i+=BATCH)batches.push(cands.slice(i,i+BATCH));
+    st.textContent=`consolidating ${cands.length} utxos in ${batches.length} txs…`;
+    let done=0;
+    for(const batch of batches){
+      const sum=batch.reduce((a,x)=>a+Math.round(x.amount*1e8),0);
+      if(sum<dust+fee+1000)continue;              // skip dust batches
+      const change=sum-dust-fee;
+      const outs=[{value:dust,spk:spkSeg}];
+      if(change>546)outs.push({value:change,spk:spkSeg});
+      else {outs[0].value=sum-fee;}               // tiny remainder → all to self, no change
+      const txins=batch.map(x=>({txid:hexToB(x.txid),vout:x.vout,type:x.type,spk:x.spk,
+        sc:x.type===1?spkP2pkh(pkh2):x.spk,amount:Math.round(x.amount*1e8),scriptSig:[],witSig:null,witPub:null}));
+      const hasSeg=txins.some(x=>x.type===1);
+      for(let i=0;i<txins.length;i++){
+        const x=txins[i];
+        if(x.type===1){
+          const sig=Uint8Array.from([...ecdsaSign(sha256d(bip143Preimage(txins,outs,i)),KEY.priv),1]);
+          x.witSig=sig;x.witPub=KEY.pub;
+        }else{
+          const sighash=sha256d(serTx(txins,outs,true,i,x.spk));
+          const sig=Uint8Array.from([...ecdsaSign(sighash,KEY.priv),1]);
+          x.scriptSig=Uint8Array.from(push(sig).concat(push(KEY.pub)));
+        }
+      }
+      const raw=b2hex(hasSeg?serTxWit(txins,outs):serTx(txins,outs));
+      let r;
+      for(let a=0;a<3;a++){try{r=await(await fetch("/api/broadcast",{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},body:"hex="+raw})).json();break;}catch(e){if(a==2)throw e;await new Promise(s=>setTimeout(s,3000));}}
+      if(r.error)throw new Error("batch "+done+": "+r.error);
+      done++;
+      st.textContent=`consolidating… ${done}/${batches.length} txs sent`;
+      await new Promise(s=>setTimeout(s,1500));   // pace broadcasts
+    }
+    st.innerHTML='<span style="color:var(--green)">✓ consolidation done — UTXOs merged! Refresh in ~2 min</span>';
+    setTimeout(refresh,5000);
+  }catch(e){st.innerHTML='<span style="color:#ff7b72">'+(e.message||e)+'</span>';}
 }
 function pushdata(d){return d.length<76?[d.length,...d]:(d.length<256?[0x4c,d.length,...d]:[0x4d,d.length&255,(d.length>>8)&255,...d]);}
 function spkOpReturn(data){return Uint8Array.from([0x6a,...pushdata(data)]);}
