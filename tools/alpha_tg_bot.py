@@ -20,7 +20,9 @@ import sqlite3
 import urllib.request
 
 from telegram import Update
-from telegram.ext import (Application, CommandHandler, ContextTypes)
+from telegram.ext import (Application, CommandHandler, ContextTypes,
+                          JobQueue)
+import datetime
 
 API = os.environ.get("ALPHA_API", "https://alphacoin.network")
 RPC = os.environ.get("ALPHA_RPC", "")
@@ -28,6 +30,8 @@ COOKIE = os.environ.get("ALPHA_COOKIE", "")
 REWARD = float(os.environ.get("REFERRAL_REWARD", "0"))
 SUPPORT = os.environ.get("SUPPORT_CONTACT", "@your_support")
 DB = os.environ.get("BOT_DB", "alpha_bot.db")
+CHANNEL = os.environ.get("CHANNEL_ID", "")   # e.g. @alpha_blockchain_official
+ADMIN = int(os.environ.get("ADMIN_TG_ID", "0"))
 REWARD_ADDR = os.environ.get("REWARD_ADDRESS",
                              "alpha1qukf7zseqsrsnkn3qsv0yf5yth0gn68aduufq6x")
 
@@ -249,15 +253,60 @@ async def support(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         "Include your txid/address for faster help.")
 
 
+def stats_text():
+    s = api("/api/stats")
+    if "error" in s:
+        return None
+    return (f"⛓ Alpha Network — LIVE\n\n"
+            f"Height: {s.get('height')}\n"
+            f"Supply: {s.get('supply')} α\n"
+            f"Difficulty: {s.get('difficulty')}\n"
+            f"Hashrate: {s.get('hashrate')}\n"
+            f"Mempool: {s.get('mempool')}\n"
+            f"Peers: {s.get('connections')}\n"
+            f"Tokens: {s.get('tokens')}\n\n"
+            f"🌐 alphacoin.network · 🎁 referral.html")
+
+
+async def channel_stats(ctx: ContextTypes.DEFAULT_TYPE):
+    """Auto-post network stats to the channel every 6 hours."""
+    if not CHANNEL:
+        return
+    t = stats_text()
+    if t:
+        await ctx.bot.send_message(chat_id=CHANNEL, text=t)
+
+
+async def announce(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    """Admin broadcast to channel: /announce <message>"""
+    if ADMIN and update.effective_user.id != ADMIN:
+        return
+    msg = " ".join(ctx.args) if ctx.args else ""
+    if not msg:
+        await update.message.reply_text("Usage: /announce <message>")
+        return
+    if CHANNEL:
+        await ctx.bot.send_message(chat_id=CHANNEL,
+                                   text=f"📢 {msg}")
+        await update.message.reply_text("Posted to channel ✅")
+    else:
+        await update.message.reply_text("CHANNEL_ID not set")
+
+
 def main():
     token = os.environ["TG_BOT_TOKEN"]
     app = Application.builder().token(token).build()
     for cmd, fn in [("start", start), ("help", help_cmd),
                     ("stats", stats), ("balance", balance),
                     ("ausd", ausd), ("blocks", blocks),
-                    ("ref", ref), ("link", link), ("support", support)]:
+                    ("ref", ref), ("link", link), ("support", support),
+                    ("announce", announce)]:
         app.add_handler(CommandHandler(cmd, fn))
-    print("Alpha bot running…")
+    if CHANNEL:
+        jq = JobQueue()
+        app.job_queue = jq
+        jq.run_repeating(channel_stats, interval=21600, first=60)
+    print("Alpha bot running… channel:", CHANNEL or "(none)")
     app.run_polling()
 
 
