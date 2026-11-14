@@ -134,6 +134,21 @@ def main():
                 new3 = 1
         except Exception:
             pass
+        # friend welcome bonus — 25 α once their wallet activates (stage1)
+        if new1 and not c.execute(
+                "SELECT 1 FROM payouts WHERE tg_id=? AND stage=?",
+                (tg_id, 999999)).fetchone():
+            try:
+                txid = pay(wallet, 25.0)
+                c.execute("INSERT INTO payouts(tg_id,amount,stage,txid,ts)"
+                          " VALUES(?,?,?,?,datetime('now'))",
+                          (tg_id, 25.0, 999999, txid))
+                c.execute("UPDATE users SET earned=earned+25 WHERE tg_id=?",
+                          (tg_id,))
+                payouts += 1; paid_this_run += 25.0
+                print(f"welcome bonus 25 α → friend tg {tg_id} tx {txid}")
+            except Exception as e:
+                print(f"welcome bonus failed tg {tg_id}: {e}")
         # referrer's tier by their verified referral count
         my_refs = ref_count.get(r_code, 0)
         mult = tier_reward(my_refs) / 500.0  # tier scales the 500-α base
