@@ -7,82 +7,102 @@
   <link rel="canonical" href="https://alphacoin.network/referral.html">
   <link rel="stylesheet" href="style.css">
   <link rel="icon" type="image/svg+xml" href="coin.svg">
+  <style>
+    .ref-wrap{max-width:760px;margin:0 auto}
+    .pool{text-align:center;background:linear-gradient(135deg,#14142a,#1d1d3d);
+      border:1px solid #f5c54255;border-radius:16px;padding:26px 20px;margin:18px 0}
+    .pool .num{font-size:40px;font-weight:800;color:var(--gold);font-family:var(--mono)}
+    .step{display:flex;gap:16px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--border)}
+    .step:last-child{border-bottom:none}
+    .step .n{background:linear-gradient(135deg,#f5c542,#e09f0a);color:#1a1206;font-weight:800;
+      border-radius:10px;padding:8px 14px;flex-shrink:0;font-size:15px}
+    .step b{color:var(--text)}
+    .step p{margin:4px 0 0;color:var(--dim);font-size:13.5px}
+    .badge{display:inline-block;background:rgba(245,197,66,.12);border:1px solid #f5c54255;
+      color:var(--gold);border-radius:20px;padding:3px 12px;font-size:12.5px;font-weight:700}
+    .rules{border-left:3px solid var(--gold)}
+    .cta{text-align:center;margin:28px 0 8px}
+    @media(max-width:560px){
+      .pool .num{font-size:30px}
+      h2.title{font-size:26px}
+      .step .n{padding:6px 10px;font-size:13px}
+    }
+  </style>
 </head>
 <body>
 <nav></nav>
-<section><div class="wrap">
+<section><div class="wrap ref-wrap">
   <h2 class="title">🎁 Refer &amp; Earn ALPHA</h2>
   <p class="sub">Invite friends to Alpha Blockchain — earn verified rewards paid
      on-chain in ALPHA. No promises, no hype: rewards unlock only when real
      on-chain activity happens.</p>
 
-  <div class="card" style="text-align:center;border:1px solid #f5c54255">
-    <h3 style="margin:0 0 6px">Reward Pool — live</h3>
-    <div style="font-size:34px;font-weight:800;color:var(--gold);font-family:var(--mono)" id="pool">…</div>
-    <div style="color:var(--dim);font-size:13px">ALPHA in the referral reserve — pays all rewards</div>
+  <div class="pool">
+    <div style="color:var(--dim);font-size:13px;letter-spacing:1px;text-transform:uppercase">Reward Pool — live</div>
+    <div class="num" id="pool">…</div>
+    <div style="color:var(--dim);font-size:13px">ALPHA in the referral reserve — pays all rewards · updates every 30s</div>
   </div>
 
-  <h3 class="title" style="font-size:20px;margin-top:30px">How it works</h3>
+  <h3 class="title" style="font-size:19px;margin-top:26px">How it works</h3>
   <div class="card">
-    <div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:14px">
-      <div style="background:#f5c542;color:#1a1206;font-weight:800;border-radius:8px;padding:6px 12px;flex-shrink:0">1</div>
-      <div><b>Friend joins &amp; activates</b><br>
-        <span style="color:var(--dim);font-size:13.5px">They get the Telegram bot, run <code>/start</code>, and link their ALPHA wallet with <code>/link</code>.</span></div>
+    <div class="step">
+      <div class="n">1</div>
+      <div><b>Friend joins &amp; activates</b>
+        <p>They open <a href="https://t.me/alpha_blockchain_bot" style="color:var(--accent)">@alpha_blockchain_bot</a>, run <code>/start</code>, create a wallet and link it with <code>/link</code>.</p></div>
     </div>
-    <div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:14px">
-      <div style="background:#f5c542;color:#1a1206;font-weight:800;border-radius:8px;padding:6px 12px;flex-shrink:0">2</div>
-      <div><b>Friend completes first real transaction</b><br>
-        <span style="color:var(--dim);font-size:13.5px">Verified on-chain — sends or receives ALPHA. No fake accounts, no bots.</span></div>
+    <div class="step">
+      <div class="n">2</div>
+      <div><b>Friend completes first real transaction</b>
+        <p>Verified on-chain — sends or receives ALPHA. No fake accounts, no bots.</p></div>
     </div>
-    <div style="display:flex;gap:14px;align-items:flex-start">
-      <div style="background:#f5c542;color:#1a1206;font-weight:800;border-radius:8px;padding:6px 12px;flex-shrink:0">3</div>
-      <div><b>Friend stays active 30 days</b><br>
-        <span style="color:var(--dim);font-size:13.5px">Stakes, mines or transacts — long-term retention earns the bonus.</span></div>
+    <div class="step">
+      <div class="n">3</div>
+      <div><b>Friend stays active 30 days</b>
+        <p>Stakes, mines or transacts — long-term retention earns the bonus.</p></div>
     </div>
   </div>
 
-  <h3 class="title" style="font-size:20px;margin-top:30px">Rewards per referral</h3>
+  <h3 class="title" style="font-size:19px;margin-top:26px">Rewards per referral</h3>
   <div class="tbl-wrap"><table>
     <tr><th>Milestone</th><th class="num">Reward</th><th>Verified by</th></tr>
-    <tr><td>Wallet activated</td><td class="num">50 α</td><td>Address holds balance</td></tr>
+    <tr><td>Wallet activated <span class="badge">+ friend gets 25 α</span></td><td class="num">50 α</td><td>Address holds balance</td></tr>
     <tr><td>+ First real transaction</td><td class="num">+150 α</td><td>Outgoing tx on-chain</td></tr>
     <tr><td>+ 30 days active</td><td class="num">+300 α</td><td>Time + activity</td></tr>
     <tr><td><b>Total per referral</b></td><td class="num"><b>500 α</b></td><td>—</td></tr>
   </table></div>
 
-  <h3 class="title" style="font-size:20px;margin-top:30px">Tiered rewards — early birds earn more</h3>
+  <h3 class="title" style="font-size:19px;margin-top:26px">Tiered rewards — early birds earn more</h3>
   <div class="tbl-wrap"><table>
-    <tr><th>Tier</th><th class="num">Verified referrals</th><th class="num">Reward multiplier</th></tr>
-    <tr><td><b>Genesis</b> — first 500</td><td class="num">1–500</td><td class="num">100% (full 500 α)</td></tr>
-    <tr><td><b>Early</b></td><td class="num">501–5,000</td><td class="num">40% (200 α)</td></tr>
-    <tr><td><b>Growth</b></td><td class="num">5,001+</td><td class="num">10% (50 α)</td></tr>
+    <tr><th>Tier</th><th class="num">Verified referrals</th><th class="num">You earn</th></tr>
+    <tr><td><b>🏆 Genesis</b> — first 500</td><td class="num">1–500</td><td class="num">500 α each</td></tr>
+    <tr><td><b>⚡ Early</b></td><td class="num">501–5,000</td><td class="num">200 α each</td></tr>
+    <tr><td><b>📈 Growth</b></td><td class="num">5,001+</td><td class="num">50 α each</td></tr>
   </table></div>
   <p class="sub" style="font-size:13px">Rewards scale down as the program grows — the budget stays sustainable
      and early supporters get the best deal.</p>
 
-  <h3 class="title" style="font-size:20px;margin-top:30px">How to start</h3>
+  <h3 class="title" style="font-size:19px;margin-top:26px">How to start — 4 steps</h3>
   <div class="card">
-    <ol style="color:var(--dim);font-size:14px;line-height:1.9;padding-left:20px;margin:0">
-      <li>Open <a href="https://t.me/alpha_blockchain_bot" style="color:var(--accent)">@alpha_blockchain_bot</a> on Telegram → <code>/start</code></li>
+    <ol style="color:var(--dim);font-size:14px;line-height:2;padding-left:20px;margin:0">
+      <li>Open <a href="https://t.me/alpha_blockchain_bot" style="color:var(--accent)">@alpha_blockchain_bot</a> → <code>/start</code></li>
       <li>Get your unique code (<code>ALPHA-…</code>)</li>
-      <li>Link your wallet: <code>/link &lt;your alpha address&gt;</code></li>
-      <li>Share <code>t.me/alpha_blockchain_bot?start=YOUR_CODE</code> anywhere</li>
-      <li>Rewards land in your wallet automatically — every 5 minutes the payout engine verifies &amp; pays</li>
+      <li>Link wallet: <code>/link &lt;your alpha address&gt;</code></li>
+      <li>Share <code>t.me/alpha_blockchain_bot?start=YOUR_CODE</code> — rewards auto-pay every 5 min</li>
     </ol>
   </div>
 
-  <div class="card" style="border-left:3px solid var(--gold)">
-    <b>Fair play rules</b><br>
+  <div class="card rules">
+    <b>⚖️ Fair play rules</b><br>
     <span style="color:var(--dim);font-size:13.5px">
       Rewards are for <b>real humans doing real on-chain activity</b>. Fake accounts,
       self-referrals, wash transactions and multi-accounting void the reward.
-      The team verifies activity before every payout — all payouts are public on-chain.
-      Program runs for a limited genesis period and closes when the pool is
-      allocated, downloads milestone is hit, or 90 days pass — whichever first.
+      Every payout is verified on-chain and publicly visible. Program runs for a
+      limited genesis period — closes when the pool is allocated, the app-download
+      milestone is hit, or 90 days pass, whichever first.
     </span>
   </div>
 
-  <div style="text-align:center;margin:26px 0">
+  <div class="cta">
     <a class="btn btn-gold" href="https://t.me/alpha_blockchain_bot" target="_blank" rel="noopener">🎁 Open Bot &amp; Get Your Code</a>
   </div>
 </div></section>
@@ -90,10 +110,10 @@
 <script src="app.js"></script>
 <script>nav('ref');</script>
 <script>
-fetch("/api/address/alpha1qhpwer8nkj5rykad87mlrte97xg5wej4xz7psk7")
-  .then(r=>r.json())
-  .then(d=>{document.getElementById("pool").textContent=(d.balance||0).toLocaleString()+" α";})
-  .catch(()=>{document.getElementById("pool").textContent="live";});
-setInterval(()=>fetch("/api/address/alpha1qhpwer8nkj5rykad87mlrte97xg5wej4xz7psk7").then(r=>r.json()).then(d=>{document.getElementById("pool").textContent=(d.balance||0).toLocaleString()+" α";}).catch(()=>{}),30000);
+const POOL="/api/address/alpha1qhpwer8nkj5rykad87mlrte97xg5wej4xz7psk7";
+function loadPool(){fetch(POOL).then(r=>r.json()).then(d=>{
+  document.getElementById("pool").textContent=(d.balance||0).toLocaleString()+" α";
+}).catch(()=>{});}
+loadPool();setInterval(loadPool,30000);
 </script>
 </body></html>
