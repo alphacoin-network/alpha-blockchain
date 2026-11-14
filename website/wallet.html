@@ -492,7 +492,7 @@ function useKey(priv){
   document.getElementById("setup").classList.add("hidden");
   document.getElementById("wallet").classList.remove("hidden");
   document.getElementById("myaddr").innerHTML=
-    "legacy: <b>"+ADDR+"</b><br>segwit: <b style='color:var(--gold)'>"+ADDR2+"</b>";
+    "<b style='color:var(--gold)'>"+ADDR2+"</b><br><span style='font-size:11px;color:var(--dim)'>legacy: "+ADDR+"</span>";
   drawQR("alpha:"+ADDR2);
   refresh();checkMintParams();
 }
@@ -517,6 +517,8 @@ function logout(){localStorage.removeItem("alpha_wif");localStorage.removeItem("
 
 async function refresh(){
   const txs=document.getElementById("txs");
+  const balEl=document.getElementById("bal");
+  balEl.textContent="…";
   txs.innerHTML='<div class="txrow" style="color:var(--dim)">loading…</div>';
   try{
   const addrs=HD?HD.addrs:[ADDR,ADDR2];
