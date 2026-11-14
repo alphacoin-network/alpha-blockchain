@@ -505,6 +505,10 @@ async function send(){
     const ins=[];let sum=0;
     for(const x of cands){ins.push(x);sum+=Math.round(x.amount*1e8);if(sum>=sats+fee)break;}
     if(sum<sats+fee)throw new Error("insufficient mature funds");
+    // consensus limit: MAX_TX_WEIGHT=400,000 (~100k vbytes) — same as Bitcoin.
+    // ~2000+ inputs exceeds it; tell user to split instead of building a
+    // tx that can never confirm.
+    if(ins.length>800)throw new Error(`transaction too large (${ins.length} inputs) — split into smaller sends or consolidate UTXOs first`);
     // Core-style: avoid creating a change output smaller than dust (546) —
     // fold it into the fee instead of making an unspendable-dust UTXO
     const DUST=546;
