@@ -218,6 +218,17 @@ async def link(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             (f"Current: {u[0]}" if u and u[0] else "No address linked yet."))
         return
     addr = ctx.args[0].strip()
+    # validate: alpha1… bech32 or 1… legacy, sane length
+    ok = (addr.startswith("alpha1") and 35 <= len(addr) <= 90) or \
+         (addr.startswith("1") and 25 <= len(addr) <= 35)
+    if not ok:
+        await update.message.reply_text(
+            "❌ Invalid ALPHA address.\n\n"
+            "Pehle wallet banao:\n"
+            "🌐 https://alphacoin.network/wallet.html\n\n"
+            "Phir wahan se address copy karke:\n"
+            "/link <your_address>")
+        return
     c = db()
     c.execute("UPDATE users SET wallet=? WHERE tg_id=?", (addr, update.effective_user.id))
     c.commit(); c.close()
