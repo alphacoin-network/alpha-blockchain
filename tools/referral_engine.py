@@ -112,9 +112,15 @@ def main():
 
     paid_this_run = 0.0
     payouts = 0
+    # index users by code for referrer lookup
+    by_code = {u[1]: u for u in users}
     for tg_id, code, wallet, joined, s1, s2, s3, earned, paid, ref_by in users:
-        if not wallet or paid_this_run >= MAX_PER_RUN:
+        if not ref_by or not wallet:
+            continue   # only referred users generate rewards for referrer
+        ref = by_code.get(ref_by)
+        if not ref or not ref[2]:      # referrer must have linked wallet
             continue
+        r_tg, r_code, r_wallet = ref[0], ref[1], ref[2]
         bal, sent = addr_has_activity(wallet)
         # stage 1: activated (has balance or any tx)
         new1 = s1 or (1 if (bal > 0 or sent > 0) else 0)
@@ -128,28 +134,29 @@ def main():
                 new3 = 1
         except Exception:
             pass
-        # referrer's tier by their own verified referral count
-        my_refs = ref_count.get(code, 0)
+        # referrer's tier by their verified referral count
+        my_refs = ref_count.get(r_code, 0)
         mult = tier_reward(my_refs) / 500.0  # tier scales the 500-α base
         for stage, flag, reward in [(1, new1, 50), (2, new2, 150), (3, new3, 300)]:
             if flag and not c.execute(
                     "SELECT 1 FROM payouts WHERE tg_id=? AND stage=?",
-                    (tg_id, stage)).fetchone():
+                    (r_tg, stage * 100000 + tg_id)).fetchone():
                 amt = round(reward * mult, 2)
                 if amt <= 0 or paid_this_run + amt > MAX_PER_RUN:
                     continue
                 try:
-                    txid = pay(wallet, amt)
+                    txid = pay(r_wallet, amt)
                     c.execute("INSERT INTO payouts(tg_id,amount,stage,txid,ts)"
                               " VALUES(?,?,?,?,datetime('now'))",
-                              (tg_id, amt, stage, txid))
+                              (r_tg, amt, stage * 100000 + tg_id, txid))
                     c.execute("UPDATE users SET earned=earned+? WHERE tg_id=?",
-                              (amt, tg_id))
+                              (amt, r_tg))
                     paid_this_run += amt
                     payouts += 1
-                    print(f"paid {amt} α → tg {tg_id} stage{stage} tx {txid}")
+                    print(f"paid {amt} α → referrer tg {r_tg} "
+                          f"(friend tg {tg_id}) stage{stage} tx {txid}")
                 except Exception as e:
-                    print(f"payout failed tg {tg_id} stage{stage}: {e}")
+                    print(f"payout failed ref tg {r_tg} stage{stage}: {e}")
         c.execute("UPDATE users SET stage1=?,stage2=?,stage3=? WHERE tg_id=?",
                   (new1, new2, new3, tg_id))
     c.commit()
