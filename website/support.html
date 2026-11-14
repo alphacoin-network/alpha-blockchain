@@ -7,45 +7,69 @@
   <link rel="canonical" href="https://alphacoin.network/support.html">
   <link rel="stylesheet" href="style.css">
   <link rel="icon" type="image/svg+xml" href="coin.svg">
+  <style>
+    .sup-wrap{max-width:680px;margin:0 auto}
+    .field,select.field{width:100%;padding:13px;border-radius:10px;border:1px solid var(--border);
+      background:var(--card2);color:var(--text);font-family:var(--mono);font-size:14px;
+      margin:8px 0;box-sizing:border-box}
+    textarea.field{resize:vertical;min-height:120px;font-family:inherit}
+    .fix{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13.5px}
+    .fix:last-child{border-bottom:none}
+    .fix b{color:var(--text);min-width:170px;flex-shrink:0}
+    .fix span{color:var(--dim)}
+    .chan{display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,#14142a,#1d1d3d);
+      border:1px solid var(--accent);border-radius:14px;padding:16px 20px;margin-bottom:20px}
+    .chan .ic{font-size:28px}
+    @media(max-width:560px){
+      .fix{flex-direction:column;gap:4px}
+      .fix b{min-width:0}
+      h2.title{font-size:26px}
+    }
+  </style>
 </head>
 <body>
 <nav></nav>
-<section><div class="wrap" style="max-width:640px">
+<section><div class="wrap sup-wrap">
   <h2 class="title">🆘 Support Center</h2>
-  <p class="sub">Stuck somewhere? Send us a ticket — the team replies on-chain
-     or via the contact you leave. For instant help try the Telegram bot:</p>
-  <div style="text-align:center;margin:10px 0 22px">
-    <a class="btn btn-ghost" href="https://t.me/alpha_blockchain_bot" target="_blank" rel="noopener">💬 Chat with Bot — /support</a>
+  <p class="sub">Stuck somewhere? Fastest help is the Telegram bot —
+     for anything else, submit a ticket below.</p>
+
+  <div class="chan">
+    <div class="ic">💬</div>
+    <div style="flex:1">
+      <b>Instant help — Telegram Bot</b><br>
+      <span style="color:var(--dim);font-size:13px">/support command · live answers · wallet &amp; network tools</span>
+    </div>
+    <a class="btn btn-gold" href="https://t.me/alpha_blockchain_bot" target="_blank" rel="noopener" style="white-space:nowrap">Open Bot</a>
   </div>
 
   <div class="card">
-    <h3>Submit a ticket</h3>
-    <input id="s_name" class="field" placeholder="Your name" maxlength="80">
+    <h3 style="margin-top:0">Submit a ticket</h3>
+    <input id="s_name" class="field" placeholder="Your name" maxlength="80" autocomplete="name">
     <input id="s_contact" class="field" placeholder="Telegram / email (for reply)" maxlength="120">
     <select id="s_topic" class="field">
-      <option value="general">General question</option>
-      <option value="node">Running a node / sync issues</option>
-      <option value="mining">Mining help</option>
-      <option value="wallet">Wallet / send issues</option>
-      <option value="ausd">AUSD stablecoin</option>
-      <option value="token">Tokens (ALP)</option>
-      <option value="referral">Referral rewards</option>
-      <option value="bug">Bug report</option>
+      <option value="general">❓ General question</option>
+      <option value="node">🖥️ Running a node / sync issues</option>
+      <option value="mining">⛏️ Mining help</option>
+      <option value="wallet">👛 Wallet / send issues</option>
+      <option value="ausd">💵 AUSD stablecoin</option>
+      <option value="token">🪙 Tokens (ALP)</option>
+      <option value="referral">🎁 Referral rewards</option>
+      <option value="bug">🐛 Bug report</option>
     </select>
-    <textarea id="s_msg" class="field" rows="6" placeholder="Describe your issue — include txid/address/tx hash if relevant" maxlength="4000"></textarea>
+    <textarea id="s_msg" class="field" placeholder="Describe your issue — include txid/address/tx hash if relevant" maxlength="4000"></textarea>
     <button class="btn btn-gold" onclick="submitTicket()" style="width:100%">Submit Ticket</button>
     <div id="s_status" style="margin-top:10px;font-size:13.5px;color:var(--dim)"></div>
   </div>
 
   <div class="card">
-    <h3>Common fixes</h3>
-    <ul style="color:var(--dim);font-size:13.5px;line-height:1.9;padding-left:18px;margin:0">
-      <li><b>"Windows protected your PC"</b> → More info → Run anyway (unsigned app, safe)</li>
-      <li><b>Node not syncing</b> → check <a href="guide.html" style="color:var(--accent)">guide.html</a>, restart alphad</li>
-      <li><b>Send fails "immature coinbase"</b> → wait 100 blocks (~coinbase maturity)</li>
-      <li><b>Send fails "too large"</b> → split into smaller amounts or use Consolidate (Options ▾)</li>
-      <li><b>AUSD mint</b> → send ALPHA to reserve with memo <code>AUSD-MINT:&lt;amount&gt;</code></li>
-    </ul>
+    <h3 style="margin-top:0">⚡ Common fixes</h3>
+    <div class="fix"><b>"Windows protected your PC"</b><span>More info → Run anyway (unsigned app, safe)</span></div>
+    <div class="fix"><b>Node not syncing</b><span>Check <a href="guide.html" style="color:var(--accent)">guide.html</a>, restart alphad</span></div>
+    <div class="fix"><b>"immature coinbase"</b><span>Wait 100 blocks — coinbase maturity rule</span></div>
+    <div class="fix"><b>"transaction too large"</b><span>Split amount or use Consolidate (Options ▾)</span></div>
+    <div class="fix"><b>AUSD mint</b><span>Send ALPHA to reserve, memo <code>AUSD-MINT:&lt;amount&gt;</code></span></div>
+    <div class="fix"><b>Stuck tx / low fee</b><span>Options ▾ → ⚡ Speed up (CPFP)</span></div>
   </div>
 </div></section>
 <footer>Alpha Blockchain · Support</footer>
