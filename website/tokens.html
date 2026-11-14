@@ -21,20 +21,25 @@
 <section><div class="wrap">
   <h2 class="title">Tokens on Alpha</h2>
   <p class="sub">Assets issued on-chain via the ALP protocol — anyone can create
-     one with <code>createtoken</code>.</p>
-  <div class="note" style="background:rgba(79,124,255,.08);border-left:3px solid var(--accent);padding:12px 18px;border-radius:0 8px 8px 0;font-size:14px;color:var(--dim);margin-bottom:20px">
-     <b style="color:var(--text)">Contract address?</b> <b>ALPHA is the native
-     coin</b> of this chain — like BTC on Bitcoin, it has no contract address
-     (contracts only exist for tokens on smart-contract platforms like
-     Ethereum). For ALP tokens, the on-chain identifier is the
-     <b>Token ID</b> below — it is the txid of the token's issuance
-     transaction: <code>alpha_cli createtoken "Name" decimals supply → token_id</code>.
-     That's the address/ID you reference in <code>sendtoken</code>,
-     <code>dexsell</code>, <code>ammcreate</code>, etc.<br>
-     <b style="color:var(--text)">Create a token:</b> no full node needed —
-     open the <a href="wallet.html" style="color:var(--accent)">web wallet</a>
-     and use "Create a Token" — it builds and signs the ALP issue transaction
-     right in your browser.</div>
+     one permissionlessly, secured by proof-of-work.</p>
+
+  <div class="card" style="border:1px solid #f5c54255">
+    <h3 style="margin:0 0 6px">✦ Issue a Token (ALP)</h3>
+    <p class="sub" style="margin:0 0 12px;font-size:13px">Create an on-chain asset — name, decimals, supply.
+      Your token appears here and in the web wallet's "My Tokens" after 1 confirmation.</p>
+    <div class="wrow" style="max-width:460px">
+      <input id="it_name" class="field" placeholder="Token name" maxlength="64" style="margin:4px">
+      <input id="it_dec" class="field" placeholder="Decimals (0-8)" type="number" min="0" max="8" value="0" style="margin:4px;max-width:110px">
+      <input id="it_sup" class="field" placeholder="Total supply" type="number" step="any" min="1" style="margin:4px">
+    </div>
+    <button class="btn btn-gold" onclick="issueToken()" style="margin-top:8px">Issue Token →</button>
+    <div id="it_status" style="margin-top:8px;font-size:13px;color:var(--dim)"></div>
+  </div>
+
+  <div class="note" style="background:rgba(79,124,255,.08);border-left:3px solid var(--accent);padding:12px 18px;border-radius:0 8px 8px 0;font-size:13px;color:var(--dim);margin:18px 0">
+     <b style="color:var(--text)">How ALP works:</b> a token's ID is the txid of its
+     issuance transaction — reference it in <code>sendtoken</code>, <code>dexsell</code>,
+     <code>ammcreate</code>. ALPHA is the native coin (like BTC) — it has no token contract.</div>
 
   <div style="display:flex;gap:18px;align-items:center;background:linear-gradient(135deg,#14142a,#1d1d3d);border:1px solid #f5c54255;border-radius:14px;padding:20px 24px;margin:18px 0">
     <img src="img/ausd-logo.svg" alt="AUSD" style="width:72px;height:72px;flex-shrink:0">
@@ -57,18 +62,6 @@
     <tr><th>Order</th><th>Token</th><th class="num">Amount</th><th class="num">Price (ALPHA)</th><th>Seller</th><th>Height</th></tr>
     <tbody id="orders"><tr><td colspan="6" class="loading">loading…</td></tr></tbody>
   </table></div>
-  <div class="card" style="text-align:center;margin-top:18px">
-    <h3 style="margin:0 0 8px">Issue your own token (ALP)</h3>
-    <p class="sub" style="margin:0 0 12px">Create an on-chain asset — name, decimals, supply.
-      Requires a funded wallet.</p>
-    <div class="wrow" style="max-width:420px;margin:0 auto">
-      <input id="it_name" class="field" placeholder="Token name" maxlength="64" style="margin:4px">
-      <input id="it_dec" class="field" placeholder="Decimals (0-8)" type="number" min="0" max="8" value="0" style="margin:4px">
-      <input id="it_sup" class="field" placeholder="Total supply" type="number" step="any" min="1" style="margin:4px">
-    </div>
-    <button class="btn btn-gold" onclick="issueToken()" style="margin-top:8px">✦ Issue Token</button>
-    <div id="it_status" style="margin-top:8px;font-size:13px;color:var(--dim)"></div>
-  </div>
 </div></section>
 <script>
 function issueToken(){
