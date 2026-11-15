@@ -77,6 +77,8 @@ button:active{transform:scale(.98)}
   <button class="ghost" onclick="location.href='wallet.html'">Open Web Wallet</button>
 </div>
 <div class="card">
+  <div class="lbl">Session log</div>
+  <div id="log" style="max-height:110px;overflow-y:auto;font-size:12px;color:#8a93b8;line-height:1.8"></div>
   <div class="lbl">Rewards & Referral</div>
   <div class="row"><span class="k">Referral program</span><span class="v">up to 500 α</span></div>
   <button class="gold" onclick="copyRef()">⧉ Copy Referral Link</button>
@@ -88,7 +90,9 @@ if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
 window.addEventListener('error',e=>{const g=document.getElementById('gateMsg');if(g)g.textContent='⚠ '+(e.message||'script error');});
 window.addEventListener('unhandledrejection',e=>{const g=document.getElementById('gateMsg');if(g)g.textContent='⚠ '+(e.reason&&e.reason.message||e.reason||'async error');});
 const KEY='alpha_mine_last';
-let mining=false,nonces=0,found=0,t0=0,work=null,addr='';
+let mining=false,nonces=0,found=0,t0=0,work=null,addr='',uptime=0,log=[];
+function addLog(m){log.unshift(new Date().toLocaleTimeString()+' — '+m);if(log.length>30)log.pop();
+ document.getElementById('log').innerHTML=log.map(l=>'<div>'+l+'</div>').join('');}
 let thr=Math.min(4,navigator.hardwareConcurrency||2);
 function setThr(n){thr=n;document.getElementById('th').textContent=thr+' cores';
  [...document.getElementById('thrRow').children].forEach(b=>b.classList.remove('thr-on'));
@@ -143,6 +147,7 @@ function spawnWorkers(){
     const res=await submit(d.found);
     if(res.accepted){found++;document.getElementById('bf').textContent=found;
      document.getElementById('sess').innerHTML='<span class="pulse"></span>block '+res.height+'!';
+     addLog('⛏ BLOCK FOUND — height '+res.height+'! Reward incoming');
      // restart workers with fresh template (old workers keep stale work)
      workers.forEach(w=>w.terminate());workers=[];
      await getWork();spawnWorkers();}
@@ -167,14 +172,15 @@ async function toggleMine(){
  if(mining){mining=false;workers.forEach(w=>w.terminate());workers=[];
   document.getElementById('mineBtn').className='big';
   document.getElementById('mineBtn').textContent='▶ Start Mining';
-  document.getElementById('sess').textContent='stopped';return;}
+  document.getElementById('sess').textContent='stopped';addLog('Mining stopped — '+found+' block(s)');return;}
  addr=document.getElementById('addr').value.trim();
  if(!addr){alert('Enter your ALPHA address first');return;}
  document.getElementById('addrBox').textContent=addr;
  if(now-last<86400000){const h=Math.ceil((86400000-(now-last))/3600000);
   document.getElementById('gateMsg').textContent='⏳ Next mining window in ~'+h+'h — once per 24h';
   document.getElementById('resetBtn').classList.remove('hid');return;}
- localStorage.setItem(KEY,now);mining=true;t0=Date.now();nonces=0;found=0;
+ localStorage.setItem(KEY,now);mining=true;t0=Date.now();nonces=0;found=0;uptime=0;
+ addLog('Mining started — '+thr+' thread(s), address '+addr.slice(0,12)+'…');
  document.getElementById('mineBtn').className='big stop';
  document.getElementById('mineBtn').textContent='⏹ Stop Mining';
  document.getElementById('sess').innerHTML='<span class="pulse"></span>mining…';
@@ -185,7 +191,8 @@ async function toggleMine(){
   document.getElementById('gateMsg').textContent='⚠ getwork failed: '+e.message;return;}
  if(typeof Worker==='undefined'){mining=false;document.getElementById('gateMsg').textContent='⚠ Web Workers not supported in this browser';return;}
  spawnWorkers();
- setInterval(upd,1000);
+ setInterval(()=>{upd();uptime++;const m=Math.floor(uptime/60),s=uptime%60;
+  document.getElementById('sess').innerHTML='<span class="pulse"></span>mining '+m+'m '+s+'s';},1000);
 }
 function loadBal(a){fetch('/api/address/'+encodeURIComponent(a)).then(r=>r.json()).then(d=>{
  document.getElementById('bal').textContent=(d.balance||0).toFixed(4)+' α';
