@@ -48,9 +48,8 @@
   <div id="setup" class="card" style="text-align:center">
     <div style="font-size:15px;color:var(--dim);margin-bottom:16px">Your keys stay in this browser — nothing is sent anywhere.</div>
     <button class="btn btn-gold" onclick="createHD()" style="width:100%;margin-bottom:10px">✦ Create HD Wallet <span style="font-weight:400;font-size:12px;opacity:.85">— recommended</span></button>
-    <div class="wrow">
-      <button class="btn btn-ghost" onclick="createWallet()">New simple wallet</button>
-      <button class="btn btn-ghost" onclick="showImport()">⇩ Import WIF</button>
+    <div class="wrow" style="justify-content:center">
+      <button class="btn btn-ghost" onclick="showImport()">⇩ Import existing WIF</button>
     </div>
     <div id="import" class="hidden" style="margin-top:10px">
       <input id="wifin" class="field" placeholder="WIF private key (K/L/5…)" spellcheck="false">
