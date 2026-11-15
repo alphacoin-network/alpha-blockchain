@@ -76,6 +76,8 @@ button:active{transform:scale(.98)}
 </div>
 <script>
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
+window.addEventListener('error',e=>{const g=document.getElementById('gateMsg');if(g)g.textContent='⚠ '+(e.message||'script error');});
+window.addEventListener('unhandledrejection',e=>{const g=document.getElementById('gateMsg');if(g)g.textContent='⚠ '+(e.reason&&e.reason.message||e.reason||'async error');});
 const KEY='alpha_mine_last';
 let mining=false,nonces=0,found=0,t0=0,work=null,addr='';
 const thr=Math.min(4,navigator.hardwareConcurrency||2);
@@ -166,7 +168,11 @@ async function toggleMine(){
  document.getElementById('mineBtn').textContent='⏹ Stop Mining';
  document.getElementById('sess').innerHTML='<span class="pulse"></span>mining…';
  document.getElementById('gateMsg').textContent='Real PoW on '+thr+' thread(s)';
- try{await getWork();}catch(e){alert('Cannot get work: '+e.message);mining=false;return;}
+ try{await getWork();}catch(e){mining=false;document.getElementById('mineBtn').className='big';
+  document.getElementById('mineBtn').textContent='▶ Start Mining';
+  document.getElementById('sess').textContent='error';
+  document.getElementById('gateMsg').textContent='⚠ getwork failed: '+e.message;return;}
+ if(typeof Worker==='undefined'){mining=false;document.getElementById('gateMsg').textContent='⚠ Web Workers not supported in this browser';return;}
  spawnWorkers();
  setInterval(upd,1000);
 }
