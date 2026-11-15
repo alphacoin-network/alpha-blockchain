@@ -19,6 +19,7 @@ button{width:100%;padding:16px;border:none;border-radius:14px;font-size:17px;fon
 .stat{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #ffffff10;font-size:14px}
 .stat b{color:#f7931a}
 .warn{color:#ffb84d;font-size:12px;text-align:center;margin-top:8px}
+.hid{display:none}
 input{width:100%;padding:12px;border-radius:10px;border:1px solid #ffffff22;background:#0d1226;color:#e8e8f0;font-size:13px;margin-top:8px}
 </style>
 </head>
@@ -32,6 +33,8 @@ input{width:100%;padding:12px;border-radius:10px;border:1px solid #ffffff22;back
   <div class="stat"><span>Blocks found</span><b id="bf">0</b></div>
   <div class="stat"><span>Wallet balance</span><b id="bal">…</b></div>
   <button class="big" id="mineBtn" onclick="toggleMine()">▶ Start Mining</button>
+  <button class="gold hid" id="installBtn" onclick="doInstall()">⬇ Install App</button>
+  <div class="warn hid" id="installedMsg">✓ Installed — open from home screen</div>
   <div class="warn" id="gateMsg"></div>
 </div>
 <div class="card">
@@ -118,6 +121,29 @@ async function toggleMine(){
  setInterval(upd,1000);
 }
 function copyRef(){navigator.clipboard.writeText('https://t.me/alpha_blockchain_bot').then(()=>alert('Referral link copied'));}
+// PWA install prompt — show Install button when browser offers it
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();deferredPrompt=e;
+  document.getElementById('installBtn').classList.remove('hid');
+});
+window.addEventListener('appinstalled',()=>{
+  document.getElementById('installBtn').classList.add('hid');
+  document.getElementById('installedMsg').classList.remove('hid');
+  deferredPrompt=null;
+});
+async function doInstall(){
+  if(!deferredPrompt){alert('Install via browser menu → "Add to Home Screen"');return;}
+  deferredPrompt.prompt();
+  const r=await deferredPrompt.userChoice;
+  if(r.outcome==='accepted'){document.getElementById('installBtn').classList.add('hid');}
+  deferredPrompt=null;
+}
+// if already installed (standalone), hide install button
+if(window.matchMedia('(display-mode: standalone)').matches||navigator.standalone){
+  document.getElementById('installBtn').classList.add('hid');
+  document.getElementById('installedMsg').classList.remove('hid');
+}
 // balance
 function loadBal(){const a=document.getElementById('addr').value.trim();if(!a)return;
  fetch('/api/address/'+encodeURIComponent(a)).then(r=>r.json()).then(d=>{document.getElementById('bal').textContent=(d.balance||0).toFixed(4)+' α'}).catch(()=>{});}
