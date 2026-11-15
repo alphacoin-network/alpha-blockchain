@@ -608,7 +608,7 @@ function showWif(){
   el.classList.toggle("hidden");
   el.innerHTML="WIF (secret — never share): <b class='wif'>"+wifEncode(KEY.priv)+"</b>";
 }
-function logout(){localStorage.removeItem("alpha_wif");localStorage.removeItem("alpha_wif_enc");location.reload();}
+function logout(){localStorage.removeItem("alpha_wif");localStorage.removeItem("alpha_wif_enc");localStorage.removeItem("alpha_hd");location.reload();}
 
 async function refresh(){
   const txs=document.getElementById("txs");
