@@ -60,6 +60,11 @@
     <button class="btn btn-gold" onclick="createHD()" style="width:100%;margin-bottom:10px">✦ Create Wallet</button>
     <div class="wrow" style="justify-content:center">
       <button class="btn btn-ghost" onclick="showImport()">⇩ Import existing WIF</button>
+      <button class="btn btn-ghost" onclick="showRestore()">🌱 Restore from seed</button>
+    </div>
+    <div id="restore" class="hidden" style="margin-top:10px">
+      <textarea id="seedin" class="field" rows="3" placeholder="Paste your 128-char seed (hex)" spellcheck="false" style="font-size:12px"></textarea>
+      <button class="btn btn-gold" onclick="restoreHD()" style="width:100%">Restore Wallet</button>
     </div>
     <div id="import" class="hidden" style="margin-top:10px">
       <input id="wifin" class="field" placeholder="WIF private key (K/L/5…)" spellcheck="false">
@@ -609,6 +614,16 @@ async function createWallet(){
   alert("Wallet created! Copy your WIF (Show WIF) and keep it SAFE — it's the only backup.");
 }
 function showImport(){document.getElementById("import").classList.toggle("hidden");}
+function showRestore(){document.getElementById("restore").classList.toggle("hidden");}
+async function restoreHD(){
+  const s=document.getElementById("seedin").value.trim().toLowerCase().replace(/\s+/g,"");
+  if(!/^[0-9a-f]{128}$/.test(s)){alert("Invalid seed — must be 128 hex characters");return;}
+  try{
+    const a=await deriveAddr(hexToB(s),0);
+    HD={seed:s,index:0,addrs:[a.addr],keymap:{}};HD.keymap[a.addr]={priv:a.priv,pub:a.pub};
+    hdSave();useHD();
+  }catch(e){alert("Could not restore: "+e.message);}
+}
 async function importWif(){
   try{const priv=wifDecode(document.getElementById("wifin").value.trim());
     KEY={priv};await saveKey();useKey(priv);}
