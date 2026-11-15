@@ -114,7 +114,7 @@ onmessage=async function(e){
    if(lt(hx)){postMessage({found:(n+k*step)>>>0});}
   }
   n+=2000*step;
-  postMessage({count});
+  postMessage({count:2000}); // delta per batch — main accumulates
  }
 };`;
 function spawnWorkers(){
