@@ -1889,15 +1889,24 @@ class RPCMethods:
 
     # -- remote/browser mining (getwork) ----------------------------------------
     _work_cache: dict = {}
+    _work_rl: dict = {}   # address -> last getwork timestamp (rate limit)
 
     def getwork(self, address: str):
         """Return a block template for external/browser mining.
         Header is 80 bytes; the caller hashes `data` + nonce (4B LE)."""
-        import secrets as _sec
+        import secrets as _sec, time as _t
         try:
             spk = script.script_for_address(address, self.node.params)
         except ValueError:
             raise RPCError(RPC_INVALID_ADDRESS_OR_KEY, "invalid address")
+        # rate limit: max 1 template per 5s per address (anti-spam/DoS)
+        now = _t.time()
+        cls = self.__class__
+        if now - cls._work_rl.get(address, 0) < 5:
+            raise RPCError(RPC_INVALID_PARAMS, "rate limited — try again shortly")
+        cls._work_rl[address] = now
+        if len(cls._work_rl) > 10000:
+            cls._work_rl.clear()
         block = self.node.get_block_template(spk)
         wid = _sec.token_hex(8)
         self.__class__._work_cache[wid] = block
