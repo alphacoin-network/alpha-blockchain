@@ -33,7 +33,7 @@ input{width:100%;padding:12px;border-radius:10px;border:1px solid #ffffff22;back
   <div class="stat"><span>Blocks found</span><b id="bf">0</b></div>
   <div class="stat"><span>Wallet balance</span><b id="bal">…</b></div>
   <button class="big" id="mineBtn" onclick="toggleMine()">▶ Start Mining</button>
-  <button class="gold hid" id="installBtn" onclick="doInstall()">⬇ Install App</button>
+  <button class="gold" id="installBtn" onclick="doInstall()">⬇ Install App</button>
   <div class="warn hid" id="installedMsg">✓ Installed — open from home screen</div>
   <div class="warn" id="gateMsg"></div>
 </div>
@@ -133,11 +133,12 @@ window.addEventListener('appinstalled',()=>{
   deferredPrompt=null;
 });
 async function doInstall(){
-  if(!deferredPrompt){alert('Install via browser menu → "Add to Home Screen"');return;}
-  deferredPrompt.prompt();
-  const r=await deferredPrompt.userChoice;
-  if(r.outcome==='accepted'){document.getElementById('installBtn').classList.add('hid');}
-  deferredPrompt=null;
+  if(deferredPrompt){deferredPrompt.prompt();
+   const r=await deferredPrompt.userChoice;deferredPrompt=null;
+   if(r.outcome==='accepted')document.getElementById('installBtn').classList.add('hid');
+   return;}
+  // no native prompt — show manual steps
+  alert('Install manually:\n\nAndroid Chrome: ⋮ menu → "Add to Home screen"\niPhone Safari: Share → "Add to Home Screen"\nDesktop Chrome: install icon in address bar (right side)');
 }
 // if already installed (standalone), hide install button
 if(window.matchMedia('(display-mode: standalone)').matches||navigator.standalone){
