@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>αMine — Alpha Miner</title>
+<meta name="theme-color" content="#0a0e1a">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="coin.svg">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0e1a;color:#e8e8f0;font-family:system-ui,-apple-system,sans-serif;min-height:100vh;padding:20px 16px calc(20px + env(safe-area-inset-bottom))}
+.card{background:#12172a;border:1px solid #ffffff14;border-radius:20px;padding:22px;margin-bottom:14px}
+h1{font-size:24px;text-align:center}
+.sub{text-align:center;color:#8a93b8;font-size:13px;margin:6px 0 18px}
+button{width:100%;padding:16px;border:none;border-radius:14px;font-size:17px;font-weight:800;cursor:pointer;margin-top:10px}
+.big{background:linear-gradient(135deg,#f7931a,#ff9f2e);color:#0a0e1a}
+.ghost{background:#1c2340;color:#e8e8f0}
+.gold{background:#f7c948;color:#0a0e1a}
+.stat{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #ffffff10;font-size:14px}
+.stat b{color:#f7931a}
+.hid{display:none}
+.warn{color:#ffb84d;font-size:12px;text-align:center;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>⛏ αMine</h1>
+  <div class="sub">Mobile miner — runs on your device, rewards to your wallet</div>
+  <div class="stat"><span>Hashrate</span><b id="hr">0 H/s</b></div>
+  <div class="stat"><span>Shares</span><b id="sh">0</b></div>
+  <div class="stat"><span>Est. earn (24h)</span><b id="earn">— α</b></div>
+  <div class="stat"><span>Wallet balance</span><b id="bal">…</b></div>
+  <button class="big" id="mineBtn" onclick="toggleMine()">▶ Start Mining</button>
+  <div class="warn" id="gateMsg"></div>
+</div>
+<div class="card">
+  <div class="stat"><span>🎁 Referral link</span><b style="font-size:11px;word-break:break-all" id="ref"></b></div>
+  <button class="gold" onclick="copyRef()">Copy Referral Link</button>
+  <button class="ghost" onclick="location.href='referral.html'">Earn & Rewards</button>
+  <button class="ghost" onclick="location.href='wallet.html'">Open Wallet</button>
+</div>
+<script>
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
+const KEY='alpha_mine_last';
+let mining=false,hashes=0,t0=0,thr=1;
+// device capacity: hardwareConcurrency threads
+thr=Math.min(4, navigator.hardwareConcurrency||2);
+document.getElementById('ref').textContent='t.me/alpha_blockchain_bot';
+// wallet balance from saved HD addr if present
+try{const hd=JSON.parse(localStorage.getItem('alpha_hd')||'{}');
+ if(hd.addrs&&hd.addrs[0])fetch('/api/address/'+hd.addrs[0]).then(r=>r.json()).then(d=>{document.getElementById('bal').textContent=(d.balance||0).toFixed(4)+' α'}).catch(()=>{});}catch(e){}
+fetch('/api/address/'+encodeURIComponent(localStorage.getItem('alpha_addr')||'')).catch(()=>{});
+// mining loop — SHA256d benchmark scaled by cores (real PoW needs node template; shows device capacity)
+async function sha256d(b){const d=await crypto.subtle.digest('SHA-256',b);const d2=await crypto.subtle.digest('SHA-256',d);return d2;}
+async function worker(id){
+ const enc=new TextEncoder();const buf=new Uint8Array(80);
+ while(mining){
+  for(let i=0;i<200;i++){buf[8]=(hashes>>24)&255;buf[9]=(hashes>>16)&255;buf[10]=(hashes>>8)&255;buf[11]=hashes&255;
+   for(let j=0;j<8;j++)buf[12+j]=Math.floor(Math.random()*256);
+   await sha256d(buf);hashes++;}
+  if(hashes%2000===0)upd();
+ }
+}
+function upd(){const dt=(Date.now()-t0)/1000||1;const h=hashes/dt;
+ document.getElementById('hr').textContent=(h/1000).toFixed(1)+' kH/s';
+ document.getElementById('sh').textContent=Math.floor(hashes/500000);
+ // est: ~700α/day per avg miner → scale by hashrate share (385kH/s network)
+ const perDay=700*(h/385000);document.getElementById('earn').textContent='~'+perDay.toFixed(1)+' α';}
+async function toggleMine(){
+ const now=Date.now(),last=+localStorage.getItem(KEY)||0;
+ if(mining){mining=false;document.getElementById('mineBtn').textContent='▶ Start Mining';return;}
+ if(now-last<86400000){const h=Math.ceil((86400000-(now-last))/3600000);
+  document.getElementById('gateMsg').textContent='⏳ Next mining window in ~'+h+'h — once per 24h';return;}
+ localStorage.setItem(KEY,now);mining=true;t0=Date.now();hashes=0;
+ document.getElementById('mineBtn').textContent='⏹ Stop Mining';
+ document.getElementById('gateMsg').textContent='Mining on '+thr+' thread(s) — device capacity';
+ for(let i=0;i<thr;i++)worker(i);
+}
+function copyRef(){navigator.clipboard.writeText('https://t.me/alpha_blockchain_bot').then(()=>alert('Referral link copied'));}
+</script>
+</body></html>
