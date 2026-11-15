@@ -50,6 +50,7 @@ button:active{transform:scale(.98)}
     <div class="stat"><div class="k">Hashrate</div><div class="v" id="hr">0 H/s</div></div>
     <div class="stat"><div class="k">Nonces</div><div class="v blue" id="nt">0</div></div>
     <div class="stat"><div class="k">Blocks</div><div class="v green" id="bf">0</div></div>
+    <div class="stat"><div class="k">Earned</div><div class="v green" id="earn2">0 α</div></div>
     <div class="stat"><div class="k">Threads</div><div class="v blue" id="th">—</div></div>
   </div>
   <div class="lbl">Status</div>
@@ -146,6 +147,7 @@ function spawnWorkers(){
    if(d.found!==undefined&&work){
     const res=await submit(d.found);
     if(res.accepted){found++;document.getElementById('bf').textContent=found;
+     document.getElementById('earn2').textContent=(found*50)+' α';
      document.getElementById('sess').innerHTML='<span class="pulse"></span>block '+res.height+'!';
      addLog('⛏ BLOCK FOUND — height '+res.height+'! Reward incoming');
      // restart workers with fresh template (old workers keep stale work)
