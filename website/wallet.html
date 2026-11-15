@@ -81,6 +81,7 @@
       <div class="wrow">
         <button class="btn btn-ghost" onclick="copyAddr()">⧉ Copy address</button>
         <button class="btn btn-ghost" onclick="showWif()">🔑 Show WIF</button>
+        <button class="btn btn-ghost" id="seedbtn" onclick="showSeed()" style="display:none">🌱 Backup seed</button>
         <button class="btn btn-ghost" onclick="refresh()">↻ Refresh</button>
       </div>
       <div id="wifout" class="hidden warnbox" style="margin-top:10px"></div>
@@ -554,6 +555,7 @@ async function useHD(){
   document.getElementById("myaddr").innerHTML=
     "hd wallet · addr "+HD.addrs.length+" of ∞<br><b style='color:var(--gold)'>"+ADDR2+"</b>";
   drawQR(ADDR2);refresh();checkMintParams();
+  const sb=document.getElementById("seedbtn");if(sb)sb.style.display="";
 }
 async function loadKey(){
   const enc=localStorage.getItem("alpha_wif_enc");
@@ -607,6 +609,10 @@ function showWif(){
   const el=document.getElementById("wifout");
   el.classList.toggle("hidden");
   el.innerHTML="WIF (secret — never share): <b class='wif'>"+wifEncode(KEY.priv)+"</b>";
+}
+function showSeed(){
+  if(!HD){alert("Not an HD wallet");return;}
+  prompt("YOUR HD SEED — write this down, it's the ONLY backup:\n\n",HD.seed);
 }
 function logout(){localStorage.removeItem("alpha_wif");localStorage.removeItem("alpha_wif_enc");localStorage.removeItem("alpha_hd");location.reload();}
 
