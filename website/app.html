@@ -150,7 +150,7 @@ function upd(){const dt=(Date.now()-t0)/1000||1;const h=nonces/dt;
  document.getElementById('nt').textContent=nonces.toLocaleString();
  // honest estimate: network ~385kH/s total → share % of blocks
  const netH=385000;const share=h/(netH+h)*100;
- document.getElementById('earn').textContent=share.toFixed(1)+'% of network';
+ document.getElementById('earn').textContent=share.toFixed(1)+'% of network';}
 async function toggleMine(){
  const now=Date.now(),last=+localStorage.getItem(KEY)||0;
  if(mining){mining=false;workers.forEach(w=>w.terminate());workers=[];
