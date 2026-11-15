@@ -49,6 +49,7 @@ async function loadStats(targetId) {
       <div class="stat"><div class="k">Height</div><div class="v gold">${fmt(s.height)}</div></div>
       <div class="stat"><div class="k">Supply</div><div class="v gold">${fmt(s.supply)} α</div></div>
       <div class="stat"><div class="k">Difficulty</div><div class="v blue">${fmt(s.difficulty)}</div></div>
+      <div class="stat"><div class="k">Next retarget</div><div class="v blue">${2016-(s.height%2016)} blk</div></div>
       <div class="stat"><div class="k">Hashrate</div><div class="v blue">${fmtHash(s.hashrate)}</div></div>
       <div class="stat"><div class="k">Mempool</div><div class="v green">${fmt(s.mempool)}</div></div>
       <div class="stat"><div class="k">Peers</div><div class="v green">${fmt(s.connections)}</div></div>
