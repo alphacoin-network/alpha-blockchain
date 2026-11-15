@@ -34,6 +34,7 @@ button:active{transform:scale(.98)}
 .row .k{color:#8a93b8}.row .v{font-weight:700;color:#f7931a;font-size:12px;word-break:break-all;text-align:right;max-width:60%}
 .pulse{display:inline-block;width:9px;height:9px;border-radius:50%;background:#4ade80;margin-right:7px;animation:pl 1.2s infinite}
 @keyframes pl{0%,100%{opacity:1}50%{opacity:.3}}
+.thr-on{background:#f7931a!important;color:#0a0e1a!important}
 .hid{display:none}
 </style>
 </head>
@@ -54,6 +55,14 @@ button:active{transform:scale(.98)}
   <div class="lbl">Status</div>
   <div class="row"><span class="k">Session</span><span class="v" id="sess">idle</span></div>
   <div class="row"><span class="k">Est. earn / day</span><span class="v" id="earn">— α</span></div>
+  <div class="lbl">Threads</div>
+  <div style="display:flex;gap:8px;margin-top:6px" id="thrRow">
+    <button class="ghost" style="margin:0;padding:10px;font-size:13px;flex:1" onclick="setThr(1)">1</button>
+    <button class="ghost" style="margin:0;padding:10px;font-size:13px;flex:1" onclick="setThr(2)">2</button>
+    <button class="ghost thr-on" style="margin:0;padding:10px;font-size:13px;flex:1" id="t4" onclick="setThr(4)">4</button>
+    <button class="ghost" style="margin:0;padding:10px;font-size:13px;flex:1" onclick="setThr(6)">6</button>
+    <button class="ghost" style="margin:0;padding:10px;font-size:13px;flex:1" onclick="setThr(8)">8</button>
+  </div>
   <button class="big" id="mineBtn" onclick="toggleMine()">▶ Start Mining</button>
   <button class="gold hid" id="installBtn" onclick="doInstall()">⬇ Install App</button>
   <div class="warn" id="gateMsg"></div>
@@ -80,8 +89,10 @@ window.addEventListener('error',e=>{const g=document.getElementById('gateMsg');i
 window.addEventListener('unhandledrejection',e=>{const g=document.getElementById('gateMsg');if(g)g.textContent='⚠ '+(e.reason&&e.reason.message||e.reason||'async error');});
 const KEY='alpha_mine_last';
 let mining=false,nonces=0,found=0,t0=0,work=null,addr='';
-const thr=Math.min(4,navigator.hardwareConcurrency||2);
-document.getElementById('th').textContent=thr+' cores';
+let thr=Math.min(4,navigator.hardwareConcurrency||2);
+function setThr(n){thr=n;document.getElementById('th').textContent=thr+' cores';
+ [...document.getElementById('thrRow').children].forEach(b=>b.classList.remove('thr-on'));
+ const map={1:0,2:1,4:2,6:3,8:4};document.getElementById('thrRow').children[map[n]].classList.add('thr-on');}
 // prefill address + balance from HD wallet
 try{const hd=JSON.parse(localStorage.getItem('alpha_hd')||'{}');
  if(hd.addrs&&hd.addrs[0]){document.getElementById('addr').value=hd.addrs[0];loadBal(hd.addrs[0]);}}catch(e){}
