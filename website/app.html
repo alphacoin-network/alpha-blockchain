@@ -57,6 +57,7 @@ button:active{transform:scale(.98)}
   <button class="big" id="mineBtn" onclick="toggleMine()">▶ Start Mining</button>
   <button class="gold hid" id="installBtn" onclick="doInstall()">⬇ Install App</button>
   <div class="warn" id="gateMsg"></div>
+  <button class="ghost hid" id="resetBtn" onclick="resetTimer()" style="padding:10px;font-size:13px">↺ Reset 24h timer</button>
   <div class="ok hid" id="installedMsg">✓ App installed — open from home screen</div>
 </div>
 <div class="card">
@@ -129,7 +130,8 @@ async function toggleMine(){
  if(!addr){alert('Enter your ALPHA address first');return;}
  document.getElementById('addrBox').textContent=addr;
  if(now-last<86400000){const h=Math.ceil((86400000-(now-last))/3600000);
-  document.getElementById('gateMsg').textContent='⏳ Next mining window in ~'+h+'h — once per 24h';return;}
+  document.getElementById('gateMsg').textContent='⏳ Next mining window in ~'+h+'h — once per 24h';
+  document.getElementById('resetBtn').classList.remove('hid');return;}
  localStorage.setItem(KEY,now);mining=true;t0=Date.now();nonces=0;found=0;
  document.getElementById('mineBtn').className='big stop';
  document.getElementById('mineBtn').textContent='⏹ Stop Mining';
@@ -143,6 +145,7 @@ function loadBal(a){fetch('/api/address/'+encodeURIComponent(a)).then(r=>r.json(
  document.getElementById('bal').textContent=(d.balance||0).toFixed(4)+' α';
  document.getElementById('waddr').textContent=a.slice(0,14)+'…';}).catch(()=>{});}
 document.getElementById('addr').addEventListener('change',()=>{const a=document.getElementById('addr').value.trim();if(a)loadBal(a);});
+function resetTimer(){localStorage.removeItem(KEY);document.getElementById('gateMsg').textContent='';document.getElementById('resetBtn').classList.add('hid');}
 function copyRef(){navigator.clipboard.writeText('https://t.me/alpha_blockchain_bot').then(()=>alert('Referral link copied'));}
 let deferredPrompt=null;
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;document.getElementById('installBtn').classList.remove('hid');});
