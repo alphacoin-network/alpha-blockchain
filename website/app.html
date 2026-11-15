@@ -2,152 +2,157 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>αMine — Alpha Miner</title>
+<title>αMine — Alpha Blockchain Miner</title>
 <meta name="theme-color" content="#0a0e1a">
+<meta name="description" content="Mine ALPHA on your device — real Proof-of-Work, rewards to your wallet.">
 <link rel="manifest" href="manifest-app.json">
 <link rel="icon" href="coin.svg">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#0a0e1a;color:#e8e8f0;font-family:system-ui,-apple-system,sans-serif;min-height:100vh;padding:20px 16px calc(20px + env(safe-area-inset-bottom))}
-.card{background:#12172a;border:1px solid #ffffff14;border-radius:20px;padding:22px;margin-bottom:14px}
-h1{font-size:24px;text-align:center}
-.sub{text-align:center;color:#8a93b8;font-size:13px;margin:6px 0 18px}
-button{width:100%;padding:16px;border:none;border-radius:14px;font-size:17px;font-weight:800;cursor:pointer;margin-top:10px}
-.big{background:linear-gradient(135deg,#f7931a,#ff9f2e);color:#0a0e1a}
-.ghost{background:#1c2340;color:#e8e8f0}
+body{background:radial-gradient(1200px 600px at 50% -10%,#1a2242 0%,#0a0e1a 55%);color:#e8e8f0;font-family:system-ui,-apple-system,sans-serif;min-height:100vh;padding:18px 14px calc(24px + env(safe-area-inset-bottom))}
+.wrap{max-width:480px;margin:0 auto}
+.card{background:#12172acc;border:1px solid #ffffff14;border-radius:22px;padding:22px;margin-bottom:14px;backdrop-filter:blur(8px)}
+h1{font-size:26px;text-align:center;letter-spacing:.5px}
+.sub{text-align:center;color:#8a93b8;font-size:12.5px;margin:6px 0 16px}
+.lbl{font-size:11px;color:#8a93b8;letter-spacing:1.2px;text-transform:uppercase;margin:14px 0 6px}
+.addrbox{background:#0d1226;border:1px solid #f7931a33;border-radius:12px;padding:12px;font-size:12px;color:#f7931a;word-break:break-all;font-family:monospace}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.stat{background:#0d1226;border-radius:14px;padding:12px;text-align:center}
+.stat .k{font-size:10.5px;color:#8a93b8;letter-spacing:1px;text-transform:uppercase}
+.stat .v{font-size:19px;font-weight:800;color:#f7931a;margin-top:3px}
+.stat .v.green{color:#4ade80}.stat .v.blue{color:#6cb6ff}
+button{width:100%;padding:15px;border:none;border-radius:14px;font-size:16px;font-weight:800;cursor:pointer;margin-top:12px;transition:transform .08s}
+button:active{transform:scale(.98)}
+.big{background:linear-gradient(135deg,#f7931a,#ff9f2e);color:#0a0e1a;box-shadow:0 8px 24px #f7931a33}
+.big.stop{background:linear-gradient(135deg,#ef4444,#f87171);color:#fff}
 .gold{background:#f7c948;color:#0a0e1a}
-.stat{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #ffffff10;font-size:14px}
-.stat b{color:#f7931a}
-.warn{color:#ffb84d;font-size:12px;text-align:center;margin-top:8px}
+.ghost{background:#1c2340;color:#e8e8f0}
+.warn{color:#ffb84d;font-size:12px;text-align:center;margin-top:10px;min-height:16px}
+.ok{color:#4ade80;font-size:12px;text-align:center;margin-top:10px}
+.row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid #ffffff10;font-size:14px}
+.row:last-child{border:none}
+.row .k{color:#8a93b8}.row .v{font-weight:700;color:#f7931a;font-size:12px;word-break:break-all;text-align:right;max-width:60%}
+.pulse{display:inline-block;width:9px;height:9px;border-radius:50%;background:#4ade80;margin-right:7px;animation:pl 1.2s infinite}
+@keyframes pl{0%,100%{opacity:1}50%{opacity:.3}}
 .hid{display:none}
-input{width:100%;padding:12px;border-radius:10px;border:1px solid #ffffff22;background:#0d1226;color:#e8e8f0;font-size:13px;margin-top:8px}
 </style>
 </head>
 <body>
+<div class="wrap">
 <div class="card">
   <h1>⛏ αMine</h1>
-  <div class="sub">Real Proof-of-Work mining — rewards paid to your address</div>
-  <input id="addr" placeholder="Your ALPHA address (alpha1… or 1…)">
-  <div class="stat"><span>Hashrate</span><b id="hr">0 H/s</b></div>
-  <div class="stat"><span>Nonces tried</span><b id="nt">0</b></div>
-  <div class="stat"><span>Blocks found</span><b id="bf">0</b></div>
-  <div class="stat"><span>Wallet balance</span><b id="bal">…</b></div>
+  <div class="sub">Real Proof-of-Work — rewards paid on-chain to your address</div>
+  <div class="lbl">Mining address</div>
+  <div class="addrbox" id="addrBox">— enter address below or open wallet —</div>
+  <input id="addr" placeholder="alpha1… or 1… address" style="width:100%;padding:12px;border-radius:12px;border:1px solid #ffffff22;background:#0d1226;color:#e8e8f0;font-size:13px;margin-top:8px">
+  <div class="grid">
+    <div class="stat"><div class="k">Hashrate</div><div class="v" id="hr">0 H/s</div></div>
+    <div class="stat"><div class="k">Nonces</div><div class="v blue" id="nt">0</div></div>
+    <div class="stat"><div class="k">Blocks</div><div class="v green" id="bf">0</div></div>
+    <div class="stat"><div class="k">Threads</div><div class="v blue" id="th">—</div></div>
+  </div>
+  <div class="lbl">Status</div>
+  <div class="row"><span class="k">Session</span><span class="v" id="sess">idle</span></div>
+  <div class="row"><span class="k">Est. earn / day</span><span class="v" id="earn">— α</span></div>
   <button class="big" id="mineBtn" onclick="toggleMine()">▶ Start Mining</button>
-  <button class="gold" id="installBtn" onclick="doInstall()">⬇ Install App</button>
-  <div class="warn hid" id="installedMsg">✓ Installed — open from home screen</div>
+  <button class="gold hid" id="installBtn" onclick="doInstall()">⬇ Install App</button>
   <div class="warn" id="gateMsg"></div>
+  <div class="ok hid" id="installedMsg">✓ App installed — open from home screen</div>
 </div>
 <div class="card">
-  <div class="stat"><span>🎁 Referral</span><b style="font-size:11px">bot → rewards</b></div>
-  <button class="gold" onclick="copyRef()">Copy Referral Link</button>
+  <div class="lbl">Wallet</div>
+  <div class="row"><span class="k">Balance</span><span class="v" id="bal">…</span></div>
+  <div class="row"><span class="k">Address</span><span class="v" id="waddr">—</span></div>
+  <button class="ghost" onclick="location.href='wallet.html'">Open Web Wallet</button>
+</div>
+<div class="card">
+  <div class="lbl">Rewards & Referral</div>
+  <div class="row"><span class="k">Referral program</span><span class="v">up to 500 α</span></div>
+  <button class="gold" onclick="copyRef()">⧉ Copy Referral Link</button>
   <button class="ghost" onclick="location.href='referral.html'">Earn & Rewards</button>
-  <button class="ghost" onclick="location.href='wallet.html'">Open Wallet</button>
+</div>
 </div>
 <script>
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
 const KEY='alpha_mine_last';
 let mining=false,nonces=0,found=0,t0=0,work=null,addr='';
 const thr=Math.min(4,navigator.hardwareConcurrency||2);
-// prefill from HD wallet if present
-try{const hd=JSON.parse(localStorage.getItem('alpha_hd')||'{}');if(hd.addrs&&hd.addrs[0])document.getElementById('addr').value=hd.addrs[0];}catch(e){}
-function upd(){const dt=(Date.now()-t0)/1000||1;document.getElementById('hr').textContent=(nonces/dt/1000).toFixed(1)+' kH/s';
- document.getElementById('nt').textContent=nonces.toLocaleString();}
+document.getElementById('th').textContent=thr+' cores';
+// prefill address + balance from HD wallet
+try{const hd=JSON.parse(localStorage.getItem('alpha_hd')||'{}');
+ if(hd.addrs&&hd.addrs[0]){document.getElementById('addr').value=hd.addrs[0];loadBal(hd.addrs[0]);}}catch(e){}
 function hexToBytes(h){const b=new Uint8Array(h.length/2);for(let i=0;i<b.length;i++)b[i]=parseInt(h.substr(i*2,2),16);return b;}
 function bytesToHex(b){return [...b].map(x=>x.toString(16).padStart(2,'0')).join('');}
-// server compares int.from_bytes(hash,"little") < target — reverse digest bytes first
 function ltTarget(hashHex,tHex){
- const bytes=hexToBytes(hashHex).reverse();
- const h=BigInt('0x'+bytesToHex(bytes)),t=BigInt('0x'+tHex);
- return h<t;
+ const bytes=hexToBytes(hashHex).reverse(); // server: int.from_bytes(hash,'little')
+ return BigInt('0x'+bytesToHex(bytes))<BigInt('0x'+tHex);
 }
 async function getWork(){
  const r=await fetch('/api/minework?address='+encodeURIComponent(addr));
- const d=await r.json();
- if(d.error)throw new Error(d.error);
+ const d=await r.json();if(d.error)throw new Error(d.error);
  work={id:d.workid,prefix:hexToBytes(d.data),target:d.target,height:d.height};
 }
-async function grind(){
- // worker: iterate nonces, sha256d(prefix+nonceLE)
- let n=nonces>>>0;
- const buf=new Uint8Array(80);
- buf.set(work.prefix,0);
- const dv=new DataView(buf.buffer);
+async function submit(n){
+ const r=await fetch('/api/submitwork?workid='+work.id+'&nonce='+n);
+ return r.json();
+}
+async function minerLoop(tid){
+ // each thread strides nonces: tid, tid+thr, tid+2thr…
+ let n=tid;
  while(mining&&work){
-  dv.setUint32(76,n,true); // nonce LE at offset 76
-  const d1=await crypto.subtle.digest('SHA-256',buf);
-  const d2=await crypto.subtle.digest('SHA-256',d1);
-  const hx=bytesToHex(new Uint8Array(d2));
-  nonces=n+1;n++;
-  if(ltTarget(hx,work.target)){
-   const r=await fetch('/api/submitwork?workid='+work.id+'&nonce='+(n-1));
-   const res=await r.json();
-   if(res.accepted){found++;document.getElementById('bf').textContent=found;
-    alert('⛏ BLOCK FOUND! height '+res.height+' — reward incoming!');
-    await getWork();n=0;}
-   else{work=null;break;}
+  const buf=new Uint8Array(80);buf.set(work.prefix,0);const dv=new DataView(buf.buffer);
+  for(let k=0;k<400;k++){
+   dv.setUint32(76,(n+k*thr)>>>0,true);
+   const d1=await crypto.subtle.digest('SHA-256',buf);
+   const d2=await crypto.subtle.digest('SHA-256',d1);
+   nonces++;
+   if(ltTarget(bytesToHex(new Uint8Array(d2)),work.target)){
+    const res=await submit((n+k*thr)>>>0);
+    if(res.accepted){found++;document.getElementById('bf').textContent=found;
+     document.getElementById('sess').innerHTML='<span class="pulse"></span>block '+res.height+'!';
+     await getWork();return;}
+    work=null;return;}
   }
-  if((n&0x3ff)===0)upd();
+  n+=400*thr;upd();
  }
 }
+function upd(){const dt=(Date.now()-t0)/1000||1;const h=nonces/dt;
+ document.getElementById('hr').textContent=(h/1000).toFixed(1)+' kH/s';
+ document.getElementById('nt').textContent=nonces.toLocaleString();
+ document.getElementById('earn').textContent='~'+(700*(h/385000)).toFixed(1)+' α';}
 async function toggleMine(){
  const now=Date.now(),last=+localStorage.getItem(KEY)||0;
- if(mining){mining=false;document.getElementById('mineBtn').textContent='▶ Start Mining';return;}
+ if(mining){mining=false;document.getElementById('mineBtn').className='big';
+  document.getElementById('mineBtn').textContent='▶ Start Mining';
+  document.getElementById('sess').textContent='stopped';return;}
  addr=document.getElementById('addr').value.trim();
  if(!addr){alert('Enter your ALPHA address first');return;}
+ document.getElementById('addrBox').textContent=addr;
  if(now-last<86400000){const h=Math.ceil((86400000-(now-last))/3600000);
   document.getElementById('gateMsg').textContent='⏳ Next mining window in ~'+h+'h — once per 24h';return;}
  localStorage.setItem(KEY,now);mining=true;t0=Date.now();nonces=0;found=0;
+ document.getElementById('mineBtn').className='big stop';
  document.getElementById('mineBtn').textContent='⏹ Stop Mining';
- document.getElementById('gateMsg').textContent='Mining on '+thr+' thread(s) — real PoW';
+ document.getElementById('sess').innerHTML='<span class="pulse"></span>mining…';
+ document.getElementById('gateMsg').textContent='Real PoW on '+thr+' thread(s)';
  try{await getWork();}catch(e){alert('Cannot get work: '+e.message);mining=false;return;}
- // spawn threads — each continues nonce space
- let base=0;const step=1;
- async function loop(){while(mining&&work){const n=base;base+=step;
-  const buf=new Uint8Array(80);buf.set(work.prefix,0);const dv=new DataView(buf.buffer);
-  for(let k=0;k<500;k++){dv.setUint32(76,n+k,true);
-   const d1=await crypto.subtle.digest('SHA-256',buf);
-   const d2=await crypto.subtle.digest('SHA-256',d1);
-   const hx=bytesToHex(new Uint8Array(d2));nonces++;
-   if(ltTarget(hx,work.target)){
-    const r=await fetch('/api/submitwork?workid='+work.id+'&nonce='+(n+k));
-    const res=await r.json();
-    if(res.accepted){found++;document.getElementById('bf').textContent=found;
-     alert('⛏ BLOCK FOUND height '+res.height);await getWork();return;}
-    work=null;return;}
-  }
-  upd();}
- }
- for(let i=0;i<thr;i++)loop();
+ for(let i=0;i<thr;i++)minerLoop(i);
  setInterval(upd,1000);
 }
+function loadBal(a){fetch('/api/address/'+encodeURIComponent(a)).then(r=>r.json()).then(d=>{
+ document.getElementById('bal').textContent=(d.balance||0).toFixed(4)+' α';
+ document.getElementById('waddr').textContent=a.slice(0,14)+'…';}).catch(()=>{});}
+document.getElementById('addr').addEventListener('change',()=>{const a=document.getElementById('addr').value.trim();if(a)loadBal(a);});
 function copyRef(){navigator.clipboard.writeText('https://t.me/alpha_blockchain_bot').then(()=>alert('Referral link copied'));}
-// PWA install prompt — show Install button when browser offers it
 let deferredPrompt=null;
-window.addEventListener('beforeinstallprompt',e=>{
-  e.preventDefault();deferredPrompt=e;
-  document.getElementById('installBtn').classList.remove('hid');
-});
-window.addEventListener('appinstalled',()=>{
-  document.getElementById('installBtn').classList.add('hid');
-  document.getElementById('installedMsg').classList.remove('hid');
-  deferredPrompt=null;
-});
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;document.getElementById('installBtn').classList.remove('hid');});
+window.addEventListener('appinstalled',()=>{document.getElementById('installBtn').classList.add('hid');document.getElementById('installedMsg').classList.remove('hid');deferredPrompt=null;});
 async function doInstall(){
-  if(deferredPrompt){deferredPrompt.prompt();
-   const r=await deferredPrompt.userChoice;deferredPrompt=null;
-   if(r.outcome==='accepted')document.getElementById('installBtn').classList.add('hid');
-   return;}
-  // no native prompt — show manual steps
-  alert('Install manually:\n\nAndroid Chrome: ⋮ menu → "Add to Home screen"\niPhone Safari: Share → "Add to Home Screen"\nDesktop Chrome: install icon in address bar (right side)');
+ if(deferredPrompt){deferredPrompt.prompt();const r=await deferredPrompt.userChoice;deferredPrompt=null;
+  if(r.outcome==='accepted')document.getElementById('installBtn').classList.add('hid');return;}
+ alert('Install manually:\n\nAndroid Chrome: ⋮ → "Add to Home screen"\niPhone Safari: Share → "Add to Home Screen"\nDesktop: install icon in address bar');
 }
-// if already installed (standalone), hide install button
 if(window.matchMedia('(display-mode: standalone)').matches||navigator.standalone){
-  document.getElementById('installBtn').classList.add('hid');
-  document.getElementById('installedMsg').classList.remove('hid');
-}
-// balance
-function loadBal(){const a=document.getElementById('addr').value.trim();if(!a)return;
- fetch('/api/address/'+encodeURIComponent(a)).then(r=>r.json()).then(d=>{document.getElementById('bal').textContent=(d.balance||0).toFixed(4)+' α'}).catch(()=>{});}
-document.getElementById('addr').addEventListener('change',loadBal);loadBal();
+ document.getElementById('installBtn').classList.add('hid');document.getElementById('installedMsg').classList.remove('hid');}
 </script>
 </body></html>
