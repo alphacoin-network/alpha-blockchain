@@ -1,0 +1,15 @@
+{
+  "name": "αMine — Alpha Blockchain Miner",
+  "short_name": "αMine",
+  "description": "Mine ALPHA on your device — real Proof-of-Work, rewards to your wallet.",
+  "start_url": "/app.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0e1a",
+  "theme_color": "#0a0e1a",
+  "icons": [
+    { "src": "/img/alpha-coin.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/img/alpha-coin.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
