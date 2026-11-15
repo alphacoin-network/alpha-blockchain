@@ -588,7 +588,7 @@ async function createHD(){
   const mn=await genMnemonic();
   const seedB=await mnemonicToSeed(mn);
   HD={seed:b2hex(seedB),mnemonic:mn,index:0,addrs:[],keymap:{}};
-  const a=await deriveAddr(seedB,0);HD.addrs.push(a.addr);HD.keymap[a.addr]={priv:a.priv,pub:a.pub};
+  const a=await deriveAddr(seedB,0);HD.addrs.push(a.addr);HD.keymap[a.addr]={priv:a.priv,pub:a.pub};HD.cur=a;
   hdSave();
   // show professional seed-backup card (12 words like Bitcoin)
   document.getElementById("seedtext").innerHTML=
@@ -654,7 +654,7 @@ async function restoreHD(){
     const seedHex=b2hex(seedB);
     const mn=/^[0-9a-f]{128}$/.test(s.trim().toLowerCase().replace(/\s+/g,""))?null:s.trim().toLowerCase().replace(/\s+/g," ");
     const a=await deriveAddr(seedB,0);
-    HD={seed:seedHex,mnemonic:mn,index:0,addrs:[a.addr],keymap:{}};
+    HD={seed:seedHex,mnemonic:mn,index:0,addrs:[a.addr],keymap:{},cur:a};
     HD.keymap[a.addr]={priv:a.priv,pub:a.pub};
     hdSave();useHD();
   }catch(e){alert("Could not restore: "+e.message);}
