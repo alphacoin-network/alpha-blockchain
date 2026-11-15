@@ -134,6 +134,15 @@ def pay_reward(tg_id):
 async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     ensure_user(update.effective_user.id)
     code = get_user(update.effective_user.id)[0]
+    # referral deep-link: t.me/bot?start=ALPHA-XXXXX → /start ALPHA-XXXXX
+    if ctx.args and ctx.args[0].upper().startswith("ALPHA-"):
+        ref_code = ctx.args[0].upper()
+        if ref_code != code:
+            set_referrer(update.effective_user.id, ref_code)
+            await update.message.reply_text(
+                f"🎉 You joined via referral {ref_code}!\n"
+                "Create a wallet at https://alphacoin.network/wallet.html "
+                "then /link your address to get your 25 α welcome bonus.")
     await update.message.reply_text(
         "Welcome to Alpha Blockchain! ⛓\n\n"
         f"Your referral code: {code}\n"
