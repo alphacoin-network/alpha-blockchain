@@ -31,8 +31,10 @@ function nav(active) {
         <a href="roadmap.html" ${active === 'rm' ? 'class="active"' : ''}>Roadmap</a>
         <a href="whitepaper.html" ${active === 'wp' ? 'class="active"' : ''}>Whitepaper</a>
         <a href="support.html" ${active === 'support' ? 'class="active"' : ''}>Support</a>
+        <a href="https://t.me/alpha_blockchain_official" target="_blank" rel="noopener" style="color:var(--accent)">💬 Community</a>
       </div></details>
     <div class="spacer"></div>
+    <a href="https://t.me/alpha_blockchain_official" target="_blank" rel="noopener" style="font-size:13px;color:var(--accent);white-space:nowrap">💬 Community</a>
     <span class="chip" id="netchip">…</span>`;
   api('stats').then(s => {
     const c = el('netchip');

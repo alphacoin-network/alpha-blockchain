@@ -319,7 +319,8 @@ async def announce(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 def main():
     token = os.environ["TG_BOT_TOKEN"]
-    app = Application.builder().token(token).build()
+    app = (Application.builder().token(token)
+           .job_queue(JobQueue()).build())
     for cmd, fn in [("start", start), ("help", help_cmd),
                     ("stats", stats), ("balance", balance),
                     ("ausd", ausd), ("blocks", blocks),
@@ -327,9 +328,7 @@ def main():
                     ("announce", announce)]:
         app.add_handler(CommandHandler(cmd, fn))
     if CHANNEL:
-        jq = JobQueue()
-        app.job_queue = jq
-        jq.run_repeating(channel_stats, interval=21600, first=60)
+        app.job_queue.run_repeating(channel_stats, interval=21600, first=60)
     print("Alpha bot running… channel:", CHANNEL or "(none)")
     app.run_polling()
 
