@@ -146,6 +146,7 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Welcome to Alpha Blockchain! ⛓\n\n"
         f"Your referral code: {code}\n"
+        f"🔗 Your link: t.me/alpha_blockchain_bot?start={code}\n"
         "Share it — earn rewards when friends join.\n\n"
         "Link your wallet to receive rewards:\n"
         "/link alpha1...your_address\n\n"
@@ -266,7 +267,8 @@ async def ref(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         f"{'✅' if row[6] else '⬜'} first tx · "
         f"{'✅' if row[7] else '⬜'} 30-day\n"
         f"Earned: {row[8] or 0} α · Paid: {row[9] or 0} α\n\n"
-        f"Share: t.me/<your_bot>?start={row[0]}")
+        f"Share: t.me/alpha_blockchain_bot?start={row[0]}\n"
+        f"🔗 Full link: https://t.me/alpha_blockchain_bot?start={row[0]}")
 
 
 async def support(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
