@@ -610,7 +610,7 @@ async function useHD(){
   document.getElementById("setup").classList.add("hidden");
   document.getElementById("wallet").classList.remove("hidden");
   document.getElementById("myaddr").innerHTML=
-    "hd wallet · addr "+HD.addrs.length+" of ∞<br><b style='color:var(--gold)'>"+ADDR2+"</b>";
+    "<div style='font-size:11px;color:var(--dim);letter-spacing:.5px'>HD WALLET · ADDRESS #"+(HD.index+1)+"</div><b style='color:var(--gold);font-size:15px;word-break:break-all'>"+ADDR2+"</b>";
   drawQR(ADDR2);refresh();checkMintParams();
   const sb=document.getElementById("seedbtn");if(sb)sb.style.display="";
 }
@@ -782,7 +782,7 @@ async function hdSend(){
       localStorage.setItem("alpha_sent",JSON.stringify(log.slice(0,50)));
     }catch(e){}
     ADDR=ADDR2=HD.addrs[HD.addrs.length-1];
-    document.getElementById("myaddr").innerHTML="hd wallet · addr "+HD.addrs.length+" of ∞<br><b style='color:var(--gold)'>"+ADDR2+"</b>";
+    document.getElementById("myaddr").innerHTML="<div style='font-size:11px;color:var(--dim);letter-spacing:.5px'>HD WALLET · ADDRESS #"+(HD.index+1)+"</div><b style='color:var(--gold);font-size:15px;word-break:break-all'>"+ADDR2+"</b>";
     drawQR(ADDR2);
     st.innerHTML='<span style="color:var(--green)">✓ sent! txid '+txid.slice(0,24)+"…</span>";
     setTimeout(refresh,3000);
