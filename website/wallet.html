@@ -70,6 +70,19 @@
     </details>
   </div>
 
+  <!-- seed backup -->
+  <div id="seedcard" class="card hidden">
+    <h3 style="margin-top:0">🌱 Backup your wallet seed</h3>
+    <p style="color:var(--dim);font-size:13.5px">This seed is the <b>only</b> way to
+      recover your wallet. Write it down or save it somewhere safe —
+      <b style="color:#ff7b72">never share it</b>.</p>
+    <div id="seedtext" class="field" style="word-break:break-all;font-size:13px;line-height:1.7;user-select:all"></div>
+    <div class="wrow">
+      <button class="btn btn-ghost" onclick="copySeed()">⧉ Copy seed</button>
+      <button class="btn btn-gold" onclick="proceedHD()">I've saved it — Continue →</button>
+    </div>
+  </div>
+
   <!-- wallet -->
   <div id="wallet" class="hidden">
     <div class="card" style="text-align:center">
@@ -544,8 +557,16 @@ async function createHD(){
   const seed=crypto.getRandomValues(new Uint8Array(64));
   HD={seed:b2hex(seed),index:0,addrs:[],keymap:{}};
   const a=await deriveAddr(seed,0);HD.addrs.push(a.addr);HD.keymap[a.addr]={priv:a.priv,pub:a.pub};
-  hdSave();useHD();
-  alert("HD wallet created! Write down your seed — it's the ONLY backup.\n\n"+HD.seed);
+  hdSave();
+  // show professional seed-backup card instead of raw alert
+  document.getElementById("seedtext").textContent=HD.seed;
+  document.getElementById("seedcard").classList.remove("hidden");
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function copySeed(){navigator.clipboard.writeText(HD.seed).then(()=>alert("Seed copied — store it safely"));}
+function proceedHD(){
+  document.getElementById("seedcard").classList.add("hidden");
+  useHD();
 }
 async function useHD(){
   KEY={priv:HD.cur.priv,pub:HD.cur.pub};
