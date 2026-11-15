@@ -57,6 +57,7 @@ button:active{transform:scale(.98)}
   <button class="big" id="mineBtn" onclick="toggleMine()">▶ Start Mining</button>
   <button class="gold hid" id="installBtn" onclick="doInstall()">⬇ Install App</button>
   <div class="warn" id="gateMsg"></div>
+  <div class="warn" style="color:#ff7b72">🔋 Mining drains battery & heats device — keep it charged, screen on</div>
   <button class="ghost hid" id="resetBtn" onclick="resetTimer()" style="padding:10px;font-size:13px">↺ Reset 24h timer</button>
   <div class="ok hid" id="installedMsg">✓ App installed — open from home screen</div>
 </div>
@@ -145,7 +146,9 @@ async function submit(n){
 function upd(){const dt=(Date.now()-t0)/1000||1;const h=nonces/dt;
  document.getElementById('hr').textContent=(h/1000).toFixed(1)+' kH/s';
  document.getElementById('nt').textContent=nonces.toLocaleString();
- document.getElementById('earn').textContent='~'+(700*(h/385000)).toFixed(1)+' α';}
+ // honest estimate: network ~385kH/s total → share % of blocks
+ const netH=385000;const share=h/(netH+h)*100;
+ document.getElementById('earn').textContent=share.toFixed(1)+'% of network';
 async function toggleMine(){
  const now=Date.now(),last=+localStorage.getItem(KEY)||0;
  if(mining){mining=false;workers.forEach(w=>w.terminate());workers=[];
