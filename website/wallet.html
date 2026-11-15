@@ -18,6 +18,16 @@
   <style>
     .w { max-width: 640px; margin: 0 auto; }
     .w .card { margin-bottom: 16px; }
+    @media(max-width:560px){
+      .w .card{padding:14px}
+      .bal{font-size:32px}
+      .addrbox{font-size:12px}
+      h2.title{font-size:24px}
+      .wrow{flex-direction:column}
+      .wrow .btn{min-width:0}
+      .field{font-size:16px}  /* prevents iOS zoom on focus */
+      details summary{padding:8px 0}
+    }
     .field { width:100%; padding:13px; border-radius:10px; border:1px solid var(--border);
       background:var(--card2); color:var(--text); font-family:var(--mono); font-size:14px;
       margin:8px 0; box-sizing:border-box; }
