@@ -39,6 +39,11 @@
       font-size:14px; word-break:break-all; color:var(--green); text-align:center; }
     #qrc { text-align:center; margin:14px 0; }
     #qrc canvas { border:10px solid #fff; border-radius:8px; }
+    #ausdqr { text-align:center; margin-top:10px; }
+    #ausdqr canvas { border:8px solid #fff; border-radius:10px; }
+    .sec-badge { display:inline-block; padding:4px 12px; border-radius:999px;
+      background:rgba(74,222,128,.1); border:1px solid rgba(74,222,128,.35);
+      color:#4ade80; font-size:11px; font-weight:700; letter-spacing:1px; }
     .txrow { padding:8px 12px; border-bottom:1px solid var(--border); font-family:var(--mono);
       font-size:12.5px; }
     .wif { color:#ff7b72; }
@@ -52,15 +57,17 @@
 <section><div class="wrap"><div class="w">
   <h2 class="title" style="text-align:center">◈ Alpha Web Wallet</h2>
   <p class="sub" style="text-align:center">Self-custody — keys are generated and
-    stored <b>in your browser only</b>. Nothing is sent to any server.</p>
+    stored <b>in your browser only</b>. Nothing is sent to any server.<br>
+    <span class="sec-badge" style="margin-top:8px">🔒 AES-256 ENCRYPTED · HD SEED · NON-CUSTODIAL</span></p>
 
   <!-- setup -->
   <div id="setup" class="card" style="text-align:center">
     <div style="font-size:15px;color:var(--dim);margin-bottom:16px">Your keys stay in this browser — nothing is sent anywhere.</div>
     <button class="btn btn-gold" onclick="createHD()" style="width:100%;margin-bottom:10px">✦ Create Wallet</button>
+    <button class="btn btn-gold" onclick="unlockWallet()" style="width:100%;margin-bottom:10px">🔓 Unlock wallet</button>
     <div class="wrow" style="justify-content:center">
-      <button class="btn btn-ghost" onclick="showImport()">⇩ Import existing WIF</button>
-      <button class="btn btn-ghost" onclick="showRestore()">🌱 Restore from seed</button>
+      <button class="btn btn-ghost" onclick="showImport()">⇩ Import WIF</button>
+      <button class="btn btn-ghost" onclick="showRestore()">🌱 Restore seed</button>
     </div>
     <div id="restore" class="hidden" style="margin-top:10px">
       <textarea id="seedin" class="field" rows="3" placeholder="Paste your 12-word seed phrase (or hex seed)" spellcheck="false" style="font-size:14px"></textarea>
@@ -87,19 +94,23 @@
       <button class="btn btn-ghost" onclick="copySeed()">⧉ Copy seed</button>
       <button class="btn btn-gold" onclick="proceedHD()">I've saved it — Continue →</button>
     </div>
-    <details style="margin-top:10px"><summary style="cursor:pointer;color:var(--dim);font-size:12.5px">Advanced: add passphrase (25th word)</summary>
-      <input id="hdpass" class="field" type="password" placeholder="extra passphrase (optional — makes seed stronger)">
-    </details>
+    <div style="margin-top:12px;text-align:left">
+      <label style="font-size:12.5px;color:var(--dim)">Wallet passphrase <b style="color:var(--gold)">(recommended — encrypts your seed on this device)</b></label>
+      <input id="hdpass" class="field" type="password" placeholder="choose a passphrase (required to open wallet later)" autocomplete="new-password">
+      <div style="font-size:11px;color:var(--dim);margin-top:-4px">Without a passphrase the seed stays readable in browser storage — set one for real security.</div>
+    </div>
   </div>
 
   <!-- wallet -->
   <div id="wallet" class="hidden">
     <div class="card" style="text-align:center">
-      <div style="color:var(--dim);font-size:13px">Balance</div>
+      <div style="color:var(--dim);font-size:13px">Portfolio Balance</div>
       <div class="bal" id="bal">0.00</div>
       <div style="color:var(--dim)">ALPHA</div>
+      <div id="ausdbal" style="margin-top:6px;font-size:15px;color:var(--gold)">AUSD —</div>
       <div class="addrbox" id="myaddr"></div>
       <div id="qrc"></div>
+      <div style="font-size:11.5px;color:var(--dim);margin:0 0 10px">One address for ALPHA, AUSD &amp; all tokens — receive anything here.</div>
       <div class="wrow">
         <button class="btn btn-ghost" onclick="copyAddr()">⧉ Copy address</button>
         <button class="btn btn-ghost" onclick="showWif()">🔑 Show WIF</button>
@@ -114,7 +125,7 @@
       <input id="toaddr" class="field" placeholder="Recipient address" spellcheck="false">
       <input id="amount" class="field" placeholder="Amount (ALPHA)" type="number" step="any" min="0">
       <details style="margin:8px 0"><summary style="cursor:pointer;color:var(--dim);font-size:13px">Options ▾</summary>
-        <input id="memo" class="field" placeholder="Memo / OP_RETURN (optional — e.g. AUSD-MINT:10000)" spellcheck="false" maxlength="80">
+        <input id="memo" class="field" placeholder="Memo / OP_RETURN (optional — e.g. AUSD-MINT:10000)" spellcheck="false" maxlength="200">
         <div id="coinctl"><div style="color:var(--dim);font-size:12px">loading coins…</div></div>
         <button class="btn btn-ghost" onclick="consolidate()" style="width:100%;margin-top:8px">⛏ Consolidate UTXOs</button>
         <button class="btn btn-ghost" onclick="cpfp()" style="width:100%;margin-top:6px">⚡ Speed up unconfirmed tx (CPFP)</button>
@@ -122,6 +133,64 @@
       </details>
       <button class="btn btn-gold" onclick="send()" style="width:100%">Send</button>
       <div id="sendstatus" style="margin-top:10px;font-size:13px;color:var(--dim)"></div>
+    </div>
+
+    <div class="card" id="swapcard">
+      <h3>⇄ Swap ALPHA → AUSD</h3>
+      <p style="color:var(--dim);font-size:12.5px;margin:0 0 12px">Convert your ALPHA into <b style="color:var(--text)">AUSD</b> — an ALPHA-backed stablecoin you can send to anyone, just like ALPHA.<br>
+      Fixed rate: <b style="color:var(--gold)">1 AUSD = 10 ALPHA</b> · Min: 10 ALPHA (1 AUSD) · No max · No fee</p>
+      <div style="display:flex;gap:8px;align-items:stretch;margin-bottom:10px">
+        <div style="flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px">
+          <div style="font-size:11px;color:var(--dim);letter-spacing:.5px;margin-bottom:6px">YOU PAY</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input id="swapalpha" class="field" type="number" step="any" min="0" placeholder="0.00" oninput="swapPreview()" style="margin:0;font-size:18px;font-weight:700">
+            <span style="color:var(--gold);font-weight:700">ALPHA</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;color:var(--gold);font-size:22px">→</div>
+        <div style="flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px">
+          <div style="font-size:11px;color:var(--dim);letter-spacing:.5px;margin-bottom:6px">YOU GET</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div id="swapget" style="font-size:18px;font-weight:700;color:var(--green)">0.00</div>
+            <span style="color:var(--gold);font-weight:700">AUSD</span>
+          </div>
+        </div>
+      </div>
+      <div id="swappreview" style="margin:0 0 10px;padding:9px 12px;background:var(--bg2);border-radius:8px;font-size:12.5px;color:var(--dim);min-height:16px"></div>
+      <button class="btn btn-gold" onclick="swapAusd()" style="width:100%">Swap ALPHA → AUSD</button>
+      <div id="swapstatus" style="margin-top:10px;font-size:13px;color:var(--dim)"></div>
+      <details style="margin-top:10px"><summary style="cursor:pointer;color:var(--dim);font-size:12px">How it works</summary>
+        <div style="font-size:12px;color:var(--dim);line-height:1.7;margin-top:6px">
+          1. Enter ALPHA amount → AUSD is calculated at the fixed rate.<br>
+          2. Press Swap — your wallet sends ALPHA to the AUSD reserve.<br>
+          3. The network mints AUSD to your address automatically (~1 confirmation).<br>
+          4. Send AUSD to anyone below — it works exactly like sending ALPHA.<br>
+          <span style="color:var(--text)">Note: AUSD cannot be converted back to ALPHA.</span>
+        </div>
+      </details>
+    </div>
+
+    <div class="card" id="ausdcard">
+      <h3>🅰 AUSD — Stablecoin</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+        <div style="font-size:13px;color:var(--dim)">Your balance: <b id="ausdmybal" style="color:var(--gold);font-size:17px">—</b> AUSD</div>
+        <div style="font-size:11.5px;color:var(--dim)">ALPHA-backed · 1 AUSD = 10 ALPHA</div>
+      </div>
+      <div class="wrow" style="margin-top:10px">
+        <button class="btn btn-ghost" onclick="showAusdAddr()" style="flex:1">⧉ Receive AUSD — address + QR</button>
+      </div>
+      <div id="ausdaddrbox" class="hidden" style="margin-top:8px">
+        <div class="addrbox" id="ausdaddr" style="font-size:12px"></div>
+        <div id="ausdqr" style="margin-top:8px"></div>
+        <div style="font-size:11px;color:var(--dim);margin-top:6px">Share this address — anyone can send you AUSD (or ALPHA) here.</div>
+      </div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+        <div style="font-size:12.5px;color:var(--dim);margin-bottom:8px"><b style="color:var(--text)">Send AUSD</b> — P2P transfer to any ALPHA address, exactly like sending ALPHA. No AUSD yet? Get some via Swap above, or ask another user to send it to your address + QR.</div>
+        <input id="ausdto" class="field" placeholder="Recipient ALPHA address" spellcheck="false">
+        <input id="ausdamt" class="field" placeholder="Amount (AUSD, e.g. 1.50)" type="number" step="0.01" min="0">
+        <button class="btn btn-gold" onclick="sendAusd()" style="width:100%">Send AUSD</button>
+        <div id="ausdstatus" style="margin-top:8px;font-size:12.5px;color:var(--dim)"></div>
+      </div>
     </div>
 
     <div class="card hidden" id="tokcard">
@@ -134,13 +203,76 @@
       <div id="txs"><div class="txrow" style="color:var(--dim)">loading…</div></div>
     </div>
 
+    <button class="btn btn-ghost" id="securebtn" onclick="secureWallet()" style="width:100%;margin-bottom:8px;display:none">🔐 Secure wallet — set passphrase</button>
     <button class="btn btn-ghost" onclick="logout()" style="width:100%">Lock wallet</button>
   </div>
 </div></div></section>
 <footer>Alpha Web Wallet — your keys, your coins</footer>
 <script src="app.js"></script><script src="bip39.js"></script><script>nav('wallet');</script>
 <script>
-/* ============ crypto primitives (pure JS, client-side only) ============ */
+/* ============ AUSD swap — one-way: ALPHA → AUSD (fixed 1 AUSD = 10 ALPHA) === */
+let AUSD=null;          // {reserve, token_id, ...} from /api/ausd
+async function loadAusd(){
+  try{const j=await(await fetch("/api/ausd")).json();if(j&&j.reserve)AUSD=j;}catch(e){}
+}
+function swapPreview(){
+  const el=document.getElementById("swapget"),pr=document.getElementById("swappreview");
+  const a=parseFloat(document.getElementById("swapalpha").value);
+  if(!a||a<=0){el.textContent="0.00";pr.textContent="";return;}
+  const sats=Math.round(a*1e8);
+  const base=Math.floor(sats/1e7);          // 1 AUSD base unit = 0.1 ALPHA = 1e7 sats
+  if(base<100){el.textContent="0.00";pr.innerHTML="Minimum <b style='color:var(--text)'>10 ALPHA</b> (= 1 AUSD)";return;}
+  const ausd=base/100, pay=base/10;         // pay exactly base*0.1 ALPHA; rest returns as change
+  el.textContent=ausd.toFixed(2);
+  pr.innerHTML="You pay <b style='color:var(--text)'>"+pay+" ALPHA</b> → You get <b style='color:var(--green)'>"+ausd.toFixed(2)+" AUSD</b>"+
+    (a>pay?" <span style='color:var(--dim)'>(+"+(a-pay).toFixed(8)+" ALPHA change back)</span>":"");
+}
+async function ausdTokenId(){
+  if(AUSD&&AUSD.token_id)return AUSD.token_id;
+  try{const j=await(await fetch("/api/tokens")).json();
+    const list=j.tokens||j||[];
+    for(const t of list){if((t.name||"").toUpperCase()==="AUSD")return t.token_id||t.id;}
+  }catch(e){}return null;}
+function ausdPayload(tid,amt){
+  const amtLE=[];let v=Math.round(amt*100);
+  for(let i=0;i<8;i++){amtLE.push(v&255);v=Math.floor(v/256);}
+  return "414c50"+"01"+"02"+tid+amtLE.map(x=>x.toString(16).padStart(2,"0")).join("");
+}
+async function swapAusd(){
+  const st=document.getElementById("swapstatus");
+  const res=AUSD&&AUSD.reserve;
+  if(!res){st.innerHTML='<span style="color:var(--gold)">AUSD service starting — please retry in a minute</span>';return;}
+  const a=parseFloat(document.getElementById("swapalpha").value);
+  if(!a||a<=0){st.textContent="Enter ALPHA amount";return;}
+  const base=Math.floor(Math.round(a*1e8)/1e7);
+  if(base<100){st.textContent="Minimum 10 ALPHA (= 1 AUSD)";return;}
+  const pay=base/10, get=base/100;
+  try{
+    st.textContent="Swapping — pay "+pay+" ALPHA, get "+get.toFixed(2)+" AUSD…";
+    await send({to:res,amt:pay,memo:"AUSD-MINT:"+base,st});
+    st.innerHTML+='<br><span style="color:var(--dim)">AUSD mints automatically ~1 confirmation after your ALPHA payment confirms</span>';
+    document.getElementById("swapalpha").value="";swapPreview();
+  }catch(e){st.innerHTML='<span style="color:#ff7b72">'+String(e.message||e).replace(/\n/g,"<br>")+'</span>';}
+}
+/* Send AUSD to any address — ALP SEND op in OP_RETURN, dust ALPHA to recipient */
+async function sendAusd(){
+  const st=document.getElementById("ausdstatus");
+  const to=document.getElementById("ausdto").value.trim();
+  const amt=parseFloat(document.getElementById("ausdamt").value);
+  if(!to){st.textContent="enter recipient address";return;}
+  if(!amt||amt<=0||Math.abs(amt*100-Math.round(amt*100))>=0.001){st.textContent="enter amount (min 0.01, max 2 decimals)";return;}
+  const res=AUSD&&AUSD.reserve;
+  if(!res){st.innerHTML='<span style="color:var(--gold)">AUSD service starting — please retry in a minute</span>';return;}
+  try{
+    const tid=await ausdTokenId();
+    if(!tid){st.textContent="AUSD token not found";return;}
+    st.textContent="Sending "+amt+" AUSD → "+to.slice(0,16)+"…";
+    await send({to,amt:0.0001,memo:"0x"+ausdPayload(tid,amt),st});
+    document.getElementById("ausdamt").value="";
+  }catch(e){st.innerHTML='<span style="color:#ff7b72">'+String(e.message||e).replace(/\n/g,"<br>")+'</span>';}
+}
+</script>
+<script>
 const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
 const H0=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
 const rotr=(x,n)=>(x>>>n)|(x<<(32-n));
@@ -263,6 +395,7 @@ function pmult(k,p=[Gx,Gy]){
   let r=null;while(k){if(k&1n)r=padd(r,p);p=pdouble(p);k>>=1n;}return r;
 }
 const b2hex=b=>[...b].map(x=>x.toString(16).padStart(2,"0")).join("");
+function hexToBytes(h){const a=new Uint8Array(h.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16);return a;}
 const n2b=(n,len)=>{const a=new Uint8Array(len);for(let i=len-1;i>=0;i--){a[i]=Number(n&255n);n>>=8n;}return a;};
 const b2n=b=>{let n=0n;for(const x of b)n=(n<<8n)+BigInt(x);return n;};
 function privToPub(priv,compressed=true){
@@ -503,6 +636,23 @@ function drawQR(text){
   m.forEach((row,r)=>row.forEach((v,c)=>{if(v)ctx.fillRect(c*px,r*px,px,px);}));
   document.getElementById("qrc").innerHTML="";document.getElementById("qrc").appendChild(cv);
 }
+function showAusdAddr(){
+  const box=document.getElementById("ausdaddrbox");
+  if(box.classList.contains("hidden")){
+    const ad=HD?ADDR2:ADDR;
+    document.getElementById("ausdaddr").textContent=ad;
+    const m=qrGen5(ad);if(m){
+      const cv=document.createElement("canvas"),px=5;
+      cv.width=cv.height=m.length*px;
+      const ctx=cv.getContext("2d");
+      ctx.fillStyle="#fff";ctx.fillRect(0,0,cv.width,cv.height);
+      ctx.fillStyle="#000";
+      m.forEach((row,r)=>row.forEach((v,c)=>{if(v)ctx.fillRect(c*px,r*px,px,px);}));
+      document.getElementById("ausdqr").innerHTML="";document.getElementById("ausdqr").appendChild(cv);
+    }
+    box.classList.remove("hidden");
+  }else box.classList.add("hidden");
+}
 
 /* ============================ wallet logic ============================ */
 /* ---- BIP39 mnemonic (12 words) → 64-byte seed via PBKDF2 ---- */
@@ -554,10 +704,36 @@ async function deriveAddr(seed,index){
   const pub=privToPub(k.priv,true);
   return{priv:k.priv,pub,addr:segwitAddr(pub),leg:addrFromPub(pub)};
 }
+async function hdSave(){
+  const payload=JSON.stringify({seed:HD.seed,mnemonic:HD.mnemonic||null,pass:HD.pass||null,index:HD.index,addrs:HD.addrs});
+  if(HD.pass){   // AES-256-GCM encrypt seed at rest — passphrase required to open
+    const key=await crypto.subtle.importKey("raw",await crypto.subtle.digest("SHA-256",new TextEncoder().encode(HD.pass)),"AES-GCM",false,["encrypt"]);
+    const iv=crypto.getRandomValues(new Uint8Array(12));
+    const ct=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(payload));
+    localStorage.setItem("alpha_hd_enc",JSON.stringify({iv:b2hex(iv),ct:b2hex(new Uint8Array(ct))}));
+    localStorage.removeItem("alpha_hd");
+  }else{
+    localStorage.setItem("alpha_hd",payload);
+    localStorage.removeItem("alpha_hd_enc");
+  }
+}
 async function hdLoad(){
-  const s=localStorage.getItem("alpha_hd");
-  if(!s)return null;
-  const d=JSON.parse(s);
+  let d=null;
+  const enc=localStorage.getItem("alpha_hd_enc");
+  if(enc){
+    const pass=prompt("Wallet passphrase:");
+    if(pass===null)return null;
+    try{
+      const{iv,ct}=JSON.parse(enc);
+      const key=await crypto.subtle.importKey("raw",await crypto.subtle.digest("SHA-256",new TextEncoder().encode(pass)),"AES-GCM",false,["decrypt"]);
+      const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:hexToB(iv)},key,hexToB(ct));
+      d=JSON.parse(new TextDecoder().decode(pt));
+    }catch(e){alert("Wrong passphrase");return null;}
+  }else{
+    const s=localStorage.getItem("alpha_hd");
+    if(!s)return null;
+    d=JSON.parse(s);
+  }
   const a=await deriveAddr(hexToB(d.seed),d.index);
   return{seed:d.seed,mnemonic:d.mnemonic||null,pass:d.pass||null,index:d.index,addrs:d.addrs||[a.addr],cur:a};
 }
@@ -565,7 +741,7 @@ async function hdNewAddr(){
   HD.index++;
   const a=await deriveAddr(hexToB(HD.seed),HD.index);
   HD.addrs.push(a.addr);HD.keymap[a.addr]={priv:a.priv,pub:a.pub,leg:a.leg};
-  localStorage.setItem("alpha_hd",JSON.stringify({seed:HD.seed,mnemonic:HD.mnemonic||null,pass:HD.pass||null,index:HD.index,addrs:HD.addrs}));
+  hdSave();
   return a;
 }
 async function hdKeys(){   // derive priv/pub for every used address (small N)
@@ -576,7 +752,6 @@ async function hdKeys(){   // derive priv/pub for every used address (small N)
   }
   return HD.keymap;
 }
-function hdSave(){localStorage.setItem("alpha_hd",JSON.stringify({seed:HD.seed,mnemonic:HD.mnemonic||null,pass:HD.pass||null,index:HD.index,addrs:HD.addrs}));}
 async function saveKey(){
   const wif=wifEncode(KEY.priv);
   const pass=document.getElementById("pass").value;
@@ -620,8 +795,9 @@ async function useHD(){
   document.getElementById("wallet").classList.remove("hidden");
   document.getElementById("myaddr").innerHTML=
     "<div style='font-size:11px;color:var(--dim);letter-spacing:.5px'>HD WALLET</div><b style='color:var(--gold);font-size:15px;word-break:break-all'>"+ADDR2+"</b><div style='font-size:11px;color:var(--dim);margin-top:4px'>legacy: "+((HD.keymap[ADDR2]||{}).leg||"")+"</div>";
-  drawQR(ADDR2);refresh();checkMintParams();
+  drawQR(ADDR2);refresh();checkMintParams();loadAusd().then(()=>{refresh();swapPreview();});pokeIdle();
   const sb=document.getElementById("seedbtn");if(sb)sb.style.display="";
+  const secb=document.getElementById("securebtn");if(secb)secb.style.display=(HD&&!HD.pass)?"":"none";
 }
 async function loadKey(){
   const enc=localStorage.getItem("alpha_wif_enc");
@@ -646,7 +822,7 @@ function useKey(priv){
   document.getElementById("myaddr").innerHTML=
     "<b style='color:var(--gold)'>"+ADDR2+"</b><br><span style='font-size:11px;color:var(--dim)'>legacy: "+ADDR+"</span>";
   drawQR(ADDR2);
-  refresh();checkMintParams();
+  refresh();checkMintParams();loadAusd().then(()=>{refresh();swapPreview();});pokeIdle();
 }
 async function createWallet(){
   const priv=(b2n(crypto.getRandomValues(new Uint8Array(32)))%(N-1n))+1n;
@@ -695,7 +871,37 @@ function showSeed(){
   if(!HD){alert("Not an HD wallet");return;}
   prompt("YOUR WALLET SEED — write down these 12 words, it's the ONLY backup:\n\n",HD.mnemonic||HD.seed);
 }
-function logout(){localStorage.removeItem("alpha_wif");localStorage.removeItem("alpha_wif_enc");localStorage.removeItem("alpha_hd");location.reload();}
+/* ---- session lock: hide wallet without deleting keys ---- */
+let _idleT=null;
+function pokeIdle(){clearTimeout(_idleT);_idleT=setTimeout(lockWallet,15*60*1000);}
+["mousemove","keydown","click","touchstart"].forEach(e=>document.addEventListener(e,pokeIdle,{passive:true}));
+function lockWallet(){
+  KEY=null;ADDR=ADDR2=null;HD=null;selCoins.clear();
+  clearTimeout(_idleT);
+  document.getElementById("wallet").classList.add("hidden");
+  document.getElementById("setup").classList.remove("hidden");
+  window.scrollTo({top:0});
+}
+async function unlockWallet(){
+  try{const h=await hdLoad();
+    if(h){HD=h;HD.cur=h.cur||await deriveAddr(hexToB(h.seed),h.index);await useHD();return;}
+  }catch(e){}
+  loadKey().then(p=>{if(p){KEY={priv:p};useKey(p);}else alert("No wallet found on this device");}).catch(()=>alert("No wallet found on this device"));
+}
+function logout(){ /* legacy name — now a session lock, keys are NOT deleted */ lockWallet(); }
+/* Encrypt an existing HD wallet that has no passphrase — addresses unchanged */
+async function secureWallet(){
+  if(!HD){alert("HD wallet only");return;}
+  if(HD.pass){alert("Wallet already has a passphrase");return;}
+  const p1=prompt("Choose a wallet passphrase (encrypts your seed — DON'T lose it):");
+  if(!p1)return;
+  const p2=prompt("Confirm passphrase:");
+  if(p1!==p2){alert("Passphrases don't match");return;}
+  HD.pass=p1;
+  await hdSave();
+  document.getElementById("securebtn").style.display="none";
+  alert("Wallet secured — seed is now AES-256 encrypted. You'll need this passphrase to unlock.");
+}
 
 async function refresh(){
   const txs=document.getElementById("txs");
@@ -705,18 +911,29 @@ async function refresh(){
   try{
   const addrs=HD?HD.addrs:[ADDR,ADDR2];
   let bal=0,txs0=[],tokAll=[];
-  for(const ad of addrs){
-    try{const j=await(await fetch("/api/address/"+ad)).json();bal+=j.balance||0;txs0=txs0.concat(j.transactions||[]);
+  // balance from /api/utxos (light, proven) — /api/address only for tokens+history
+  await Promise.all(addrs.map(async ad=>{
+    try{const u=await(await fetch("/api/utxos/"+ad)).json();
+      for(const x of u.utxos||[])bal+=x.amount||0;}catch(e){}
+    try{const j=await(await fetch("/api/address/"+ad)).json();
+      txs0=txs0.concat(j.transactions||[]);
       for(const t of j.tokens||[])tokAll.push(t);}catch(e){}
-  }
+  }));
   document.getElementById("bal").textContent=bal.toFixed(4);
+  // AUSD balance — match engine's token_id, else any token named AUSD
+  const ab=document.getElementById("ausdbal"),amb=document.getElementById("ausdmybal");
+  const abal=tokAll.find(t=>(AUSD&&AUSD.token_id&&(t.token_id||t.id)===AUSD.token_id)||(t.name||"").toUpperCase()==="AUSD");
+  const abalV=abal?(abal.display_balance??((abal.balance??0)/100)):0;
+  if(ab)ab.textContent="AUSD "+abalV.toFixed(2);
+  if(amb)amb.textContent=abalV.toFixed(2);
   const mt=document.getElementById("mytokens");
   const tc=document.getElementById("tokcard");
   if(tokAll.length){
     tc.classList.remove("hidden");
     const seen=new Set();
     mt.innerHTML=tokAll.filter(t=>{const k=t.token_id||t.id;if(seen.has(k))return false;seen.add(k);return true;})
-      .map(t=>`<div class="txrow"><a href="tokens.html" style="color:var(--accent)">${(t.name||t.token_id||"").slice(0,24)}</a> <span style="color:var(--green)">bal ${t.balance??t.amount??""}</span></div>`).join("");
+      .map(t=>{const bv=t.display_balance??t.balance??t.amount??0;
+        return `<div class="txrow"><a href="tokens.html" style="color:var(--accent)">${(t.name||t.token_id||"").slice(0,24)}</a> <span style="color:var(--green)">bal ${typeof bv==="number"?bv.toFixed(4):bv}</span></div>`;}).join("");
   }else tc.classList.add("hidden");
   const j={transactions:txs0};
   let sent=[];try{sent=JSON.parse(localStorage.getItem("alpha_sent")||"[]");}catch(e){}
@@ -730,11 +947,12 @@ async function refresh(){
   }catch(e){txs.innerHTML='<div class="txrow" style="color:#ff7b72">refresh failed: '+e.message+'</div>';}
 }
 /* ---- HD send: spends from any derived address, change → fresh address ---- */
-async function hdSend(){
-  const st=document.getElementById("sendstatus");
+async function hdSend(o){
+  o=o||{};
+  const st=o.st||document.getElementById("sendstatus");
   try{
-    const to=document.getElementById("toaddr").value.trim();
-    const amt=parseFloat(document.getElementById("amount").value);
+    const to=o.to!==undefined?o.to:document.getElementById("toaddr").value.trim();
+    const amt=o.amt!==undefined?o.amt:parseFloat(document.getElementById("amount").value);
     if(!amt||amt<=0)throw new Error("enter amount");
     const sats=Math.round(amt*1e8);
     st.textContent="fetching utxos…";
@@ -764,12 +982,12 @@ async function hdSend(){
     // change → brand-new HD address (address rotation!)
     let chgSpk=null;
     if(change>0){const na=await hdNewAddr();chgSpk=Uint8Array.from([0x00,0x14,...hash160(na.pub)]);}
-    const memo=(document.getElementById("memo").value||"").trim();
+    const memo=o.memo!==undefined?o.memo:(document.getElementById("memo").value||"").trim();
     const outs=[{value:sats,spk:toSpk}];
     if(change>0)outs.push({value:change,spk:chgSpk});
-    if(memo)outs.push({value:0,spk:spkOpReturn(new TextEncoder().encode(memo))});
+    if(memo)outs.push({value:0,spk:spkOpReturn(memo.startsWith("0x")?hexToBytes(memo.slice(2)):new TextEncoder().encode(memo))});
     st.textContent="signing…";
-    const txins=ins.map(x=>({txid:hexToB(x.txid),vout:x.vout,type:1,spk:x.sc,
+    const txins=ins.map(x=>({txid:hexToB(x.txid),vout:x.vout,type:1,spk:x.sc,sc:x.sc,
       amount:Math.round(x.amount*1e8),scriptSig:[],witSig:null,witPub:x.key.pub,kpriv:x.key.priv}));
     for(let i=0;i<txins.length;i++){
       const x=txins[i];
@@ -798,12 +1016,13 @@ async function hdSend(){
     setTimeout(refresh,3000);
   }catch(e){st.innerHTML='<span style="color:#ff7b72">'+(e.stack||e.message).replace(/\n/g,"<br>")+"</span>";}
 }
-async function send(){
-  if(HD)return hdSend();
-  const st=document.getElementById("sendstatus");
+async function send(o){
+  if(HD)return hdSend(o);
+  o=o||{};
+  const st=o.st||document.getElementById("sendstatus");
   try{
-    const to=document.getElementById("toaddr").value.trim();
-    const amt=parseFloat(document.getElementById("amount").value);
+    const to=o.to!==undefined?o.to:document.getElementById("toaddr").value.trim();
+    const amt=o.amt!==undefined?o.amt:parseFloat(document.getElementById("amount").value);
     if(!amt||amt<=0)throw new Error("enter amount");
     const sats=Math.round(amt*1e8);
     st.textContent="fetching utxos…";
@@ -843,10 +1062,10 @@ async function send(){
     const DUST=546;
     let change=sum-sats-fee;
     if(change>0&&change<DUST){fee+=change;change=0;}
-    const memo=(document.getElementById("memo").value||"").trim();
+    const memo=o.memo!==undefined?o.memo:(document.getElementById("memo").value||"").trim();
     const outs=[{value:sats,spk:toSpk}];
     if(change>0)outs.push({value:change,spk:spkSeg});  // segwit change = cheaper future spends
-    if(memo)outs.push({value:0,spk:spkOpReturn(new TextEncoder().encode(memo))});
+    if(memo)outs.push({value:0,spk:spkOpReturn(memo.startsWith("0x")?hexToBytes(memo.slice(2)):new TextEncoder().encode(memo))});
     st.textContent="signing…";
     const txins=ins.map(x=>({txid:hexToB(x.txid),vout:x.vout,type:x.type,spk:x.spk,
       sc:x.type===1?spkP2pkh(pkh2):x.spk,
@@ -895,13 +1114,15 @@ async function loadCoins(){
         for(const x of u.utxos||[])all.push({...x,address:ad});}catch(e){}
     }
     all.sort((a,b)=>b.amount-a.amount);
-    box.innerHTML='<div style="font-size:11.5px;color:var(--dim);margin-bottom:6px">'+all.length+' UTXOs — tick coins to spend ONLY those:</div>'+
-      all.slice(0,300).map(x=>{
+    const LIM=40,shown=all.slice(0,LIM);
+    box.innerHTML='<div style="font-size:11.5px;color:var(--dim);margin-bottom:6px"><b style="color:var(--text)">'+all.length+' UTXOs</b> · total '+all.reduce((s,x)=>s+x.amount,0).toFixed(2)+' α — tick coins to spend ONLY those'+(selCoins.size?' · <b style="color:var(--gold)">'+selCoins.size+' selected</b>':'')+'</div>'+
+      shown.map(x=>{
         const id=x.txid+":"+x.vout,ck=selCoins.has(id)?"checked":"";
         return `<label style="display:flex;gap:8px;font-size:12px;padding:3px 0;color:var(--dim)">
           <input type="checkbox" ${ck} onchange="coinToggle('${id}',this.checked)">
           ${x.amount.toFixed(2)} α · ${x.address.slice(0,14)}… · h${x.height}</label>`;
-      }).join("")+(all.length>300?'<div style="font-size:11px;color:var(--dim)">…+'+(all.length-300)+' more</div>':"");
+      }).join("")+(all.length>LIM?'<div style="font-size:11px;color:var(--dim);margin-top:4px">…+'+(all.length-LIM)+' more UTXOs — use ⛏ Consolidate to merge them</div>':"")+
+      (selCoins.size?'<button class="btn btn-ghost" onclick="selCoins.clear();loadCoins()" style="width:100%;margin-top:6px">Clear selection</button>':"");
   }catch(e){box.innerHTML='<div style="color:#ff7b72">load failed</div>';}
 }
 function coinToggle(id,on){on?selCoins.add(id):selCoins.delete(id);}

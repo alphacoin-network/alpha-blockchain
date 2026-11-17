@@ -195,6 +195,8 @@ def make_handler(api: API):
                     out = api.address(route[8:])
                 elif route == "tokens":
                     out = api.tokens()
+                elif route == "ausd":
+                    out = api.call("ausdinfo")
                 elif route.startswith("token/"):
                     out = api.token(route[6:])
                 elif route == "search":

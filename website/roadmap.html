@@ -113,7 +113,7 @@
     <p><b>Staking &amp; validators</b> — Alpha stays proof-of-work; "staking" means an optional
        reward-lock layer where holders time-lock ALPHA via CLTV and earn a share of a community
        incentive pool — designed so PoW security is never replaced.</p>
-    <p><b>Stablecoin</b> — a fiat-backed ALP token issued by a custodian with attestation records
+    <p><b>Stablecoin</b> — an ALPHA-backed ALP token (AUSD) with attestation records
        (the RWA infrastructure — KYC gating, backing proofs, clawback — is already live; what
        remains is the issuer/custodian integration).</p>
     <p><b>Lightning-style channels</b> — off-chain payment channels for instant low-fee
@@ -153,10 +153,10 @@ const PHASES = [
     M('Compact filters', 'BIP157/158 Golomb-coded block filters — getblockfilter for private light-client scanning.', 'done'),
     M('addrv2', 'BIP155 variable-length network addresses (Tor v3, I2P ready).', 'done'),
     M('Tor / proxy', 'SOCKS5 proxy support + .onion hidden-service hosting for censorship-resistant nodes.', 'done'),
-    M('Pruning & assumeutxo', 'Keep-N block pruning + UTXO-snapshot fast sync for low-resource nodes.', 'done'),
+    M('Pruning & assumeutxo', 'Keep-N block pruning + UTXO-snapshot fast sync — plus public chain bootstrap (alphad auto-downloads bootstrap.tar.gz on fresh datadir, like Bitcoin\'s snapshot load).', 'done'),
     M('Public mainnet launch', 'Live public network — seed seed.alphacoin.network:8333, public explorer, auto-connect.', 'done',
       [['explorer','explorer.html']]),
-    M('Public mining', 'mine_alpha.py + browser miner — anyone can solo-mine like early Bitcoin.', 'done',
+    M('Public mining', 'mine_alpha.py + browser miner + installable mobile PWA (app.html) — anyone can solo-mine like early Bitcoin; server-side PoW validation, rate-limited getwork.', 'done',
       [['mine','mine.html']]),
     M('Offline / LAN mode', 'UDP 8334 beacon discovery — nodes on the same LAN auto-connect and sync with no internet; standalone mining + offline tx signing work anywhere.', 'done',
       [['guide','guide.html#individuals'],['whitepaper §5','whitepaper.html#network']]),
@@ -185,7 +185,8 @@ const PHASES = [
     M('DEX order book', 'On-chain escrowed orders — dexsell/dexfill/dexcancel + dexswap market buys with best-price execution and max-cost slippage caps.', 'done'),
     M('AMM liquidity pools', 'Constant-product x·y=k pools — create/add/remove liquidity (LP shares), quotes, swaps with min_out, 0.3% fee.', 'done'),
     M('Atomic swaps (HTLC)', 'Hash+timelock contracts — createswap/participate/redeem/refund for trustless cross-chain exchange with Bitcoin-family chains.', 'done'),
-    M('Stablecoin', 'Fiat-backed asset on ALP — needs a custodian/issuer; RWA rails already live.', 'todo'),
+    M('Stablecoin (AUSD)', 'ALPHA-backed stablecoin — one-way ALPHA→AUSD mint at fixed rate 1 AUSD = 10 ALPHA, P2P transferable, public reserve dashboard, AMM-ready. /ausd.html', 'done',
+      [['AUSD dashboard','ausd.html']]),
   ]},
   { q: 'PHASE 05', name: 'Developers — APIs & tooling',
     desc: 'Everything needed to build on Alpha — bitcoind-compatible RPC, REST, SPV, docs and use-case examples.',

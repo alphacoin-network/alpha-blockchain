@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AUSD — Alpha Stablecoin | Alpha Blockchain</title>
-  <meta name="description" content="AUSD — the dollar-pegged stablecoin of Alpha Blockchain. Fiat-backed asset for payments, DeFi, settlement and remittances.">
+  <meta name="description" content="AUSD — the dollar-pegged stablecoin of Alpha Blockchain. ALPHA-backed asset (1 AUSD = 10 ALPHA) for payments, DeFi, settlement and remittances.">
   <meta name="robots" content="index, follow">
   <meta name="theme-color" content="#0e0e1e">
   <link rel="canonical" href="https://alphacoin.network/ausd.html">
@@ -34,7 +34,7 @@
     <div class="ausd-tag">● LIVE</div>
     <div class="ausd-price">$1.00 <small>USD peg</small></div>
     <ul class="ausd-list">
-      <li>Fiat-backed asset</li>
+      <li>ALPHA-backed asset</li>
       <li>Payment infra</li>
       <li>DeFi integration</li>
       <li>Settlement</li>
@@ -44,16 +44,14 @@
     <div style="margin-top:30px;text-align:left;border-top:1px solid #ffffff14;padding-top:24px">
       <div style="color:#f7c948;font-weight:800;font-size:15px;margin-bottom:14px">HOW TO USE AUSD</div>
       <div style="color:var(--dim);font-size:13.5px;line-height:1.7">
-        <b style="color:var(--text)">Mint AUSD (buy with ALPHA)</b><br>
-        1. Reserve address pe ALPHA bhejo: <code style="color:var(--accent);font-size:11px">alpha1q0pj7er9yzm5mekgz960fs4j004pftue64259s6</code><br>
-        2. Tx me OP_RETURN memo lagao: <code style="color:var(--accent)">AUSD-MINT:&lt;base_units&gt;</code><br>
-        3. ~2 min me auto-mint → AUSD tumhare address pe<br><br>
-        <b style="color:var(--text)">Redeem AUSD (back to ALPHA)</b><br>
-        1. <code style="color:var(--accent)">sendtoken</code> se AUSD reserve address pe bhejo<br>
-        2. ~2 min me auto-burn → ALPHA wapas tumhare address pe ($1 worth, oracle price)<br><br>
-        <b style="color:var(--text)">Rate:</b> 1 AUSD = $1.00 · 1 ALPHA = $0.01 → <b>1 AUSD = 100 ALPHA</b><br>
-        <b style="color:var(--text)">CLI example:</b><br>
-        <code style="color:var(--accent);font-size:11px">alpha_cli sendtoaddress alpha1q0pj7... 100 --memo "AUSD-MINT:10000"</code>
+        <b style="color:var(--text)">Mint AUSD (one-way: ALPHA → AUSD)</b><br>
+        1. Wallet me <b>Swap ALPHA → AUSD</b> use karo — fixed rate, auto-mint<br>
+        2. Ya manually: reserve address pe ALPHA + memo <code style="color:var(--accent)">AUSD-MINT:&lt;base_units&gt;</code><br>
+        3. ~1 confirmation me AUSD tumhare address pe<br><br>
+        <b style="color:var(--text)">Send / receive AUSD</b><br>
+        AUSD kisi bhi ALPHA address pe bhej/receive kar sakte ho — bilkul ALPHA ki tarah (P2P).<br><br>
+        <b style="color:var(--text)">Rate:</b> <b>1 AUSD = 10 ALPHA</b> (fixed) · Min: 1 AUSD<br>
+        <b style="color:var(--text)">Reserve:</b> <code id="ausdres" style="color:var(--accent);font-size:11px">loading…</code>
       </div>
     </div>
 
@@ -64,27 +62,33 @@
   </div>
 </div>
   <div class="ausd-box" style="margin-top:24px;padding:32px 28px">
-    <div class="ausd-name" style="font-size:22px">How to use AUSD</div>
+    <div class="ausd-name" style="font-size:22px">How AUSD works</div>
     <div style="text-align:left;margin-top:16px;font-size:14px;line-height:1.9;color:var(--dim)">
-      <p><b style="color:var(--text)">① Mint (buy AUSD)</b><br>
+      <p><b style="color:var(--text)">① Convert (ALPHA → AUSD)</b><br>
       Send ALPHA to the reserve address with memo <code>AUSD-MINT:&lt;amount&gt;</code> —
+      or use the one-click Swap in the <a href="wallet.html" style="color:var(--accent)">web wallet</a>.
       AUSD is minted to your address automatically once confirmed.</p>
       <p><b style="color:var(--text)">② Transfer</b><br>
-      Send AUSD like any token — <code>sendtoken</code> or any ALP-aware wallet.</p>
-      <p><b style="color:var(--text)">③ Redeem (sell AUSD)</b><br>
-      Send AUSD back to the reserve address — it's burned and ALPHA is paid out at the oracle rate.</p>
+      Send and receive AUSD like any other coin — to any ALPHA address,
+both directions, no permission needed.</p>
+      <p><b style="color:var(--text)">③ One-way</b><br>
+      AUSD cannot be converted back into ALPHA — it is a spendable,
+      transferable token backed by ALPHA locked in the reserve.</p>
     </div>
     <div class="ausd-meta" style="margin-top:14px">
       Token ID: <code>ea9be0c3f4…1225ddac</code> · Reserve: <code>38RmQAE6…</code> ·
       Protocol: ALP (Omni-style) · Peg: ALPHA-backed
     </div>
   </div>
-  <div class="ausd-box" style="margin-top:24px;padding:32px 28px">
-    <div class="ausd-name" style="font-size:22px">◈ Transparency — live</div>
-    <div id="ausdStats" style="margin-top:14px;font-size:15px;line-height:2;color:var(--dim)">loading…</div>
   </div></section>
 <footer>Alpha Blockchain · AUSD — Alpha Stablecoin</footer>
 <script src="app.js"></script>
 <script>nav('');</script>
+<script>
+fetch("/api/ausd").then(r=>r.json()).then(j=>{
+  const el=document.getElementById("ausdres");
+  if(el&&j&&j.reserve)el.textContent=j.reserve;
+}).catch(()=>{});
+</script>
 </body>
 </html>

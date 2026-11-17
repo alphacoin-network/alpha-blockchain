@@ -7,11 +7,44 @@ Usage:
 """
 
 import argparse
+import io
+import os
 import sys
+import tarfile
 import time
+import urllib.request
 
 from alpha import constants, rpc
 from alpha.node import Node
+
+
+BOOTSTRAP_URL = "https://alphacoin.network/bootstrap.tar.gz"
+
+
+def _maybe_bootstrap(datadir: str) -> None:
+    """Download the public chain snapshot into a fresh datadir."""
+    chain_dir = os.path.join(datadir, "chain")
+    blocks = os.path.join(chain_dir, "blocks.dat")
+    if os.path.exists(blocks) and os.path.getsize(blocks) > 0:
+        return  # already has chain data — normal sync
+    try:
+        print("downloading chain bootstrap snapshot…")
+        with urllib.request.urlopen(BOOTSTRAP_URL, timeout=60) as r:
+            blob = r.read()
+        os.makedirs(chain_dir, exist_ok=True)
+        with tarfile.open(fileobj=io.BytesIO(blob), mode="r:gz") as tf:
+            # snapshot contains <dir>/chain/blocks.dat (+ txindex.db)
+            for member in tf.getmembers():
+                parts = member.name.split("/")
+                if len(parts) >= 3 and parts[-2] == "chain":
+                    member.name = parts[-1]
+                    tf.extract(member, chain_dir)
+                elif member.name.endswith("txindex.db"):
+                    member.name = "txindex.db"
+                    tf.extract(member, datadir)
+        print("bootstrap loaded — starting near chain tip")
+    except Exception as e:
+        print(f"bootstrap unavailable ({e}) — syncing from genesis")
 
 
 def main() -> int:
@@ -43,10 +76,18 @@ def main() -> int:
                    help="run the stratum mining server (for external miners)")
     p.add_argument("--strataport", type=int, default=8335,
                    help="stratum TCP port (default 8335)")
+    p.add_argument("--nobootstrap", action="store_true",
+                   help="don't download the chain bootstrap snapshot")
     args = p.parse_args()
 
     params = constants.NETWORKS[args.chain]
     datadir = args.datadir or f"./data-{params.name}"
+
+    # Fast-sync bootstrap (like Bitcoin's assumeutxo snapshot): if this is a
+    # fresh mainnet datadir, download the latest chain snapshot so the node
+    # starts near the tip instead of syncing from genesis.
+    if params.name == "main" and not args.nobootstrap:
+        _maybe_bootstrap(datadir)
     port = args.port or params.default_port
     rpcport = args.rpcport or {
         "main": 8332, "test": 18332, "regtest": 18443,

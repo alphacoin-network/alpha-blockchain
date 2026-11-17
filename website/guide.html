@@ -275,6 +275,15 @@ python3 alpha_cli.py getconnectioncount --datadir ./data-mainnet</pre>
       <p>Height should match the <a href="explorer.html">explorer</a> and
       connections should be &gt; 0. To also mine:
       <code>python3 mine_alpha.py --datadir ./data-mainnet --address &lt;your address&gt;</code></p></div>
+    <div class="kcard"><h4>⚡ Fast sync — no days-long download</h4>
+      <p>Fresh nodes <b>auto-download the chain bootstrap</b>
+      (<a href="bootstrap.tar.gz">bootstrap.tar.gz</a>, ~2 MB) and start near
+      the tip — like Bitcoin's snapshot load. Works with both the zip and
+      source installs; disable with <code>--nobootstrap</code> if you want a
+      full from-genesis sync. Manual alternative:</p>
+      <pre>mkdir -p data-mainnet/chain
+tar xzf bootstrap.tar.gz -C data-mainnet/chain
+python3 alphad.py --chain main --datadir ./data-mainnet</pre></div>
     <div class="kcard"><h4>Why run one?</h4>
       <p><b>For you:</b> trustless verification — you check the rules yourself
       instead of trusting a third party, plus private wallet + mining from your

@@ -1,9 +1,9 @@
 """AUSD — ALPHA-backed stablecoin engine.
 
-Model: 1 AUSD is redeemable for $1.00 worth of ALPHA at the operator-published
-ALPHA/USD oracle price. Mint = user deposits ALPHA to the reserve address with
-an OP_RETURN memo "AUSD-MINT:<base_units>"; the sync engine mints AUSD to the
-sender. Redeem = user sends AUSD to the reserve; sync burns it and pays ALPHA.
+Model: 1 AUSD = 10 ALPHA (fixed). Mint = user deposits ALPHA to the reserve
+address with an OP_RETURN memo "AUSD-MINT:<base_units>"; the sync engine mints
+AUSD to the sender. AUSD is a one-way conversion — it cannot be redeemed back
+into ALPHA — but it is freely transferable P2P like ALPHA.
 
 All reserve/issuer keys live in the node wallet — operator-run, like a
 custodial stablecoin issuer (Tether-style), but fully on-chain auditable.
@@ -14,6 +14,7 @@ import os
 import struct
 
 from . import script, tokens as _tokens
+from .wallet import Wallet
 from .transaction import Transaction
 from .utils import hash_to_hex, hex_to_hash
 
@@ -26,13 +27,20 @@ class Ausd:
     def __init__(self, node):
         self.node = node
         self.token_id = None
-        # reserve = node's first funded wallet address (issuer too)
-        for u in node.wallet.list_unspent(node.chain, 1):
+        # Dedicated AUSD reserve wallet — separate keys/file from the node
+        # (referral) wallet so swap funds are isolated.
+        wpath = (os.path.join(node.data_dir, "ausd_wallet.json")
+                 if node.data_dir else None)
+        self.wallet = Wallet(node.params, wpath)
+        if self.wallet.hd_seed is None and not self.wallet.keys                 and not self.wallet.encrypted:
+            self.wallet.init_hd()
+        # reserve = first address of the dedicated wallet (issuer too)
+        funded = self.wallet.list_unspent(node.chain, 1)
+        if funded:
             self.reserve = script.extract_destination(
-                u["script"], node.params)
-            break
+                funded[0]["script"], node.params)
         else:
-            self.reserve = node.wallet.new_address("bech32")
+            self.reserve = self.wallet.new_address("bech32")
         self._state_path = os.path.join(
             node.data_dir, "ausd_state.json") if node.data_dir else None
         st = self._load()
@@ -40,6 +48,8 @@ class Ausd:
                          if st.get("token_id") else None)
         self.last_height = st.get("last_height", 0)
         self.processed = set(st.get("processed", []))
+        self._issue_txid = st.get("issue_txid")
+        self._issue_height = st.get("issue_height", 0)
 
     # -- persistence ---------------------------------------------------------
     def _load(self):
@@ -56,7 +66,9 @@ class Ausd:
             json.dump({"token_id": (hash_to_hex(self.token_id)
                                     if self.token_id else None),
                        "last_height": self.last_height,
-                       "processed": list(self.processed)[-5000:]}, f)
+                       "processed": list(self.processed)[-5000:],
+                       "issue_txid": self._issue_txid,
+                       "issue_height": self._issue_height}, f)
 
     # -- price -----------------------------------------------------------------
     def alpha_usd_price(self) -> float:
@@ -72,7 +84,7 @@ class Ausd:
         return DEFAULT_PRICE
 
     def _feed_op(self, payload: bytes):
-        tx = self.node.wallet.create_token_op_tx(
+        tx = self.wallet.create_token_op_tx(
             self.node.chain, payload, self.reserve, self.reserve)
         self.node.submit_tx(tx)
         return tx
@@ -94,12 +106,15 @@ class Ausd:
         return {"price": usd_per_alpha, "feed": FEED_NAME}
 
     # -- conversions -------------------------------------------------------------
+    ALPHA_PER_AUSD = 10            # fixed rate: 1 AUSD = 10 ALPHA
+
     def alpha_for_ausd(self, ausd_base: int) -> int:
-        """ALPHA sats needed to mint `ausd_base` AUSD base units."""
-        price = self.alpha_usd_price()          # USD per ALPHA
-        usd = ausd_base / 100.0                 # AUSD decimals=2 → cents
-        alpha = usd / price                     # ALPHA coins
-        return int(alpha * 1e8)
+        """ALPHA sats needed to mint `ausd_base` AUSD base units.
+
+        Fixed rate: 1 AUSD (100 base units) = 10 ALPHA.
+        Per base unit: 10 ALPHA / 100 = 0.1 ALPHA = 1e7 sats.
+        """
+        return int(ausd_base) * 10_000_000
 
     # -- OP_RETURN memo scan -----------------------------------------------------
     @staticmethod
@@ -124,26 +139,52 @@ class Ausd:
             return None
 
     def _resolve_token(self):
-        """Find the newest AUSD token in the registry by name."""
+        """Find the newest AUSD token issued by OUR reserve (deterministic)."""
         best = None
         for tid, info in self.node.tokens.registry.items():
-            if getattr(info, "name", "") == "AUSD":
-                if best is None or info.created_height > best[1]:
-                    best = (tid, info.created_height)
+            if getattr(info, "name", "") != "AUSD":
+                continue
+            issuer = getattr(info, "issuer", None)
+            if issuer != self.reserve:
+                continue
+            key = (info.created_height, hash_to_hex(tid))
+            if best is None or key > best[0]:
+                best = (key, tid)
         if best is not None:
-            self.token_id = best[0]
+            self.token_id = best[1]
             self._save()
             return self.token_id
         return None
 
+    def _ensure_token(self):
+        """Issue a fresh AUSD token under the dedicated reserve if none exists."""
+        if self._resolve_token() is not None:
+            return
+        # only one node should issue: require registry to have no AUSD at all
+        # OR no AUSD owned by us yet and we are the lowest datadir? — instead,
+        # issue once and rely on _resolve_token picking the newest deterministically.
+        tip = self.node.chain.height
+        if self._issue_txid and tip - self._issue_height < 20:
+            return  # our issue tx may still confirm — wait
+        supply = 10_000_000_000          # 100M AUSD issuer float (2 dp)
+        payload = _tokens.encode_issue("AUSD", 2, supply)
+        tx = self.wallet.create_token_op_tx(
+            self.node.chain, payload, self.reserve, self.reserve)
+        self.node.submit_tx(tx)
+        self._issue_txid = tx.txid_hex()
+        self._issue_height = tip
+        self._save()
+
     # -- sync ---------------------------------------------------------------------
     def sync(self) -> dict:
-        """Scan blocks since last_height for mint deposits & AUSD redeems."""
+        """Scan blocks since last_height for AUSD mint deposits."""
+        if self.token_id is None:
+            self._ensure_token()
         self._resolve_token()
         if self.token_id is None:
             return {"error": "no AUSD token issued"}
         tip = self.node.chain.height
-        minted = redeemed = 0
+        minted = 0
         reserve_spk = script.script_for_address(self.reserve, self.node.params)
         for h in range(self.last_height + 1, tip + 1):
             e = self.node.chain.get_block_index(h)
@@ -162,58 +203,31 @@ class Ausd:
                         amt = int(memo)
                     except ValueError:
                         amt = 0
-                    # mint only if tx actually paid ALPHA to reserve
-                    pays = any(
-                        script.extract_destination(o.script_pubkey,
-                                                   self.node.params)
-                        == self.reserve for o in tx.vout)
+                    # mint only if tx actually paid >= required ALPHA to reserve
+                    paid = sum(
+                        o.value for o in tx.vout
+                        if script.extract_destination(o.script_pubkey,
+                                                     self.node.params)
+                        == self.reserve)
                     sender = self._sender_addr(tx)
-                    if amt > 0 and pays and sender:
+                    if (amt > 0 and sender
+                            and paid >= self.alpha_for_ausd(amt)):
                         # mint to issuer then send to user
-                        self.node.submit_tx(self.node.wallet.create_token_op_tx(
+                        self.node.submit_tx(self.wallet.create_token_op_tx(
                             self.node.chain,
                             _tokens.encode_mint(self.token_id, amt),
                             self.reserve, self.reserve))
-                        self.node.submit_tx(self.node.wallet.create_token_op_tx(
+                        self.node.submit_tx(self.wallet.create_token_op_tx(
                             self.node.chain,
                             _tokens.encode_send(self.token_id, amt),
                             self.reserve, sender))
                         minted += 1
-                # redeem: AUSD sent to reserve → burn + pay ALPHA
-                p = _tokens.find_token_payload(tx)
-                if (p and p.get("op") == _tokens.OP_SEND
-                        and p.get("token_id") == self.token_id
-                        and p.get("amount", 0) > 0):
-                    sender = self._sender_addr(tx)
-                    # recipient = first non-opreturn output
-                    _, rtxo = _tokens.first_non_opreturn_output(tx)
-                    if (sender and rtxo is not None
-                            and script.extract_destination(
-                                rtxo.script_pubkey, self.node.params)
-                            == self.reserve):
-                        amt = p["amount"]
-                        alpha_out = self.alpha_for_ausd(amt)
-                        # burn reserve-held AUSD
-                        self.node.submit_tx(
-                            self.node.wallet.create_token_op_tx(
-                                self.node.chain,
-                                _tokens.encode_burn(self.token_id, amt),
-                                self.reserve, self.reserve))
-                        # pay ALPHA to redeemer (alpha_out is sats int)
-                        try:
-                            self.node.wallet.send_to_address(
-                                self.node.chain, self.node.mempool,
-                                sender, alpha_out, 1)
-                        except Exception:
-                            pass
-                        redeemed += 1
                 self.processed.add(tid)
             self.last_height = h
             if len(self.processed) > 5000:
                 self.processed = set(list(self.processed)[-5000:])
         self._save()
-        return {"minted": minted, "redeemed": redeemed,
-                "height": self.last_height}
+        return {"minted": minted, "height": self.last_height}
 
     def info(self):
         self._resolve_token()
