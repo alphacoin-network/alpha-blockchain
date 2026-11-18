@@ -27,6 +27,7 @@ class Ausd:
     def __init__(self, node):
         self.node = node
         self.token_id = None
+        self._issuer = None
         # Dedicated AUSD reserve wallet — separate keys/file from the node
         # (referral) wallet so swap funds are isolated.
         wpath = (os.path.join(node.data_dir, "ausd_wallet.json")
@@ -147,30 +148,37 @@ class Ausd:
             return None
 
     def _resolve_token(self):
-        """Find the newest AUSD token issued by OUR reserve (deterministic)."""
+        """Pick the canonical AUSD token — newest token NAMED 'AUSD'.
+
+        Any issuer is accepted for READ/info. Only the node whose reserve
+        matches the token issuer can actually mint (it holds the keys).
+        Deterministic across all nodes: (created_height, txid) ordering.
+        """
         best = None
         for tid, info in self.node.tokens.registry.items():
             if getattr(info, "name", "") != "AUSD":
                 continue
-            issuer = getattr(info, "issuer", None)
-            if issuer != self.reserve:
-                continue
-            key = (info.created_height, hash_to_hex(tid))
+            key = (getattr(info, "created_height", 0), hash_to_hex(tid))
             if best is None or key > best[0]:
-                best = (key, tid)
+                best = (key, tid, getattr(info, "issuer", None))
         if best is not None:
             self.token_id = best[1]
+            self._issuer = best[2]
             self._save()
             return self.token_id
         return None
 
+    @property
+    def can_mint(self) -> bool:
+        """True only on the node that owns the reserve/issuer keys."""
+        return self.token_id is not None and self._issuer == self.reserve
+
     def _ensure_token(self):
-        """Issue a fresh AUSD token under the dedicated reserve if none exists."""
-        if self._resolve_token() is not None:
-            return
-        # only one node should issue: require registry to have no AUSD at all
-        # OR no AUSD owned by us yet and we are the lowest datadir? — instead,
-        # issue once and rely on _resolve_token picking the newest deterministically.
+        """Issue AUSD only if NO token named AUSD exists yet — prevents
+        every node from spamming its own token onto the chain."""
+        for info in self.node.tokens.registry.values():
+            if getattr(info, "name", "") == "AUSD":
+                return
         tip = self.node.chain.height
         if self._issue_txid and tip - self._issue_height < 20:
             return  # our issue tx may still confirm — wait
@@ -191,6 +199,10 @@ class Ausd:
         self._resolve_token()
         if self.token_id is None:
             return {"error": "no AUSD token issued"}
+        if not self.can_mint:
+            # this node doesn't hold issuer keys — the issuer node mints
+            return {"minted": 0, "height": self.last_height,
+                    "issuer_node": False}
         tip = self.node.chain.height
         minted = 0
         reserve_spk = script.script_for_address(self.reserve, self.node.params)
@@ -248,6 +260,8 @@ class Ausd:
         return {
             "token_id": hash_to_hex(self.token_id) if self.token_id else None,
             "reserve": self.reserve,
+            "rate": "fixed",
+            "alpha_per_ausd": float(self.ALPHA_PER_AUSD),
+            "ausd_per_alpha": 1.0 / self.ALPHA_PER_AUSD,
             "alpha_usd_price": self.alpha_usd_price(),
-            "ausd_per_alpha": 1.0 / self.alpha_usd_price(),
         }
