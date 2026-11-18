@@ -34,16 +34,23 @@ class Ausd:
         self.wallet = Wallet(node.params, wpath)
         if self.wallet.hd_seed is None and not self.wallet.keys                 and not self.wallet.encrypted:
             self.wallet.init_hd()
-        # reserve = first address of the dedicated wallet (issuer too)
-        funded = self.wallet.list_unspent(node.chain, 1)
-        if funded:
-            self.reserve = script.extract_destination(
-                funded[0]["script"], node.params)
-        else:
-            self.reserve = self.wallet.new_address("bech32")
         self._state_path = os.path.join(
             node.data_dir, "ausd_state.json") if node.data_dir else None
         st = self._load()
+        # reserve must be STABLE across restarts — persist in state.
+        # (new_address() makes a fresh key each call → address would
+        # change every restart and orphan the issuer/token.)
+        if st.get("reserve"):
+            self.reserve = st["reserve"]
+        else:
+            # reserve = first address of the dedicated wallet (issuer too)
+            funded = self.wallet.list_unspent(node.chain, 1)
+            if funded:
+                self.reserve = script.extract_destination(
+                    funded[0]["script"], node.params)
+            else:
+                self.reserve = self.wallet.new_address("bech32")
+            st["reserve"] = self.reserve
         self.token_id = (hex_to_hash(st["token_id"])
                          if st.get("token_id") else None)
         self.last_height = st.get("last_height", 0)
@@ -65,6 +72,7 @@ class Ausd:
         with open(self._state_path, "w") as f:
             json.dump({"token_id": (hash_to_hex(self.token_id)
                                     if self.token_id else None),
+                       "reserve": self.reserve,
                        "last_height": self.last_height,
                        "processed": list(self.processed)[-5000:],
                        "issue_txid": self._issue_txid,
