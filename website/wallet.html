@@ -903,6 +903,7 @@ async function secureWallet(){
   alert("Wallet secured — seed is now AES-256 encrypted. You'll need this passphrase to unlock.");
 }
 
+const sentKey=()=>"alpha_sent_"+(ADDR2||ADDR||"w");
 async function refresh(){
   const txs=document.getElementById("txs");
   const balEl=document.getElementById("bal");
@@ -911,14 +912,15 @@ async function refresh(){
   try{
   const addrs=HD?HD.addrs:[ADDR,ADDR2];
   let bal=0,txs0=[],tokAll=[];
-  // balance from /api/utxos (light, proven) — /api/address only for tokens+history
-  await Promise.all(addrs.map(async ad=>{
-    try{const u=await(await fetch("/api/utxos/"+ad)).json();
-      for(const x of u.utxos||[])bal+=x.amount||0;}catch(e){}
-    try{const j=await(await fetch("/api/address/"+ad)).json();
-      txs0=txs0.concat(j.transactions||[]);
-      for(const t of j.tokens||[])tokAll.push(t);}catch(e){}
-  }));
+  // ONE scan for all addresses (fast + consistent) — history only for current addr
+  try{
+    const q=addrs.map(encodeURIComponent).join(",");
+    const bmap=await(await fetch("/api/balances?addrs="+q)).json();
+    for(const ad of addrs){const e=bmap[ad]||{};bal+=e.balance||0;
+      for(const t of e.tokens||[])tokAll.push(t);}
+  }catch(e){}
+  try{const j=await(await fetch("/api/address/"+(ADDR2||addrs[0]))).json();
+    txs0=j.transactions||[];}catch(e){}
   document.getElementById("bal").textContent=bal.toFixed(4);
   // AUSD balance — match engine's token_id, else any token named AUSD
   const ab=document.getElementById("ausdbal"),amb=document.getElementById("ausdmybal");
@@ -936,7 +938,7 @@ async function refresh(){
         return `<div class="txrow"><a href="tokens.html" style="color:var(--accent)">${(t.name||t.token_id||"").slice(0,24)}</a> <span style="color:var(--green)">bal ${typeof bv==="number"?bv.toFixed(4):bv}</span></div>`;}).join("");
   }else tc.classList.add("hidden");
   const j={transactions:txs0};
-  let sent=[];try{sent=JSON.parse(localStorage.getItem("alpha_sent")||"[]");}catch(e){}
+  let sent=[];try{sent=JSON.parse(localStorage.getItem(sentKey())||"[]");}catch(e){}
   const seen=new Set((j.transactions||[]).map(t=>t.txid));
   const merged=[...(j.transactions||[]),
     ...sent.filter(s=>!seen.has(s.txid)).map(s=>({txid:s.txid,height:s.height,time:s.time,sent:true,amount:-s.amount}))];
@@ -1005,9 +1007,9 @@ async function hdSend(o){
     for(let a=0;a<3;a++){try{r=await(await fetch("/api/broadcast",{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},body:"hex="+raw})).json();break;}catch(e){if(a==2)throw e;await new Promise(s=>setTimeout(s,3000));}}
     if(r.error)throw new Error(r.error);
     const txid=(r.result||r).toString();
-    try{const log=JSON.parse(localStorage.getItem("alpha_sent")||"[]");
+    try{const log=JSON.parse(localStorage.getItem(sentKey())||"[]");
       log.unshift({txid,height:tip,time:Math.floor(Date.now()/1000),sent:true,amount:sats/1e8});
-      localStorage.setItem("alpha_sent",JSON.stringify(log.slice(0,50)));
+      localStorage.setItem(sentKey(),JSON.stringify(log.slice(0,50)));
     }catch(e){}
     ADDR=ADDR2=HD.addrs[HD.addrs.length-1];
     document.getElementById("myaddr").innerHTML="<div style='font-size:11px;color:var(--dim);letter-spacing:.5px'>HD WALLET</div><b style='color:var(--gold);font-size:15px;word-break:break-all'>"+ADDR2+"</b><div style='font-size:11px;color:var(--dim);margin-top:4px'>legacy: "+((HD.keymap[ADDR2]||{}).leg||"")+"</div>";
@@ -1094,9 +1096,9 @@ async function send(o){
     for(let a=0;a<3;a++){try{r=await(await fetch("/api/broadcast",{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded"},body:"hex="+raw})).json();break;}catch(e){if(a==2)throw e;await new Promise(s=>setTimeout(s,3000));}}
     if(r.error)throw new Error(r.error);
     const txid=(r.result||r).toString();
-    try{const log=JSON.parse(localStorage.getItem("alpha_sent")||"[]");
+    try{const log=JSON.parse(localStorage.getItem(sentKey())||"[]");
       log.unshift({txid,height:tip,time:Math.floor(Date.now()/1000),sent:true,amount:sats/1e8});
-      localStorage.setItem("alpha_sent",JSON.stringify(log.slice(0,50)));
+      localStorage.setItem(sentKey(),JSON.stringify(log.slice(0,50)));
     }catch(e){}
     st.innerHTML='<span style="color:var(--green)">✓ sent! txid '+txid.slice(0,24)+"…</span>";
     setTimeout(refresh,3000);
@@ -1109,10 +1111,10 @@ async function loadCoins(){
   try{
     const addrs=HD?HD.addrs:[ADDR,ADDR2];
     let all=[];
-    for(const ad of addrs){
+    await Promise.all(addrs.map(async ad=>{
       try{const u=await(await fetch("/api/utxos/"+ad)).json();
         for(const x of u.utxos||[])all.push({...x,address:ad});}catch(e){}
-    }
+    }));
     all.sort((a,b)=>b.amount-a.amount);
     const LIM=40,shown=all.slice(0,LIM);
     box.innerHTML='<div style="font-size:11.5px;color:var(--dim);margin-bottom:6px"><b style="color:var(--text)">'+all.length+' UTXOs</b> · total '+all.reduce((s,x)=>s+x.amount,0).toFixed(2)+' α — tick coins to spend ONLY those'+(selCoins.size?' · <b style="color:var(--gold)">'+selCoins.size+' selected</b>':'')+'</div>'+

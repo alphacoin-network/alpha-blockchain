@@ -129,6 +129,26 @@ class API:
                 "utxo_count": len(utxos), "utxos": utxos[:200],
                 "tokens": tokbal, "transactions": txs}
 
+    def balances(self, addrs_csv: str):
+        """One scantxoutset scan → balance+tokens for MANY addresses.
+        (per-address /api/address does a full scan EACH — too heavy)."""
+        addrs = [a.strip() for a in addrs_csv.split(",") if a.strip()]
+        wanted = set(addrs)
+        scan = self.call("scantxoutset", "start")
+        out = {a: {"balance": 0.0, "utxo_count": 0, "tokens": []}
+               for a in addrs}
+        for u in scan.get("unspents", []):
+            a = u.get("address")
+            if a in wanted:
+                out[a]["balance"] += u.get("amount", 0)
+                out[a]["utxo_count"] += 1
+        for a in addrs:
+            try:
+                out[a]["tokens"] = self.call("listtokenbalances", a)
+            except Exception:
+                pass
+        return out
+
     def tokens(self):
         return self.call("listtokens")
 
@@ -197,6 +217,8 @@ def make_handler(api: API):
                     out = api.tokens()
                 elif route == "ausd":
                     out = api.call("ausdinfo")
+                elif route == "balances":
+                    out = api.balances(qs.get("addrs", [""])[0])
                 elif route.startswith("token/"):
                     out = api.token(route[6:])
                 elif route == "search":
