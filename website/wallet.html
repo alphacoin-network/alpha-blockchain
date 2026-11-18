@@ -840,9 +840,31 @@ async function restoreHD(){
     const seedHex=b2hex(seedB);
     const mn=/^[0-9a-f]{128}$/.test(s.trim().toLowerCase().replace(/\s+/g,""))?null:s.trim().toLowerCase().replace(/\s+/g," ");
     const a=await deriveAddr(seedB,0);
+    if(!confirm("Ye seed is address ko restore karega:\n\n"+a.addr+"\n\nAgar ye aapka sahi wallet address nahi hai toh CANCEL dabao (galat seed/passphrase se funds nahi milenge).\n\nContinue?"))return;
     HD={seed:seedHex,mnemonic:mn,pass,index:0,addrs:[a.addr],keymap:{},cur:a};
     HD.keymap[a.addr]={priv:a.priv,pub:a.pub,leg:a.leg};
-    hdSave();useHD();
+    hdSave();useHD();   // wallet opens instantly — scan runs in background
+    // gap-limit scan (background): restore ALL addresses that held funds
+    (async()=>{
+      try{
+        const cands=[];for(let i=0;i<60;i++){const d=await deriveAddr(seedB,i);cands.push({i,...d});}
+        const q=cands.map(c=>encodeURIComponent(c.addr)).join(",");
+        const bmap=await(await fetch("/api/balances?addrs="+q)).json();
+        let maxU=-1;
+        for(const c of cands){const e=bmap[c.addr]||{};
+          if((e.balance||0)>0||(e.utxo_count||0)>0||(e.tokens||[]).length>0)maxU=c.i;}
+        if(maxU>=0){
+          HD.addrs=[];HD.keymap={};
+          for(let i=0;i<=maxU;i++){const c=cands[i];
+            HD.addrs.push(c.addr);HD.keymap[c.addr]={priv:c.priv,pub:c.pub,leg:c.leg};}
+          HD.index=maxU;HD.cur=cands[maxU];
+          ADDR=ADDR2=HD.addrs[HD.addrs.length-1];
+          document.getElementById("myaddr").innerHTML=
+            "<div style='font-size:11px;color:var(--dim);letter-spacing:.5px'>HD WALLET</div><b style='color:var(--gold);font-size:15px;word-break:break-all'>"+ADDR2+"</b><div style='font-size:11px;color:var(--dim);margin-top:4px'>legacy: "+((HD.keymap[ADDR2]||{}).leg||"")+"</div>";
+          drawQR(ADDR2);hdSave();refresh();
+        }
+      }catch(e){}
+    })();
   }catch(e){alert("Could not restore: "+e.message);}
 }
 async function importWif(){
@@ -915,10 +937,13 @@ async function refresh(){
   // ONE scan for all addresses (fast + consistent) — history only for current addr
   try{
     const q=addrs.map(encodeURIComponent).join(",");
-    const bmap=await(await fetch("/api/balances?addrs="+q)).json();
+    const resp=await fetch("/api/balances?addrs="+q);
+    if(!resp.ok)throw new Error("balances API "+resp.status);
+    const bmap=await resp.json();
+    if(bmap.error)throw new Error(bmap.error);
     for(const ad of addrs){const e=bmap[ad]||{};bal+=e.balance||0;
       for(const t of e.tokens||[])tokAll.push(t);}
-  }catch(e){}
+  }catch(e){balEl.textContent="ERR";console.warn("balances fetch:",e);}
   try{const j=await(await fetch("/api/address/"+(ADDR2||addrs[0]))).json();
     txs0=j.transactions||[];}catch(e){}
   document.getElementById("bal").textContent=bal.toFixed(4);
