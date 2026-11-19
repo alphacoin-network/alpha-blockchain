@@ -122,7 +122,7 @@
 
     <div class="card">
       <h3>Send ALPHA</h3>
-      <input id="toaddr" class="field" placeholder="Recipient address" spellcheck="false">
+      <div style="display:flex;gap:8px"><input id="toaddr" class="field" placeholder="Recipient address" spellcheck="false" style="flex:1"><button class="btn btn-ghost" onclick="scanQR('toaddr')" style="white-space:nowrap">📷 Scan</button></div>
       <input id="amount" class="field" placeholder="Amount (ALPHA)" type="number" step="any" min="0">
       <details style="margin:8px 0"><summary style="cursor:pointer;color:var(--dim);font-size:13px">Options ▾</summary>
         <input id="memo" class="field" placeholder="Memo / OP_RETURN (optional — e.g. AUSD-MINT:10000)" spellcheck="false" maxlength="200">
@@ -186,7 +186,7 @@
       </div>
       <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
         <div style="font-size:12.5px;color:var(--dim);margin-bottom:8px"><b style="color:var(--text)">Send AUSD</b> — P2P transfer to any ALPHA address, exactly like sending ALPHA. No AUSD yet? Get some via Swap above, or ask another user to send it to your address + QR.</div>
-        <input id="ausdto" class="field" placeholder="Recipient ALPHA address" spellcheck="false">
+        <div style="display:flex;gap:8px"><input id="ausdto" class="field" placeholder="Recipient ALPHA address" spellcheck="false" style="flex:1"><button class="btn btn-ghost" onclick="scanQR('ausdto')" style="white-space:nowrap">📷 Scan</button></div>
         <input id="ausdamt" class="field" placeholder="Amount (AUSD, e.g. 1.50)" type="number" step="0.01" min="0">
         <button class="btn btn-gold" onclick="sendAusd()" style="width:100%">Send AUSD</button>
         <div id="ausdstatus" style="margin-top:8px;font-size:12.5px;color:var(--dim)"></div>
@@ -1349,5 +1349,43 @@ async function createToken(){
   try{const h=await hdLoad();if(h){HD=h;HD.cur=h.cur||await deriveAddr(hexToB(h.seed),h.index);await useHD();return;}}catch(e){}
   loadKey().then(p=>{if(p){KEY={priv:p};useKey(p);}}).catch(()=>{});
 })();
+</script>
+<!-- QR scanner modal -->
+<div id="qrmodal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99;display:flex;align-items:center;justify-content:center;padding:16px">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;max-width:420px;width:100%">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <b>📷 Scan QR code</b>
+      <button class="btn btn-ghost" onclick="closeQR()" style="padding:4px 12px">✕</button>
+    </div>
+    <div id="qrreader" style="width:100%"></div>
+    <div style="font-size:12px;color:var(--dim);margin-top:8px;text-align:center">Point camera at QR — or use the library's "Scan an Image File" button to upload a QR image</div>
+  </div>
+</div>
+<script>
+/* QR scan — camera + image upload via html5-qrcode (lazy-loaded CDN) */
+let _qrScanner=null,_qrTarget=null;
+function _loadQR(cb){
+  if(window.Html5QrcodeScanner){cb();return;}
+  const s=document.createElement("script");
+  s.src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js";
+  s.onload=cb;s.onerror=()=>alert("Scanner library failed to load — check internet");
+  document.head.appendChild(s);
+}
+function scanQR(targetId){
+  _qrTarget=targetId;
+  const m=document.getElementById("qrmodal");m.classList.remove("hidden");m.style.display="flex";
+  _loadQR(()=>{
+    if(_qrScanner){try{_qrScanner.clear();}catch(e){}_qrScanner=null;}
+    document.getElementById("qrreader").innerHTML="";
+    const sc=new Html5QrcodeScanner("qrreader",{fps:10,qrbox:{width:240,height:240},rememberLastUsedCamera:true});
+    _qrScanner=sc;
+    sc.render(t=>{document.getElementById(targetId).value=t;closeQR();},e=>{});
+  });
+}
+function closeQR(){
+  const m=document.getElementById("qrmodal");m.classList.add("hidden");m.style.display="none";
+  if(_qrScanner){try{_qrScanner.clear();}catch(e){}_qrScanner=null;}
+  document.getElementById("qrreader").innerHTML="";
+}
 </script>
 </body></html>
