@@ -271,6 +271,17 @@ async def ref(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         f"🔗 Full link: https://t.me/alpha_blockchain_bot?start={row[0]}")
 
 
+async def wallet(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "🌐 Alpha Web Wallet\n"
+        "https://alphacoin.network/wallet.html\n\n"
+        "Steps:\n"
+        "1. Open link → Create Wallet (12-word seed) "
+        "or Import WIF\n"
+        "2. Backup seed/WIF safely — never share\n"
+        "3. /link <your alpha address> here for rewards")
+
+
 async def support(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"🆘 Support\n\nContact: {SUPPORT}\n"
@@ -324,8 +335,8 @@ def main():
     for cmd, fn in [("start", start), ("help", help_cmd),
                     ("stats", stats), ("balance", balance),
                     ("ausd", ausd), ("blocks", blocks),
-                    ("ref", ref), ("link", link), ("support", support),
-                    ("announce", announce)]:
+                    ("ref", ref), ("link", link), ("wallet", wallet),
+                    ("support", support), ("announce", announce)]:
         app.add_handler(CommandHandler(cmd, fn))
     if CHANNEL:
         app.job_queue.run_repeating(channel_stats, interval=21600, first=60)
