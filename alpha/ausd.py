@@ -163,8 +163,10 @@ class Ausd:
             if getattr(info, "name", "") != "AUSD":
                 continue
             key = (getattr(info, "created_height", 0), hash_to_hex(tid))
+            issuer = script.extract_destination(
+                getattr(info, "issuer_script", b""), self.node.params)                 if getattr(info, "issuer_script", None) else None
             if best is None or key > best[0]:
-                best = (key, tid, getattr(info, "issuer", None))
+                best = (key, tid, issuer)
         if best is not None:
             self.token_id = best[1]
             issuer = best[2]
@@ -216,7 +218,12 @@ class Ausd:
         if self.token_id is None:
             return {"error": "no AUSD token issued"}
         if not self.can_mint:
-            # this node doesn't hold issuer keys — the issuer node mints
+            # this node doesn't hold issuer keys — the issuer node mints.
+            # still advance last_height so we don't rescan the same range.
+            tip0 = self.node.chain.height
+            if tip0 > self.last_height:
+                self.last_height = tip0
+                self._save()
             return {"minted": 0, "height": self.last_height,
                     "issuer_node": False}
         tip = self.node.chain.height
