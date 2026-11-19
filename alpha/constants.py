@@ -130,7 +130,7 @@ MAINNET = ChainParams(
     ),
     genesis_timestamp=1231006505,                    # same as Bitcoin genesis
     seed_nodes=("seed.alphacoin.network", "seed2.alphacoin.network",
-                "68.178.163.58", "3.105.43.51"),  # GoDaddy VPS + AWS Sydney
+                "68.178.163.58"),  # DNS seeds + GoDaddy VPS (AWS joins via outbound mesh)
     checkpoints={
         0:    "3854a88f1dd4dad14cd4622b88b1e07c3107e2946e7105ad728275a630b5a2f4",
         500:  "0000011ef4f73a29c8dc81c4cf9922160fee58875a604101a002a1272a855ff7",
