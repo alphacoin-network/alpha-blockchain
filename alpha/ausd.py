@@ -22,6 +22,12 @@ MINT_PREFIX = b"AUSD-MINT:"
 FEED_NAME = "ALPHAUSD"
 DEFAULT_PRICE = 0.001          # USD per ALPHA (operator-set reference)
 
+# Reserve addresses that were live before reserves were aligned to the
+# canonical token issuer. Deposits paid to any of these still mint AUSD.
+KNOWN_LEGACY_RESERVES = {
+    "alpha1qtex39sa94few5eupzwdg0sujap94sscan8jhj0",
+}
+
 
 class Ausd:
     def __init__(self, node):
@@ -59,6 +65,9 @@ class Ausd:
         self._issue_txid = st.get("issue_txid")
         self._issue_height = st.get("issue_height", 0)
         self._legacy = set(st.get("legacy_reserves", []))
+        # reserves that were advertised to users before the canonical
+        # issuer-reserve migration — deposits to these still mint
+        self._legacy.update(KNOWN_LEGACY_RESERVES)
         if self.reserve:
             self._legacy.discard(self.reserve)
 

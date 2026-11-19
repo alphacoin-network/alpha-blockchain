@@ -104,6 +104,7 @@ class Node:
             self.server = net.PeerServer(self, "0.0.0.0", self.port)
             self.server.start()
         threading.Thread(target=self._addr_maintainer, daemon=True).start()
+        threading.Thread(target=self._ausd_maintainer, daemon=True).start()
         # seed the addr pool with public seeds so the maintainer has targets
         try:
             import socket as _s
@@ -122,6 +123,18 @@ class Node:
                     pass
         except Exception:
             pass
+
+    def _ausd_maintainer(self):
+        """Periodically run the AUSD mint engine — scans new blocks for
+        AUSD-MINT deposits and issues the token transfer (issuer node only)."""
+        import time
+        time.sleep(30)   # let chain load / wallet init settle first
+        while not self.stopped:
+            try:
+                self.ausd.sync()
+            except Exception:
+                pass
+            time.sleep(30)
 
     def _addr_maintainer(self):
         """Keep outbound connections topped up from the learned addr pool."""
