@@ -58,6 +58,9 @@ class Ausd:
         self.processed = set(st.get("processed", []))
         self._issue_txid = st.get("issue_txid")
         self._issue_height = st.get("issue_height", 0)
+        self._legacy = set(st.get("legacy_reserves", []))
+        if self.reserve:
+            self._legacy.discard(self.reserve)
 
     # -- persistence ---------------------------------------------------------
     def _load(self):
@@ -77,7 +80,8 @@ class Ausd:
                        "last_height": self.last_height,
                        "processed": list(self.processed)[-5000:],
                        "issue_txid": self._issue_txid,
-                       "issue_height": self._issue_height}, f)
+                       "issue_height": self._issue_height,
+                       "legacy_reserves": list(self._legacy)}, f)
 
     # -- price -----------------------------------------------------------------
     def alpha_usd_price(self) -> float:
@@ -163,7 +167,14 @@ class Ausd:
                 best = (key, tid, getattr(info, "issuer", None))
         if best is not None:
             self.token_id = best[1]
-            self._issuer = best[2]
+            issuer = best[2]
+            # payments must go to the ISSUER address (mint keys live there);
+            # old reserves remain valid for in-flight deposits
+            if issuer and issuer != self.reserve:
+                if self.reserve:
+                    self._legacy.add(self.reserve)
+                self.reserve = issuer
+            self._issuer = issuer
             self._save()
             return self.token_id
         return None
@@ -171,7 +182,12 @@ class Ausd:
     @property
     def can_mint(self) -> bool:
         """True only on the node that owns the reserve/issuer keys."""
-        return self.token_id is not None and self._issuer == self.reserve
+        if self.token_id is None or self._issuer != self.reserve:
+            return False
+        try:
+            return self.wallet._key_for_address(self.reserve) is not None
+        except Exception:
+            return False
 
     def _ensure_token(self):
         """Issue AUSD only if NO token named AUSD exists yet — prevents
@@ -224,11 +240,12 @@ class Ausd:
                     except ValueError:
                         amt = 0
                     # mint only if tx actually paid >= required ALPHA to reserve
+                    ok_addrs = {self.reserve} | self._legacy
                     paid = sum(
                         o.value for o in tx.vout
                         if script.extract_destination(o.script_pubkey,
                                                      self.node.params)
-                        == self.reserve)
+                        in ok_addrs)
                     sender = self._sender_addr(tx)
                     if (amt > 0 and sender
                             and paid >= self.alpha_for_ausd(amt)):
