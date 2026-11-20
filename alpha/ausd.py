@@ -62,6 +62,7 @@ class Ausd:
                          if st.get("token_id") else None)
         self.last_height = st.get("last_height", 0)
         self.processed = set(st.get("processed", []))
+        self._minted_deposits = set(st.get("minted_deposits", []))
         self._issue_txid = st.get("issue_txid")
         self._issue_height = st.get("issue_height", 0)
         self._legacy = set(st.get("legacy_reserves", []))
@@ -88,6 +89,7 @@ class Ausd:
                        "reserve": self.reserve,
                        "last_height": self.last_height,
                        "processed": list(self.processed)[-5000:],
+                       "minted_deposits": list(self._minted_deposits)[-5000:],
                        "issue_txid": self._issue_txid,
                        "issue_height": self._issue_height,
                        "legacy_reserves": list(self._legacy)}, f)
@@ -282,21 +284,31 @@ class Ausd:
                         in ok_addrs)
                     sender = self._sender_addr(tx, b)
                     if (amt > 0 and sender
-                            and paid >= self.alpha_for_ausd(amt)):
+                            and paid >= self.alpha_for_ausd(amt)
+                            and tid not in self._minted_deposits):
                         # mint to issuer then send to user
-                        self.node.submit_tx(self.wallet.create_token_op_tx(
-                            self.node.chain,
-                            _tokens.encode_mint(self.token_id, amt),
-                            self.reserve, self.reserve))
-                        self.node.submit_tx(self.wallet.create_token_op_tx(
-                            self.node.chain,
-                            _tokens.encode_send(self.token_id, amt),
-                            self.reserve, sender))
-                        minted += 1
+                        try:
+                            self.node.submit_tx(self.wallet.create_token_op_tx(
+                                self.node.chain,
+                                _tokens.encode_mint(self.token_id, amt),
+                                self.reserve, self.reserve))
+                            self.node.submit_tx(self.wallet.create_token_op_tx(
+                                self.node.chain,
+                                _tokens.encode_send(self.token_id, amt),
+                                self.reserve, sender))
+                            self._minted_deposits.add(tid)
+                            minted += 1
+                        except Exception:
+                            # already in mempool / temporarily un-submittable —
+                            # don't crash the scan; deposit stays retryable
+                            pass
                 self.processed.add(tid)
             self.last_height = h
             if len(self.processed) > 5000:
                 self.processed = set(list(self.processed)[-5000:])
+            if len(self._minted_deposits) > 5000:
+                self._minted_deposits = set(
+                    list(self._minted_deposits)[-5000:])
         self._save()
         return {"minted": minted, "height": self.last_height}
 
