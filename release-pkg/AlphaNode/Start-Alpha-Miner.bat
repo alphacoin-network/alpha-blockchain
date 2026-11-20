@@ -7,5 +7,5 @@ echo ============================================
 set /p ADDR=Enter your ALPHA address (alpha1... or 1...):
 if "%ADDR%"=="" (echo No address entered. & pause & exit)
 :loop
-alpha_cli.exe generatetoaddress 1 %ADDR% --datadir "%~dp0data"
+alpha_cli.exe --chain main generatetoaddress 1 %ADDR% --datadir "%~dp0data"
 goto loop
