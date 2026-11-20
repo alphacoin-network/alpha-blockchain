@@ -63,6 +63,9 @@ class Ausd:
         self.last_height = st.get("last_height", 0)
         self.processed = set(st.get("processed", []))
         self._minted_deposits = set(st.get("minted_deposits", []))
+        # deposits whose mint confirmed but whose send-to-user is still
+        # queued — {deposit_txid: {"amt": int, "sender": str}}
+        self._pending_sends = st.get("pending_sends", {})
         self._issue_txid = st.get("issue_txid")
         self._issue_height = st.get("issue_height", 0)
         self._legacy = set(st.get("legacy_reserves", []))
@@ -90,6 +93,7 @@ class Ausd:
                        "last_height": self.last_height,
                        "processed": list(self.processed)[-5000:],
                        "minted_deposits": list(self._minted_deposits)[-5000:],
+                       "pending_sends": self._pending_sends,
                        "issue_txid": self._issue_txid,
                        "issue_height": self._issue_height,
                        "legacy_reserves": list(self._legacy)}, f)
@@ -258,6 +262,30 @@ class Ausd:
         tip = self.node.chain.height
         minted = 0
         reserve_spk = script.script_for_address(self.reserve, self.node.params)
+
+        # deliver queued sends once the issuer's CONFIRMED token balance
+        # covers them (the mint tx must confirm before the send is valid)
+        if self._pending_sends:
+            try:
+                bal = self.node.tokens.balance_json(
+                    self.token_id, self.node.params)
+                reserve_bal = sum(h["balance"] for h in bal
+                                  if h.get("address") == self.reserve)
+            except Exception:
+                reserve_bal = 0
+            for did, ps in list(self._pending_sends.items()):
+                if reserve_bal < ps["amt"]:
+                    continue
+                try:
+                    self.node.submit_tx(self.wallet.create_token_op_tx(
+                        self.node.chain,
+                        _tokens.encode_send(self.token_id, ps["amt"]),
+                        self.reserve, ps["sender"]))
+                    self._pending_sends.pop(did)
+                    reserve_bal -= ps["amt"]
+                except Exception:
+                    pass
+
         for h in range(self.last_height + 1, tip + 1):
             e = self.node.chain.get_block_index(h)
             if e is None:
@@ -286,17 +314,18 @@ class Ausd:
                     if (amt > 0 and sender
                             and paid >= self.alpha_for_ausd(amt)
                             and tid not in self._minted_deposits):
-                        # mint to issuer then send to user
+                        # mint to issuer; the send-to-user is queued and
+                        # delivered on a later pass once the mint confirms
+                        # (sending before confirmation would conflict on
+                        # the same reserve UTXO and fail silently)
                         try:
                             self.node.submit_tx(self.wallet.create_token_op_tx(
                                 self.node.chain,
                                 _tokens.encode_mint(self.token_id, amt),
                                 self.reserve, self.reserve))
-                            self.node.submit_tx(self.wallet.create_token_op_tx(
-                                self.node.chain,
-                                _tokens.encode_send(self.token_id, amt),
-                                self.reserve, sender))
                             self._minted_deposits.add(tid)
+                            self._pending_sends[tid] = {
+                                "amt": amt, "sender": sender}
                             minted += 1
                         except Exception:
                             # already in mempool / temporarily un-submittable —
