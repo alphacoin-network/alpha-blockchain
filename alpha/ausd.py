@@ -152,13 +152,31 @@ class Ausd:
                     return d[len(MINT_PREFIX):]
         return None
 
-    def _sender_addr(self, tx) -> str | None:
+    def _sender_addr(self, tx, block=None) -> str | None:
+        # 1) resolve the first input's prevout — works for real-time sync
+        #    (coin still unspent) and for prevouts created in `block`.
         try:
-            spk = self.node.chain.utxo_script_lookup()(tx.vin[0].prevout.key())
-            return script.extract_destination(spk, self.node.params) \
-                if spk else None
+            spk = self.node.chain.utxo_script_lookup(block)(
+                tx.vin[0].prevout.key())
+            if spk:
+                return script.extract_destination(spk, self.node.params)
         except Exception:
-            return None
+            pass
+        # 2) catch-up fallback: the sender's change output is the largest
+        #    payment that is not to a reserve address or OP_RETURN.
+        ok_addrs = {self.reserve} | self._legacy
+        best = None
+        for o in tx.vout:
+            typ, _ = script.solver(o.script_pubkey)
+            if typ == script.TX_NULL_DATA:
+                continue
+            a = script.extract_destination(o.script_pubkey,
+                                           self.node.params)
+            if a is None or a in ok_addrs:
+                continue
+            if best is None or o.value > best[0]:
+                best = (o.value, a)
+        return best[1] if best else None
 
     def _resolve_token(self):
         """Pick the canonical AUSD token — newest token NAMED 'AUSD'.
@@ -262,7 +280,7 @@ class Ausd:
                         if script.extract_destination(o.script_pubkey,
                                                      self.node.params)
                         in ok_addrs)
-                    sender = self._sender_addr(tx)
+                    sender = self._sender_addr(tx, b)
                     if (amt > 0 and sender
                             and paid >= self.alpha_for_ausd(amt)):
                         # mint to issuer then send to user
