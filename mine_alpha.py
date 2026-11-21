@@ -10,10 +10,12 @@ Each thread grinds a unique coinbase extranonce, so no two threads ever
 hash the same work. Rewards go to your payout address.
 Requires a running local alphad (default rpc :8332).
 
-Hardware: by default ALL logical CPU cores are used (--threads 0).
-A GPU is detected and reported, but proof-of-work here is CPU-only —
-the miner automatically uses the right number of CPU threads for your
-machine and prints clear progress + error messages.
+Hardware: by default ~75% of logical CPU cores are used (--threads 0),
+leaving headroom so the OS, alphad and other apps stay responsive —
+no overload, overheating or UI lag. A GPU is detected and reported,
+but proof-of-work here is CPU-only — the miner automatically sizes
+itself to your machine and prints clear progress + error messages.
+Pass --threads N to override (e.g. --threads 8 for a dedicated box).
 """
 import json
 import os
@@ -145,8 +147,11 @@ def main():
 
     cores, gpu = detect_hardware()
     if a.threads <= 0:
-        a.threads = cores
-    print(f"hardware: {cores} CPU core(s)"
+        # auto: ~75% of cores — leaves headroom for OS/node/other apps
+        # so the machine stays stable (no overload/thermal throttle)
+        a.threads = max(1, int(cores * 0.75))
+    print(f"hardware: {cores} CPU core(s) -> mining with {a.threads} "
+          f"thread(s)"
           + (f", GPU: {gpu}" if gpu else ", no GPU detected"))
     if gpu:
         print("note: proof-of-work mining here is CPU-only — the GPU is "
