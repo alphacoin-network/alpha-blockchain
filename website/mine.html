@@ -17,11 +17,13 @@
   <link rel="stylesheet" href="style.css">
   <style>
     .miner-card { max-width: 720px; margin: 0 auto; }
-    .mine-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 14px; margin: 24px 0; }
+    .mine-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px,1fr)); gap: 12px; margin: 24px 0; }
     .ms { background: var(--card2); border: 1px solid var(--border); border-radius: 12px;
-      padding: 18px; text-align: center; }
-    .ms .v { font-size: 26px; font-weight: 800; font-family: var(--mono); color: var(--gold); }
-    .ms .l { font-size: 12px; color: var(--dim); margin-top: 4px; }
+      padding: 16px 10px; text-align: center; min-width: 0; }
+    .ms .v { font-size: clamp(14px, 2.4vw, 24px); font-weight: 800; font-family: var(--mono);
+      color: var(--gold); white-space: nowrap; overflow: hidden;
+      text-overflow: ellipsis; }
+    .ms .l { font-size: 11px; color: var(--dim); margin-top: 4px; }
     .mine-log { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
       padding: 16px; font-family: var(--mono); font-size: 12.5px; height: 220px;
       overflow-y: auto; color: #a8d5ff; }
@@ -37,9 +39,12 @@
     .howto { margin-top: 34px; }
     .net-panel { background: var(--card2); border: 1px solid var(--border);
       border-radius: 16px; padding: 22px 26px; margin-bottom: 26px; }
-    .net-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr));
-      gap: 14px; }
-    .net-grid .v { font-size: 20px; font-weight: 800; font-family: var(--mono); color: var(--gold); }
+    .net-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px,1fr));
+      gap: 12px; }
+    .net-grid > div { min-width: 0; }
+    .net-grid .v { font-size: clamp(13px, 1.9vw, 20px); font-weight: 800; font-family: var(--mono);
+      color: var(--gold); white-space: nowrap; overflow: hidden;
+      text-overflow: ellipsis; }
     .net-grid .l { font-size: 11.5px; color: var(--dim); margin-top: 3px; text-transform: uppercase; letter-spacing: .5px; }
     .net-eta { margin-top: 16px; font-size: 13px; color: var(--dim); }
     .net-eta b { color: var(--green); font-family: var(--mono); }
@@ -229,8 +234,8 @@ async function mineRound(){
   if(!addr) return;
   let work;
   try { work = await getWork(addr); }
-  catch(e){ log('getwork failed: '+e.message); $('status').textContent='getwork failed — retrying in 10s';
-    if(miningOn) setTimeout(mineRound,10000); return; }
+  catch(e){ log('getwork failed: node unavailable — retrying'); $('status').textContent='node syncing — retrying';
+    if(miningOn) setTimeout(mineRound,30000); return; }
   workid = work.workid;
   if (typeof work.subsidy === 'number') NET.subsidy = work.subsidy;
   log(`new work: height ${work.height} target ${work.target.slice(0,20)}…`);
@@ -251,7 +256,7 @@ async function onWorkerMsg(e){
       earnedSats += rewardSats;
       $('earned').textContent = fmt(earnedSats / 1e8);
       log(`BLOCK ACCEPTED! ${r.hash.slice(0,20)}… +${fmt(rewardSats / 1e8)} α → your address`,'found');
-    } else log('rejected: '+JSON.stringify(r));
+    } else log('rejected: '+(r.error || 'stale template — try again'));
     mineRound();
   } else if(d.shares && d.shares.length){
     submitShares(workid, d.shares);
