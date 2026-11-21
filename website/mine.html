@@ -313,15 +313,21 @@ $('stop').onclick = () => {
 };
 function updateEstimates(){
   const mine = parseFloat($('hashrate').textContent.replace(/,/g,'')) || 0;
-  const net = NET.hash || 1;
+  const net = NET.hash || 0;
+  const secs = t0 ? (Date.now() - t0) / 1000 : 0;
+  if(!net){   // network stats unavailable (node syncing) — don't show NaN/100%
+    $('yourshare').textContent = '—';
+    $('estday').textContent = '—';
+    $('estpend').textContent = '—';
+    return;
+  }
   const share = mine / (mine + net);
   $('yourshare').textContent = mine ? (share*100).toExponential(2)+'%' : '—';
   // 144 blocks/day × subsidy, weighted by your share of total hashrate
   const perDay = share * 144 * NET.subsidy;
   $('estday').textContent = mine ? (perDay < 0.001 ? perDay.toExponential(1) : perDay.toFixed(4)) + ' α' : '—';
   // estimated pending earnings: your share of block rewards over elapsed time
-  // (solo mining — real reward arrives only when YOUR hash finds a full block)
-  const secs = t0 ? (Date.now() - t0) / 1000 : 0;
+  // (pool mode — real reward arrives pro-rata when pool blocks are found)
   const estSats = share * (NET.subsidy * 1e8) * (secs / 600);
   $('estpend').textContent = mine ? fmt(estSats / 1e8) : '0';
 }

@@ -68,30 +68,45 @@ class API:
                         auth=self.auth)
 
     # -- endpoints ------------------------------------------------------------
+    _stats_cache = {"t": 0.0, "data": None}
+
     def stats(self):
-        info = self.call("getblockchaininfo")
-        mem = self.call("getmempoolinfo")
+        import time as _t
         try:
-            hashps = self.call("getnetworkhashps", 120)
+            info = self.call("getblockchaininfo")
+            mem = self.call("getmempoolinfo")
+            try:
+                hashps = self.call("getnetworkhashps", 120)
+            except Exception:
+                hashps = 0
+            try:
+                peers = self.call("getconnectioncount")
+            except Exception:
+                peers = 0
+            try:
+                toks = self.call("listtokens")
+            except Exception:
+                toks = []
+            data = {
+                "chain": info["chain"], "height": info["blocks"],
+                "bestblockhash": info["bestblockhash"],
+                "difficulty": info["difficulty"],
+                "supply": info["supply"], "chainwork": info["chainwork"],
+                "mediantime": info["mediantime"],
+                "mempool": mem["size"], "hashrate": hashps,
+                "connections": peers, "tokens": len(toks),
+            }
+            self._stats_cache = {"t": _t.time(), "data": data}
+            return data
         except Exception:
-            hashps = 0
-        try:
-            peers = self.call("getconnectioncount")
-        except Exception:
-            peers = 0
-        try:
-            toks = self.call("listtokens")
-        except Exception:
-            toks = []
-        return {
-            "chain": info["chain"], "height": info["blocks"],
-            "bestblockhash": info["bestblockhash"],
-            "difficulty": info["difficulty"],
-            "supply": info["supply"], "chainwork": info["chainwork"],
-            "mediantime": info["mediantime"],
-            "mempool": mem["size"], "hashrate": hashps,
-            "connections": peers, "tokens": len(toks),
-        }
+            # node restarting/replaying — serve last-known stats so the
+            # public site doesn't break during rolling deploys
+            c = self._stats_cache
+            if c["data"] is not None and _t.time() - c["t"] < 7200:
+                out = dict(c["data"])
+                out["syncing"] = True
+                return out
+            raise
 
     def blocks(self, n: int = 20):
         n = min(int(n), 200)
@@ -272,9 +287,16 @@ def make_handler(api: API):
                 elif route == "search":
                     out = api.search(qs.get("q", [""])[0])
                 elif route == "minework":
+                    addr = qs.get("address", [""])[0]
                     pool = qs.get("pool", ["0"])[0] in ("1", "true", "yes")
-                    out = api.call("getwork", qs.get("address", [""])[0],
-                                   pool)
+                    if pool:
+                        try:
+                            out = api.call("getwork", addr, True)
+                        except Exception:
+                            # old node without pool support — degrade to solo
+                            out = api.call("getwork", addr)
+                    else:
+                        out = api.call("getwork", addr)
                 elif route == "submitwork":
                     wid = qs.get("workid", [""])[0]
                     if "nonces" in qs:      # batched share submission
@@ -287,10 +309,22 @@ def make_handler(api: API):
                             nonces = nonces[:500]
                     else:
                         nonces = int(qs.get("nonce", ["0"])[0])
-                    out = api.call("submitwork", wid, nonces)
+                    try:
+                        out = api.call("submitwork", wid, nonces)
+                    except Exception:
+                        # old node: only single-int submissions understood
+                        if isinstance(nonces, list):
+                            out = {"shares_accepted": 0,
+                                   "shares_rejected": len(nonces)}
+                        else:
+                            raise
                 elif route == "poolinfo":
-                    out = api.call("poolinfo",
-                                   qs.get("address", [None])[0])
+                    try:
+                        out = api.call("poolinfo",
+                                       qs.get("address", [None])[0])
+                    except Exception:
+                        out = {"pending_alpha": 0, "pending_sats": 0,
+                               "pool": "offline"}
                 elif route.startswith("utxos/"):
                     # unspent outputs for one address (for the web wallet)
                     addr = route[6:]
