@@ -90,6 +90,7 @@
         <div class="ms"><div class="v" id="found">0</div><div class="l">blocks found</div></div>
         <div class="ms"><div class="v" id="earned">0</div><div class="l">ALPHA earned</div></div>
         <div class="ms"><div class="v" id="estpend">0</div><div class="l">est. pending α</div></div>
+        <div class="ms"><div class="v" id="poolpend">0</div><div class="l">pool pending α</div></div>
       </div>
       <div style="font-size:13px;color:var(--dim)"><span class="mining-dot" id="dot"></span><span id="status">Idle — enter your address and press start</span></div>
       <div class="mine-log" id="log" style="margin-top:14px"></div>
@@ -101,6 +102,7 @@
         <li>Get a payout address — run <code>alpha_wallet_gen.py</code> or <code>getnewaddress</code> on your node</li>
         <li>Paste it above, pick threads (default = all CPU cores) and press <b>Start</b> — your browser fetches a block template and hashes it locally</li>
         <li>When a valid hash is found, it's submitted to the network — <b>the full block reward (subsidy + fees, in decimal ALPHA) goes to your address</b></li>
+        <li><b>Pool mode:</b> near-miss hashes count as verified shares — when any pool miner wins a block, the reward splits pro-rata in decimal ALPHA and pays out automatically after maturity (~100 blocks)</li>
         <li>Every core works in parallel — CPU load &amp; fan speed will rise, that's real mining. Keep the tab open to keep mining.</li>
       </ol>
     </div>
@@ -163,9 +165,11 @@ ${sha256.toString()}
 ${sha256d.toString()}
 ${bytesToHex.toString()}
 onmessage = function(e){
-  const {prefixHex, targetHex, startNonce, stride} = e.data;
+  const {prefixHex, targetHex, poolTargetHex, startNonce, stride} = e.data;
   const prefix = (h=>{const a=new Uint8Array(h.length/2);for(let i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16);return a;})(prefixHex);
   const tgt = BigInt('0x'+targetHex);
+  const ptgt = poolTargetHex ? BigInt('0x'+poolTargetHex) : null;
+  const shares = [];
   const hdr = new Uint8Array(80); hdr.set(prefix);
   const dv = new DataView(hdr.buffer);
   let c = 0;
@@ -173,9 +177,18 @@ onmessage = function(e){
     dv.setUint32(76, n>>>0, true);
     const d = sha256d(hdr);
     const rev = new Uint8Array(32); for(let i=0;i<32;i++) rev[i]=d[31-i];
-    if (BigInt('0x'+bytesToHex(rev)) <= tgt){ postMessage({found:n}); return; }
+    const hv = BigInt('0x'+bytesToHex(rev));
+    if (hv <= tgt){
+      if(shares.length) postMessage({shares:shares.splice(0)});
+      postMessage({found:n}); return;
+    }
+    if (ptgt && hv <= ptgt){
+      shares.push(n);
+      if(shares.length>=16) postMessage({shares:shares.splice(0)});
+    }
     if((c & 0x3FFF)===0) postMessage({progress:c});
   }
+  if(shares.length) postMessage({shares});
   postMessage({exhausted:true});
 };`;
 
@@ -203,6 +216,7 @@ function spawnWorkers(work){
     const w = new Worker(blobUrl);
     w.onmessage = onWorkerMsg;
     w.postMessage({prefixHex: work.data, targetHex: work.target,
+                   poolTargetHex: work.pool_target || null,
                    startNonce: i, stride: n});
     workers.push(w);
   }
@@ -239,6 +253,8 @@ async function onWorkerMsg(e){
       log(`BLOCK ACCEPTED! ${r.hash.slice(0,20)}… +${fmt(rewardSats / 1e8)} α → your address`,'found');
     } else log('rejected: '+JSON.stringify(r));
     mineRound();
+  } else if(d.shares && d.shares.length){
+    submitShares(workid, d.shares);
   } else if(d.progress !== undefined){
     counts.set(w, d.progress);
     let sum = 0; for(const v of counts.values()) sum += v;
@@ -258,7 +274,7 @@ function log(msg, cls){
   el.scrollTop = el.scrollHeight;
 }
 async function getWork(addr){
-  const r = await fetch('/api/minework?address='+encodeURIComponent(addr));
+  const r = await fetch('/api/minework?address='+encodeURIComponent(addr)+'&pool=1');
   const j = await r.json();
   if(j.error) throw new Error(j.error);
   return j;
@@ -266,6 +282,13 @@ async function getWork(addr){
 async function submit(workid, nonce){
   const r = await fetch(`/api/submitwork?workid=${workid}&nonce=${nonce}`);
   return r.json();
+}
+async function submitShares(workid, nonces){
+  try{
+    const r = await fetch(`/api/submitwork?workid=${workid}&nonces=${nonces.join(',')}`);
+    const j = await r.json();
+    if(j.stale && miningOn){ log('work stale — fetching new template'); mineRound(); }
+  }catch(e){ /* transient — shares are best-effort */ }
 }
 $('start').onclick = async () => {
   const a = $('addr').value.trim();
@@ -319,6 +342,13 @@ async function refreshNet(){
       : rem > 90 ? '~'+Math.round(rem/60)+' min' : '<'+Math.round(rem)+'s';
   }
   updateEstimates();
+  if(addr){
+    fetch('/api/poolinfo?address='+encodeURIComponent(addr))
+      .then(r=>r.json()).then(p=>{
+        if(p && p.pending_alpha!=null)
+          $('poolpend').textContent = fmt(p.pending_alpha);
+      }).catch(()=>{});
+  }
 }
 refreshNet(); setInterval(refreshNet, 30000);
 </script>

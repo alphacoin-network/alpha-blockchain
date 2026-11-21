@@ -50,7 +50,8 @@ class RateLimiter:
 _RL = RateLimiter()
 _RL_RULES = {
     "minework": (12, 60),      # 12 templates / min per IP
-    "submitwork": (30, 60),    # 30 share submissions / min per IP
+    "submitwork": (60, 60),    # share batches + block submissions / min per IP
+    "poolinfo": (30, 60),      # pool balance queries / min per IP
     "broadcast": (20, 60),     # 20 raw tx broadcasts / min per IP
     "support": (10, 3600),     # 10 support tickets / hour per IP
 }
@@ -271,10 +272,22 @@ def make_handler(api: API):
                 elif route == "search":
                     out = api.search(qs.get("q", [""])[0])
                 elif route == "minework":
-                    out = api.call("getwork", qs.get("address", [""])[0])
+                    pool = qs.get("pool", ["0"])[0] in ("1", "true", "yes")
+                    out = api.call("getwork", qs.get("address", [""])[0],
+                                   pool)
                 elif route == "submitwork":
-                    out = api.call("submitwork", qs.get("workid", [""])[0],
-                                   int(qs.get("nonce", ["0"])[0]))
+                    wid = qs.get("workid", [""])[0]
+                    if "nonces" in qs:      # batched share submission
+                        nonces = [int(x) for x in
+                                  qs["nonces"][0].split(",") if x.strip()]
+                        if len(nonces) > 500:
+                            nonces = nonces[:500]
+                    else:
+                        nonces = int(qs.get("nonce", ["0"])[0])
+                    out = api.call("submitwork", wid, nonces)
+                elif route == "poolinfo":
+                    out = api.call("poolinfo",
+                                   qs.get("address", [None])[0])
                 elif route.startswith("utxos/"):
                     # unspent outputs for one address (for the web wallet)
                     addr = route[6:]

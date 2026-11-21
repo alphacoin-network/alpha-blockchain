@@ -25,6 +25,7 @@ from .ai import AiDB
 from .enterprise import EntDB
 from .escrow import EscrowDB
 from .staking import StakeDB
+from .pool import Pool
 from .transaction import Transaction
 from .wallet import Wallet
 
@@ -93,6 +94,7 @@ class Node:
         wallet_path = os.path.join(data_dir, "wallet.json") if data_dir else None
         self.wallet = Wallet(self.params, wallet_path)
         self.ausd = Ausd(self)
+        self.pool = Pool(self, data_dir)
         self.peers: list = []
         self.peers_lock = threading.RLock()
         self.addr_pool: set = set()          # learned (ip,port) peers
@@ -105,6 +107,7 @@ class Node:
             self.server.start()
         threading.Thread(target=self._addr_maintainer, daemon=True).start()
         threading.Thread(target=self._ausd_maintainer, daemon=True).start()
+        threading.Thread(target=self._pool_maintainer, daemon=True).start()
         # seed the addr pool with public seeds so the maintainer has targets
         try:
             import socket as _s
@@ -123,6 +126,17 @@ class Node:
                     pass
         except Exception:
             pass
+
+    def _pool_maintainer(self):
+        """Periodically pay out matured pool mining credits."""
+        import time
+        time.sleep(45)   # let chain load / wallet init settle first
+        while not self.stopped:
+            try:
+                self.pool.due_payouts(self.chain)
+            except Exception:
+                pass
+            time.sleep(60)
 
     def _ausd_maintainer(self):
         """Periodically run the AUSD mint engine — scans new blocks for

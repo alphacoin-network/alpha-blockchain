@@ -1891,14 +1891,26 @@ class RPCMethods:
     _work_cache: dict = {}
     _work_rl: dict = {}   # address -> last getwork timestamp (rate limit)
 
-    def getwork(self, address: str):
+    def getwork(self, address: str, pool: bool = False):
         """Return a block template for external/browser mining.
-        Header is 80 bytes; the caller hashes `data` + nonce (4B LE)."""
+        Header is 76 bytes; the caller hashes `data` + nonce (4B LE).
+        pool=True: coinbase pays the pool address; miner gets pro-rata
+        credit for verified shares (see submitwork kind=share)."""
         import secrets as _sec, time as _t
         try:
             spk = script.script_for_address(address, self.node.params)
         except ValueError:
             raise RPCError(RPC_INVALID_ADDRESS_OR_KEY, "invalid address")
+        if pool:
+            # validate miner address for share credit, but pay coinbase
+            # to the pool payout address instead
+            try:
+                pool_spk = script.script_for_address(
+                    self.node.pool.payout_address(), self.node.params)
+            except ValueError:
+                raise RPCError(RPC_INVALID_ADDRESS_OR_KEY,
+                               "bad pool payout address")
+            spk = pool_spk
         # rate limit: max 1 template per 5s per address (anti-spam/DoS)
         now = _t.time()
         cls = self.__class__
@@ -1909,14 +1921,19 @@ class RPCMethods:
             cls._work_rl.clear()
         block = self.node.get_block_template(spk)
         wid = _sec.token_hex(8)
-        self.__class__._work_cache[wid] = block
+        self.__class__._work_cache[wid] = {
+            "block": block, "addr": address, "pool": bool(pool),
+            "pool_target": (self.node.pool.pool_target(block.header.bits)
+                            if pool else None),
+            "seen": set(), "time": now,
+        }
         if len(self.__class__._work_cache) > 64:      # bound the cache
             self.__class__._work_cache.popitem()
         hdr = block.header.serialize()
         height = self.node.chain.height + 1
         subsidy_sats = self.node.chain.subsidy(height)
         reward_sats = block.txs[0].total_output_value()
-        return {
+        resp = {
             "workid": wid,
             "data": hdr[:-4].hex(),                    # first 76 bytes
             "target": "%064x" % compact_to_target(block.header.bits),
@@ -1926,27 +1943,97 @@ class RPCMethods:
             "reward": coins(reward_sats),
             "reward_sats": reward_sats,
         }
+        if pool:
+            resp["pool_target"] = "%064x" % self.node.pool.pool_target(
+                block.header.bits)
+            resp["pool"] = True
+        return resp
 
     def submitwork(self, workid: str, nonce):
-        """Submit a found nonce for a getwork template."""
-        block = self.__class__._work_cache.pop(workid, None)
-        if block is None:
+        """Submit nonce(s) for a getwork template.
+        nonce may be an int or a list of ints.
+        For pool workids, nonces meeting pool_target (but not the block
+        target) are credited as shares; a nonce meeting the block target
+        submits the block and distributes the reward pro-rata."""
+        entry = self.__class__._work_cache.get(workid)
+        if entry is None:
             raise RPCError(RPC_INVALID_PARAMS, "unknown/expired workid")
-        if block.header.prev_hash != self.node.chain.tip.hash:
-            raise RPCError(RPC_INVALID_PARAMS, "stale block template")
-        block.header.nonce = int(nonce) & 0xFFFFFFFF
+        block = entry["block"]
+        nonces = nonce if isinstance(nonce, list) else [nonce]
+        shares_accepted = 0
+        shares_rejected = 0
+        stale = (block.header.prev_hash != self.node.chain.tip.hash)
+        target = block.header.target()
+        tb = target.to_bytes(32, "big")
+        import hashlib as _hl
+        sh = _hl.sha256
+        hdr = bytearray(block.header.serialize())
+        pool_tb = None
+        if entry.get("pool_target"):
+            pool_tb = entry["pool_target"].to_bytes(32, "big")
+        seen = entry["seen"]
+        block_nonce = None
+        for n in nonces:
+            n = int(n) & 0xFFFFFFFF
+            if n in seen or len(seen) > 200000:
+                shares_rejected += 1
+                continue
+            seen.add(n)
+            hdr[76:80] = n.to_bytes(4, "little")
+            digest = sh(sh(bytes(hdr)).digest()).digest()[::-1]
+            if digest <= tb:
+                block_nonce = n
+                break
+            if pool_tb is not None and digest <= pool_tb and not stale:
+                self.node.pool.add_share(entry["addr"])
+                shares_accepted += 1
+            else:
+                shares_rejected += 1
+        out = {"shares_accepted": shares_accepted,
+               "shares_rejected": shares_rejected,
+               "stale": stale}
+        if block_nonce is None:
+            return out
+        # full block solution — submit it
+        self.__class__._work_cache.pop(workid, None)
+        block.header.nonce = block_nonce
+        if stale:
+            out["error"] = "stale block template"
+            return out
         if not block.header.check_pow(self.node.params.pow_limit_bits):
-            raise RPCError(RPC_INVALID_PARAMS, "nonce does not meet target")
+            raise RPCError(RPC_INVALID_PARAMS,
+                           "nonce does not meet target")
         height = self.node.chain.height + 1
         subsidy_sats = self.node.chain.subsidy(height)
         reward_sats = block.txs[0].total_output_value()
         self.node.submit_block(block)
-        return {"hash": block.hash_hex(), "height": self.node.chain.height,
-                "accepted": True,
-                "subsidy": coins(subsidy_sats),
-                "fees": coins(max(0, reward_sats - subsidy_sats)),
-                "reward": coins(reward_sats),
-                "reward_sats": reward_sats}
+        new_height = self.node.chain.height
+        out.update({
+            "hash": block.hash_hex(), "height": new_height, "accepted": True,
+            "subsidy": coins(subsidy_sats),
+            "fees": coins(max(0, reward_sats - subsidy_sats)),
+            "reward": coins(reward_sats),
+            "reward_sats": reward_sats,
+        })
+        if entry.get("pool"):
+            # distribute the reward pro-rata over this round's shares
+            payout = self.node.pool.on_block(new_height, reward_sats)
+            out["pool_payouts"] = len(payout)
+            out["pool_total_sats"] = sum(payout.values())
+        return out
+
+    def poolinfo(self, address: str | None = None):
+        """Pool share/credit info. With address: that miner's pending."""
+        return self.node.pool.info(address)
+
+    def setpooladdress(self, address: str):
+        """Set the pool coinbase payout address (operator)."""
+        try:
+            script.script_for_address(address, self.node.params)
+        except ValueError:
+            raise RPCError(RPC_INVALID_ADDRESS_OR_KEY, "invalid address")
+        self.node.pool.set_payout(address)
+        return {"payout": address}
 
     # -- getblocktemplate / submitblock (Bitcoin's real mining protocol) --------
     def getblocktemplate(self, params=None):
