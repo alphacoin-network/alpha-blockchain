@@ -234,7 +234,13 @@ function Mine({ key_ }) {
           if (hashAsLEint(sha256d(full)) <= target) {
             const r = await api.submitwork(w.workid, n);
             if (r.error) setStatus("✗ " + r.error);
-            else { setFound(f => f + 1); setStatus("🎉 BLOCK FOUND · height " + w.height); }
+            else {
+              const reward = (r.reward_sats != null) ? r.reward_sats / 1e8
+                : (r.reward != null ? r.reward : 0);
+              setFound(f => f + 1);
+              setStatus("🎉 BLOCK FOUND · height " + w.height +
+                " · +" + reward.toFixed(8) + " α");
+            }
           }
           n++; hps++;
         }

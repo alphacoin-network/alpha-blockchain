@@ -2,14 +2,16 @@
 retarget math, and supply invariants on regtest.
 """
 
+import struct
 import unittest
+from dataclasses import replace
 
-from alpha import constants, crypto, miner, script
+from alpha import constants, crypto, miner, rpc, script
 from alpha.blockchain import Blockchain
 from alpha.mempool import Mempool
 from alpha.transaction import OutPoint, Transaction, TxIn, TxOut
-from alpha.utils import hash160
-from alpha.wallet import WalletKey
+from alpha.utils import hash160, sha256d
+from alpha.wallet import Wallet, WalletKey
 
 
 def chain():
@@ -21,6 +23,33 @@ def mine(chain, key, n=1):
         b = miner.create_block_template(chain, None, key.script_p2wpkh)
         assert miner.mine_block(b, chain.params.pow_limit_bits)
         chain.add_block(b)
+
+
+class _RPCNode:
+    def __init__(self):
+        self.params = constants.REGTEST
+        self.chain = Blockchain(self.params)
+        self.mempool = Mempool(self.chain)
+        self.wallet = Wallet(self.params)
+
+    def get_block_template(self, payout_script, **kwargs):
+        kwargs = {k: v for k, v in kwargs.items() if v is not None}
+        return miner.create_block_template(self.chain, self.mempool,
+                                           payout_script, **kwargs)
+
+    def submit_block(self, block):
+        self.chain.add_block(block)
+        self.mempool.remove_for_block(block)
+
+
+def _nonce_for(work):
+    prefix = bytes.fromhex(work["data"])
+    target = int(work["target"], 16)
+    for n in range(1_000_000):
+        if int.from_bytes(sha256d(prefix + struct.pack("<I", n)),
+                          "little") <= target:
+            return n
+    raise AssertionError("no valid nonce found")
 
 
 class TestHalving(unittest.TestCase):
@@ -41,6 +70,40 @@ class TestHalving(unittest.TestCase):
         self.assertEqual(c.subsidy(210_000), 25 * constants.COIN)
         self.assertEqual(c.subsidy(420_000), 1_250_000_000)
         self.assertEqual(c.subsidy(630_000), 625_000_000)
+
+
+class TestFractionalSubsidy(unittest.TestCase):
+    def test_coinbase_pays_decimal_alpha(self):
+        """Subsidies are integer alphasats, so rewards can be fractional ALPHA."""
+        params = replace(constants.REGTEST, halving_interval=1)
+        c = Blockchain(params)
+        key = WalletKey(1)
+        for _ in range(2):
+            b = miner.create_block_template(c, None, key.script_p2wpkh)
+            assert miner.mine_block(b, params.pow_limit_bits)
+            c.add_block(b)
+        cb = c.get_block(c.tip.hash).txs[0]
+        # height 2 with halving_interval=1 -> 50 ALPHA / 2^2 = 12.5 ALPHA
+        self.assertEqual(cb.vout[0].value, 1_250_000_000)
+        self.assertEqual(c.subsidy(2), 1_250_000_000)
+
+
+class TestMiningRPC(unittest.TestCase):
+    def test_getwork_submitwork_reports_exact_reward(self):
+        node = _RPCNode()
+        methods = rpc.RPCMethods(node)
+        addr = node.wallet.new_address()
+        work = methods.getwork(addr)
+        self.assertEqual(work["reward_sats"],
+                         constants.REGTEST.initial_subsidy)
+        self.assertEqual(work["subsidy"], 50.0)
+        nonce = _nonce_for(work)
+        res = methods.submitwork(work["workid"], nonce)
+        self.assertTrue(res["accepted"])
+        self.assertEqual(res["reward_sats"],
+                         constants.REGTEST.initial_subsidy)
+        self.assertEqual(res["reward"], 50.0)
+        self.assertEqual(res["fees"], 0.0)
 
 
 class TestDifficulty(unittest.TestCase):

@@ -1913,11 +1913,18 @@ class RPCMethods:
         if len(self.__class__._work_cache) > 64:      # bound the cache
             self.__class__._work_cache.popitem()
         hdr = block.header.serialize()
+        height = self.node.chain.height + 1
+        subsidy_sats = self.node.chain.subsidy(height)
+        reward_sats = block.txs[0].total_output_value()
         return {
             "workid": wid,
             "data": hdr[:-4].hex(),                    # first 76 bytes
             "target": "%064x" % compact_to_target(block.header.bits),
-            "height": block.header.__dict__.get("n", None) or self.node.chain.height + 1,
+            "height": height,
+            "subsidy": coins(subsidy_sats),
+            "fees": coins(max(0, reward_sats - subsidy_sats)),
+            "reward": coins(reward_sats),
+            "reward_sats": reward_sats,
         }
 
     def submitwork(self, workid: str, nonce):
@@ -1925,13 +1932,21 @@ class RPCMethods:
         block = self.__class__._work_cache.pop(workid, None)
         if block is None:
             raise RPCError(RPC_INVALID_PARAMS, "unknown/expired workid")
+        if block.header.prev_hash != self.node.chain.tip.hash:
+            raise RPCError(RPC_INVALID_PARAMS, "stale block template")
         block.header.nonce = int(nonce) & 0xFFFFFFFF
-        target = compact_to_target(block.header.bits)
-        if int.from_bytes(block.header.hash(), "little") > target:
+        if not block.header.check_pow(self.node.params.pow_limit_bits):
             raise RPCError(RPC_INVALID_PARAMS, "nonce does not meet target")
+        height = self.node.chain.height + 1
+        subsidy_sats = self.node.chain.subsidy(height)
+        reward_sats = block.txs[0].total_output_value()
         self.node.submit_block(block)
         return {"hash": block.hash_hex(), "height": self.node.chain.height,
-                "accepted": True}
+                "accepted": True,
+                "subsidy": coins(subsidy_sats),
+                "fees": coins(max(0, reward_sats - subsidy_sats)),
+                "reward": coins(reward_sats),
+                "reward_sats": reward_sats}
 
     # -- getblocktemplate / submitblock (Bitcoin's real mining protocol) --------
     def getblocktemplate(self, params=None):
@@ -1945,6 +1960,9 @@ class RPCMethods:
             script.script_for_address(payout, self.node.params),
             reserved=reserved)
         tip = self.node.chain.tip
+        height = tip.height + 1
+        subsidy_sats = self.node.chain.subsidy(height)
+        coinbase_sats = blk.txs[0].total_output_value()
         txs = []
         for tx in blk.txs[1:]:
             fee = 0
@@ -1974,8 +1992,11 @@ class RPCMethods:
             "weightlimit": constants.MAX_BLOCK_WEIGHT,
             "curtime": now(),
             "bits": "%08x" % blk.header.bits,
-            "height": tip.height + 1,
+            "height": height,
             "capabilities": ["proposal"],
+            "subsidy": coins(subsidy_sats),
+            "fees": coins(max(0, coinbase_sats - subsidy_sats)),
+            "coinbasevalue": coins(coinbase_sats),
         }
         if any(tx.has_witness() for tx in blk.txs[1:]):
             resp["rules"] = ["segwit"]
@@ -2311,11 +2332,14 @@ def make_handler(rpc: RPCMethods, auth: str | None = None):
 
         def _reply(self, obj, status: int = 200):
             data = json.dumps(obj).encode()
-            self.send_response(status)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(data)))
-            self.end_headers()
-            self.wfile.write(data)
+            try:
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+            except ConnectionError:
+                pass
 
     return Handler
 

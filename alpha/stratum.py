@@ -42,6 +42,11 @@ def _merkle_branch(txids: list) -> list:
 
 
 class StratumSession:
+    # abuse limits (solo mining: a valid share IS a block — legit submits
+    # are rare, so tight limits cost honest miners nothing)
+    MAX_SUBMITS_PER_MIN = 60
+    AUTH_TIMEOUT = 300          # seconds to authorize before we drop
+
     def __init__(self, conn, addr, node):
         self.conn = conn
         self.addr = addr
@@ -52,6 +57,8 @@ class StratumSession:
         self.job_seq = 0
         self.buf = b""
         self.alive = True
+        self._submit_hits = []
+        self._t0 = time.time()
 
     # -- helpers ---------------------------------------------------------
     def send(self, obj):
@@ -119,6 +126,14 @@ class StratumSession:
 
     # -- submit -----------------------------------------------------------
     def _submit(self, params):
+        # rate limit: spammed submits cost a merkle+PoW check each
+        now_t = time.time()
+        self._submit_hits = [t for t in self._submit_hits
+                             if now_t - t < 60]
+        if len(self._submit_hits) >= self.MAX_SUBMITS_PER_MIN:
+            self.err(None, 23, "submit rate limit exceeded")
+            return
+        self._submit_hits.append(now_t)
         try:
             _worker, jid, eno2h, ntimeh, nonceh = params[:5]
         except Exception:
@@ -154,6 +169,10 @@ class StratumSession:
     def run(self):
         tip_h, mem_n = self.node.chain.height, len(self.node.mempool.txs)
         while self.alive:
+            # drop connections that never authorize (port scanners etc.)
+            if self.payout_spk is None \
+                    and time.time() - self._t0 > self.AUTH_TIMEOUT:
+                break
             try:
                 self.conn.settimeout(0.5)
                 data = self.conn.recv(65536)
@@ -190,15 +209,20 @@ class StratumSession:
         elif method == "mining.authorize":
             user = params[0] if params else ""
             try:
-                self.payout_spk = script.script_for_address(
-                    user, self.node.params)
-                self.reply(mid, True)
-                try:
-                    self._build_job()      # first job immediately
-                except Exception as e:
-                    self.err(mid, 23, f"job build failed: {e}")
+                spk = script.script_for_address(user, self.node.params)
             except Exception:
                 self.reply(mid, False)
+                return
+            first = self.payout_spk is None
+            self.payout_spk = spk
+            self.reply(mid, True)
+            # build a job only on the first authorize — re-authorize must
+            # not let a client force template rebuilds (CPU DoS)
+            if first:
+                try:
+                    self._build_job()
+                except Exception as e:
+                    self.err(mid, 23, f"job build failed: {e}")
         elif method == "mining.submit":
             self._submit(params)
         elif method == "mining.get_transactions":
@@ -207,12 +231,16 @@ class StratumSession:
             self.err(mid, 1, "unsupported method")
 
 
+MAX_SESSIONS = 256        # cap concurrent miners (thread-exhaustion guard)
+
+
 def serve(node, port: int = STRATUM_PORT):
     """Start the stratum TCP server (call from a thread)."""
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     srv.bind(("0.0.0.0", port))
     srv.listen(64)
+    sessions = []
 
     def accept_loop():
         while not node.stopped:
@@ -220,7 +248,15 @@ def serve(node, port: int = STRATUM_PORT):
                 conn, addr = srv.accept()
             except OSError:
                 break
+            sessions[:] = [s for s in sessions if s.alive]
+            if len(sessions) >= MAX_SESSIONS:
+                try:
+                    conn.close()
+                except OSError:
+                    pass
+                continue
             sess = StratumSession(conn, addr, node)
+            sessions.append(sess)
             threading.Thread(target=sess.run, daemon=True).start()
 
     threading.Thread(target=accept_loop, daemon=True).start()

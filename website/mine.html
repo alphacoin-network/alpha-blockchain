@@ -99,7 +99,7 @@
       <ol style="color:var(--dim);font-size:14px;line-height:1.8">
         <li>Get a payout address — run <code>alpha_wallet_gen.py</code> or <code>getnewaddress</code> on your node</li>
         <li>Paste it above, pick threads (default = all CPU cores) and press <b>Start</b> — your browser fetches a block template and hashes it locally</li>
-        <li>When a valid hash is found, it's submitted to the network — <b>50 ALPHA reward goes to your address</b></li>
+        <li>When a valid hash is found, it's submitted to the network — <b>the full block reward (subsidy + fees, in decimal ALPHA) goes to your address</b></li>
         <li>Every core works in parallel — CPU load &amp; fan speed will rise, that's real mining. Keep the tab open to keep mining.</li>
       </ol>
     </div>
@@ -179,7 +179,7 @@ onmessage = function(e){
 };`;
 
 let workers = [], totalHashes = 0, found = 0, t0 = 0, roundDone = false, miningOn = false;
-let workid = null, addr = null, blobUrl = null;
+let workid = null, addr = null, blobUrl = null, earnedSats = 0;
 const counts = new Map();   // worker -> hashes done this round
 const lastCounts = new Map();
 let NET = { hash: 0, diff: 1, height: 0, subsidy: 50 };
@@ -217,6 +217,7 @@ async function mineRound(){
   catch(e){ log('getwork failed: '+e.message); $('status').textContent='getwork failed — retrying in 10s';
     if(miningOn) setTimeout(mineRound,10000); return; }
   workid = work.workid;
+  if (typeof work.subsidy === 'number') NET.subsidy = work.subsidy;
   log(`new work: height ${work.height} target ${work.target.slice(0,20)}…`);
   spawnWorkers(work);
 }
@@ -230,8 +231,11 @@ async function onWorkerMsg(e){
     killWorkers();
     const r = await submit(workid, d.found);
     if(r.accepted){
-      $('earned').textContent = (parseFloat($('earned').textContent)+NET.subsidy).toFixed(1);
-      log(`BLOCK ACCEPTED! ${r.hash.slice(0,20)}… +${NET.subsidy} ALPHA → your address`,'found');
+      const rewardSats = (r.reward_sats != null) ? r.reward_sats
+        : Math.round((r.reward != null ? r.reward : NET.subsidy) * 1e8);
+      earnedSats += rewardSats;
+      $('earned').textContent = fmt(earnedSats / 1e8);
+      log(`BLOCK ACCEPTED! ${r.hash.slice(0,20)}… +${fmt(rewardSats / 1e8)} α → your address`,'found');
     } else log('rejected: '+JSON.stringify(r));
     mineRound();
   } else if(d.progress !== undefined){
@@ -267,7 +271,8 @@ $('start').onclick = async () => {
   if(!a || a.length < 20){ alert('Enter a valid ALPHA payout address'); return; }
   addr = a; miningOn = true;
   if(!blobUrl) blobUrl = URL.createObjectURL(new Blob([workerSrc],{type:'text/javascript'}));
-  t0 = Date.now(); totalHashes = 0;
+  t0 = Date.now(); totalHashes = 0; earnedSats = 0;
+  $('earned').textContent = '0';
   $('start').disabled = true; $('stop').disabled = false;
   $('dot').classList.add('on');
   log('miner started → '+a+' · threads='+nThreads());

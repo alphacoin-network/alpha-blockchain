@@ -14,5 +14,12 @@ build/
 *.spec
 exe-test-data/
 exe-test.log
-__pycache__/
 release-pkg/*.exe
+# secrets / scratch — never commit
+_vps.py
+_scan*.py
+_scan*.b64
+.tmp_wallets/
+*.pem
+.env
+support.db

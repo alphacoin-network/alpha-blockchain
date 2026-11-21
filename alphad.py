@@ -9,6 +9,7 @@ Usage:
 import argparse
 import io
 import os
+import signal
 import sys
 import tarfile
 import time
@@ -19,6 +20,23 @@ from alpha.node import Node
 
 
 BOOTSTRAP_URL = "https://alphacoin.network/bootstrap.tar.gz"
+
+
+def _install_signal_handlers() -> None:
+    """SIGTERM/SIGINT -> KeyboardInterrupt so the finally-block runs
+    node.stop() (clean peer/socket/DB shutdown instead of a hard kill)."""
+    def _handler(signum, frame):
+        raise KeyboardInterrupt
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        try:
+            signal.signal(sig, _handler)
+        except (ValueError, OSError):
+            pass  # not in main thread / unsupported platform
+
+
+def _fatal(msg: str):
+    print(f"FATAL: {msg}", file=sys.stderr)
+    sys.exit(1)
 
 
 def _maybe_bootstrap(datadir: str) -> None:
@@ -99,8 +117,24 @@ def main() -> int:
     tor_ctl = tuple(args.torcontrol.rsplit(":", 1))
     tor_ctl = (tor_ctl[0], int(tor_ctl[1]))
 
-    node = Node(params, datadir, port=port, listen=not args.nolisten,
-                proxy=proxy, onion=args.onion, tor_control=tor_ctl)
+    _install_signal_handlers()
+
+    try:
+        node = Node(params, datadir, port=port, listen=not args.nolisten,
+                    proxy=proxy, onion=args.onion, tor_control=tor_ctl)
+    except PermissionError as e:
+        _fatal(f"cannot write to datadir '{datadir}': {e}\n"
+               "  → check folder permissions or choose another --datadir")
+    except OSError as e:
+        if getattr(e, "errno", None) in (98, 10048, 48, 98):  # EADDRINUSE
+            _fatal(f"P2P port {port} is already in use — another alphad "
+                   "is probably running on this machine.\n"
+                   "  → stop it, or start this one with --port <other>")
+        _fatal(f"network error while starting node: {e}")
+    except Exception as e:  # noqa: BLE001
+        _fatal(f"node failed to start: {e}\n"
+               "  → if the datadir is corrupt, move it aside and re-sync "
+               "(bootstrap snapshot will be downloaded again)")
     auth = rpc.make_cookie(datadir)
     onion_msg = f" | onion={node.onion_addr}" if node.onion_addr else ""
     print(f"Alpha node started | chain={params.name} height={node.chain.height} "
@@ -122,9 +156,18 @@ def main() -> int:
 
     if args.stratum:
         from alpha import stratum
-        stratum.serve(node, args.strataport)
+        try:
+            stratum.serve(node, args.strataport)
+        except OSError as e:
+            node.stop()
+            _fatal(f"stratum port {args.strataport} is already in use: {e}")
 
-    rpc.serve(node, "127.0.0.1", rpcport, auth=auth)
+    try:
+        rpc.serve(node, "127.0.0.1", rpcport, auth=auth)
+    except OSError as e:
+        node.stop()
+        _fatal(f"RPC port {rpcport} is already in use — another alphad "
+               "is probably running. Stop it or use --rpcport <other>: {e}")
 
     try:
         prune_every = 0

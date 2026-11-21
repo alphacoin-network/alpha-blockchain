@@ -14,6 +14,8 @@ import json
 import os
 import sqlite3
 import sys
+import threading
+import time
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
@@ -21,6 +23,37 @@ from urllib.parse import urlparse, parse_qs
 from alpha import rpc
 
 WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "website")
+
+
+class RateLimiter:
+    """Simple per-key sliding-window rate limiter (in-memory)."""
+
+    def __init__(self):
+        self._hits: dict = {}
+        self._lock = threading.Lock()
+
+    def allow(self, key: str, limit: int, window: float) -> bool:
+        now = time.time()
+        with self._lock:
+            hits = [t for t in self._hits.get(key, []) if now - t < window]
+            if len(hits) >= limit:
+                self._hits[key] = hits
+                return False
+            hits.append(now)
+            self._hits[key] = hits
+            if len(self._hits) > 10000:      # bound memory
+                self._hits.clear()
+            return True
+
+
+# public-facing abuse limits (per client IP)
+_RL = RateLimiter()
+_RL_RULES = {
+    "minework": (12, 60),      # 12 templates / min per IP
+    "submitwork": (30, 60),    # 30 share submissions / min per IP
+    "broadcast": (20, 60),     # 20 raw tx broadcasts / min per IP
+    "support": (10, 3600),     # 10 support tickets / hour per IP
+}
 
 
 class API:
@@ -196,8 +229,22 @@ def make_handler(api: API):
             else:
                 self.send_error(404)
 
+        def _client_ip(self) -> str:
+            # behind nginx: real IP comes in X-Forwarded-For
+            xff = self.headers.get("X-Forwarded-For", "")
+            if xff:
+                return xff.split(",")[0].strip()[:64]
+            return self.client_address[0]
+
         def _api(self, path, qs):
             route = path[5:].strip("/")
+            rule = _RL_RULES.get(route)
+            if rule is not None:
+                ip = self._client_ip()
+                limit, window = rule
+                if not _RL.allow(f"{route}:{ip}", limit, window):
+                    self._json({"error": "rate limited — slow down"}, 429)
+                    return
             try:
                 if route == "stats":
                     out = api.stats()

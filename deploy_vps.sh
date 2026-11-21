@@ -44,6 +44,7 @@ echo "alphad started (rpc :$RPC_PORT, p2p :$P2P_PORT) — log: $DATADIR/alphad.l
 # 5. start explorer/website
 pkill -f "alphaweb.py" 2>/dev/null || true
 nohup python3 alphaweb.py --port "$WEB_PORT" \
+      --rpchost 127.0.0.1 --rpcport "$RPC_PORT" --datadir "$DATADIR" \
       > "$DATADIR/alphaweb.log" 2>&1 &
 echo "alphaweb started — http://YOUR_SERVER_IP:$WEB_PORT"
 

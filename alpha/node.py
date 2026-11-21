@@ -168,6 +168,7 @@ class Node:
         with self.peers_lock:
             for p in self.peers:
                 p.close()
+        self.txindex.close()
 
     def connect(self, ip: str, port: int) -> bool:
         return net.connect_peer(self, ip, port,

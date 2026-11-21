@@ -487,7 +487,8 @@ class Wallet:
     # -- transaction creation --------------------------------------------------
     def create_transaction(self, chain, outputs: list, fee_rate: int = 1,
                            change_addrtype: str = ADDRTYPE_BECH32,
-                           first_input_script: bytes | None = None) -> Transaction:
+                           first_input_script: bytes | None = None,
+                           change_address: str | None = None) -> Transaction:
         """outputs: list of (script_pubkey, value) or (address, value).
 
         Coin selection: largest confirmed UTXOs first. Change returns to a
@@ -538,7 +539,10 @@ class Wallet:
             change_key = next((k for k in self.all_key_records()), None)
             if change_key is None:
                 raise WalletLocked("no change key available")
-            if change_addrtype == ADDRTYPE_TAPROOT:
+            if change_address is not None:
+                change_spk = script.script_for_address(change_address,
+                                                       self.params)
+            elif change_addrtype == ADDRTYPE_TAPROOT:
                 change_spk = _p2tr_script_from_pubkey(change_key.pubkey)
             else:
                 change_spk = getattr(change_key, {
@@ -655,7 +659,8 @@ class Wallet:
         outputs = [(recipient_spk, value),
                    (script.script_op_return(payload), 0)]
         return self.create_transaction(
-            chain, outputs, fee_rate, first_input_script=signer_spk)
+            chain, outputs, fee_rate, first_input_script=signer_spk,
+            change_address=signer_address)
 
     # -- signed messages (Bitcoin format) ------------------------------------------
     def sign_message(self, address: str, message: str) -> str:

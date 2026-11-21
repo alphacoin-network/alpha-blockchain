@@ -91,3 +91,6 @@ class TxIndex:
             if n >= max_blocks:
                 break
         return n
+
+    def close(self):
+        self.db.close()

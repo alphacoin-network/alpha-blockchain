@@ -91,7 +91,7 @@ if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
 window.addEventListener('error',e=>{const g=document.getElementById('gateMsg');if(g)g.textContent='⚠ '+(e.message||'script error');});
 window.addEventListener('unhandledrejection',e=>{const g=document.getElementById('gateMsg');if(g)g.textContent='⚠ '+(e.reason&&e.reason.message||e.reason||'async error');});
 const KEY='alpha_mine_last';
-let mining=false,nonces=0,found=0,t0=0,work=null,addr='',uptime=0,log=[];
+let mining=false,nonces=0,found=0,t0=0,work=null,addr='',uptime=0,log=[],earnedSats=0;
 function addLog(m){log.unshift(new Date().toLocaleTimeString()+' — '+m);if(log.length>30)log.pop();
  document.getElementById('log').innerHTML=log.map(l=>'<div>'+l+'</div>').join('');}
 let thr=Math.min(4,navigator.hardwareConcurrency||2);
@@ -103,6 +103,7 @@ try{const hd=JSON.parse(localStorage.getItem('alpha_hd')||'{}');
  if(hd.addrs&&hd.addrs[0]){document.getElementById('addr').value=hd.addrs[0];loadBal(hd.addrs[0]);}}catch(e){}
 function hexToBytes(h){const b=new Uint8Array(h.length/2);for(let i=0;i<b.length;i++)b[i]=parseInt(h.substr(i*2,2),16);return b;}
 function bytesToHex(b){return [...b].map(x=>x.toString(16).padStart(2,'0')).join('');}
+function alpha(sats){return (sats/1e8).toLocaleString('en-US',{maximumFractionDigits:8});}
 function ltTarget(hashHex,tHex){
  const bytes=hexToBytes(hashHex).reverse(); // server: int.from_bytes(hash,'little')
  return BigInt('0x'+bytesToHex(bytes))<BigInt('0x'+tHex);
@@ -110,7 +111,8 @@ function ltTarget(hashHex,tHex){
 async function getWork(){
  const r=await fetch('/api/minework?address='+encodeURIComponent(addr));
  const d=await r.json();if(d.error)throw new Error(d.error);
- work={id:d.workid,prefix:hexToBytes(d.data),target:d.target,height:d.height};
+ work={id:d.workid,prefix:hexToBytes(d.data),target:d.target,height:d.height,
+       subsidy:d.subsidy,reward:d.reward,reward_sats:d.reward_sats};
 }
 let workers=[];
 const WORKER_SRC=`
@@ -147,9 +149,10 @@ function spawnWorkers(){
    if(d.found!==undefined&&work){
     const res=await submit(d.found);
     if(res.accepted){found++;document.getElementById('bf').textContent=found;
-     document.getElementById('earn2').textContent=(found*50)+' α';
+     const rs=(res.reward_sats!=null)?res.reward_sats:Math.round((res.reward!=null?res.reward:50)*1e8);
+     earnedSats+=rs;document.getElementById('earn2').textContent=alpha(earnedSats)+' α';
      document.getElementById('sess').innerHTML='<span class="pulse"></span>block '+res.height+'!';
-     addLog('⛏ BLOCK FOUND — height '+res.height+'! Reward incoming');
+     addLog('⛏ BLOCK FOUND — height '+res.height+'! +'+alpha(rs)+' α');
      // restart workers with fresh template (old workers keep stale work)
      workers.forEach(w=>w.terminate());workers=[];
      await getWork();spawnWorkers();}
@@ -167,8 +170,10 @@ function upd(){const dt=(Date.now()-t0)/1000||1;const h=nonces/dt;
  document.getElementById('hr').textContent=(h/1000).toFixed(1)+' kH/s';
  document.getElementById('nt').textContent=nonces.toLocaleString();
  // honest estimate: network ~385kH/s total → share % of blocks
- const netH=385000;const share=h/(netH+h)*100;
- document.getElementById('earn').textContent=share.toFixed(1)+'% of network';}
+ const netH=385000;const share=h/(netH+h);
+ const subsidy=(work&&typeof work.subsidy==='number')?work.subsidy:50;
+ const perDay=share*144*subsidy;
+ document.getElementById('earn').textContent=mining?(perDay<0.000001?perDay.toExponential(2):alpha(perDay))+' α/day':'—';}
 async function toggleMine(){
  const now=Date.now(),last=+localStorage.getItem(KEY)||0;
  if(mining){mining=false;workers.forEach(w=>w.terminate());workers=[];
@@ -181,7 +186,8 @@ async function toggleMine(){
  if(now-last<86400000){const h=Math.ceil((86400000-(now-last))/3600000);
   document.getElementById('gateMsg').textContent='⏳ Next mining window in ~'+h+'h — once per 24h';
   document.getElementById('resetBtn').classList.remove('hid');return;}
- localStorage.setItem(KEY,now);mining=true;t0=Date.now();nonces=0;found=0;uptime=0;
+ localStorage.setItem(KEY,now);mining=true;t0=Date.now();nonces=0;found=0;uptime=0;earnedSats=0;
+ document.getElementById('earn2').textContent='0 α';
  addLog('Mining started — '+thr+' thread(s), address '+addr.slice(0,12)+'…');
  document.getElementById('mineBtn').className='big stop';
  document.getElementById('mineBtn').textContent='⏹ Stop Mining';
