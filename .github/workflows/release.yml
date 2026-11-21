@@ -29,6 +29,7 @@ jobs:
       - run: pip install pyinstaller
       - run: pyinstaller --onefile --console --name alphad -y alphad.py
       - run: pyinstaller --onefile --console --name alpha_cli -y alpha_cli.py
+      - run: pyinstaller --onefile --console --name mine_alpha -y mine_alpha.py
       # Signed only when repo variable SIGNING_ENABLED=true and the Azure
       # Trusted Signing secrets below are configured (see docs/CODESIGNING.md).
       - name: Sign Windows binaries
@@ -52,8 +53,8 @@ jobs:
         shell: bash
         run: |
           mkdir -p pkg/alphad
-          cp dist/alphad${{ matrix.ext }} dist/alpha_cli${{ matrix.ext }} pkg/alphad/ || true
-          cp dist/alphad.exe dist/alpha_cli.exe pkg/alphad/ 2>/dev/null || true
+          cp dist/alphad${{ matrix.ext }} dist/alpha_cli${{ matrix.ext }} dist/mine_alpha${{ matrix.ext }} pkg/alphad/ || true
+          cp dist/alphad.exe dist/alpha_cli.exe dist/mine_alpha.exe pkg/alphad/ 2>/dev/null || true
           cp -r release-pkg/AlphaNode/* pkg/alphad/ 2>/dev/null || true
           cd pkg
           if command -v zip >/dev/null; then

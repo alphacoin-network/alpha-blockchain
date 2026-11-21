@@ -89,6 +89,7 @@
         <div class="ms"><div class="v" id="hashes">0</div><div class="l">total hashes</div></div>
         <div class="ms"><div class="v" id="found">0</div><div class="l">blocks found</div></div>
         <div class="ms"><div class="v" id="earned">0</div><div class="l">ALPHA earned</div></div>
+        <div class="ms"><div class="v" id="estpend">0</div><div class="l">est. pending α</div></div>
       </div>
       <div style="font-size:13px;color:var(--dim)"><span class="mining-dot" id="dot"></span><span id="status">Idle — enter your address and press start</span></div>
       <div class="mine-log" id="log" style="margin-top:14px"></div>
@@ -294,6 +295,11 @@ function updateEstimates(){
   // 144 blocks/day × subsidy, weighted by your share of total hashrate
   const perDay = share * 144 * NET.subsidy;
   $('estday').textContent = mine ? (perDay < 0.001 ? perDay.toExponential(1) : perDay.toFixed(4)) + ' α' : '—';
+  // estimated pending earnings: your share of block rewards over elapsed time
+  // (solo mining — real reward arrives only when YOUR hash finds a full block)
+  const secs = t0 ? (Date.now() - t0) / 1000 : 0;
+  const estSats = share * (NET.subsidy * 1e8) * (secs / 600);
+  $('estpend').textContent = mine ? fmt(estSats / 1e8) : '0';
 }
 async function refreshNet(){
   const s = await fetch('/api/stats').then(r=>r.json()).catch(()=>null);
