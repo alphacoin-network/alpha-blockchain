@@ -24,7 +24,6 @@ import json
 import os
 
 from . import constants
-from .utils import hash_to_hex
 
 # Pool share target = block target * POOL_SHARE_MULT  (easier => more shares)
 POOL_SHARE_MULT = 200

@@ -21,7 +21,9 @@ export const api = {
   address:    (addr)      => get("address/" + addr),
   stakes:     ()          => get("stakes"),
   stakeinfo:  ()          => get("stakeinfo"),
-  minework:   (addr)      => get("minework?address=" + addr),
+  minework:   (addr, pool) => get(`minework?address=${addr}${pool ? "&pool=1" : ""}`),
   submitwork: (wid, nonce)=> get(`submitwork?workid=${wid}&nonce=${nonce}`),
+  submitshares:(wid, nonces)=> get(`submitwork?workid=${wid}&nonces=${nonces.join(",")}`),
+  poolinfo:   (addr)      => get("poolinfo?address=" + addr),
   broadcast:  (hex)       => get("broadcast?hex=" + hex),
 };

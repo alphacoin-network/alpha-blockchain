@@ -213,6 +213,7 @@ function Stake({ key_, stats }) {
 function Mine({ key_ }) {
   const [on, setOn] = useState(false);
   const [rate, setRate] = useState(0), [found, setFound] = useState(0);
+  const [pend, setPend] = useState(0);
   const [status, setStatus] = useState("idle — real SHA256d PoW, low hashrate on phone");
   const stop = useRef(false);
   const mining = useRef(false);
@@ -220,35 +221,52 @@ function Mine({ key_ }) {
   const start = async () => {
     if (!key_) { Alert.alert("Wallet needed", "create a wallet first — rewards go to your address"); return; }
     stop.current = false; setOn(true); mining.current = true;
-    let nonce = 0, hps = 0;
+    let nonce = 0, hps = 0, w = null, wAge = 0;
     const mine = async () => {
       try {
-        const w = await api.minework(key_.addr);
+        // reuse the template until it goes stale (~each block) — refetching
+        // every chunk would hammer the rate-limited getwork endpoint
+        if (!w || wAge > 45) {
+          w = await api.minework(key_.addr, true);   // pool mode
+          wAge = 0;
+          api.poolinfo(key_.addr).then(p=>setPend(p.pending_alpha||0)).catch(()=>{});
+        }
+        wAge++;
         const hdr = hexToB(w.data), target = BigInt("0x" + w.target);
+        const ptarget = w.pool_target ? BigInt("0x" + w.pool_target) : null;
+        const shares = [];
         const full = new Uint8Array(80); full.set(hdr);
         const t0 = Date.now(); let n = nonce;
         // ~400ms chunks so the UI stays alive; buffer reused every hash
         while (!stop.current && Date.now() - t0 < 400 && n < 0xffffffff) {
           full[76] = n & 255; full[77] = (n >> 8) & 255;
           full[78] = (n >> 16) & 255; full[79] = (n >> 24) & 255;
-          if (hashAsLEint(sha256d(full)) <= target) {
+          const hv = hashAsLEint(sha256d(full));
+          if (hv <= target) {
+            if (shares.length) { api.submitshares(w.workid, shares.splice(0)); }
             const r = await api.submitwork(w.workid, n);
-            if (r.error) setStatus("✗ " + r.error);
+            if (r.error || r.stale) { w = null; nonce = 0; }
             else {
               const reward = (r.reward_sats != null) ? r.reward_sats / 1e8
                 : (r.reward != null ? r.reward : 0);
               setFound(f => f + 1);
               setStatus("🎉 BLOCK FOUND · height " + w.height +
                 " · +" + reward.toFixed(8) + " α");
+              w = null; nonce = 0;
             }
+          } else if (ptarget && hv <= ptarget) {
+            shares.push(n);
+            if (shares.length >= 16) api.submitshares(w.workid, shares.splice(0));
           }
           n++; hps++;
         }
-        nonce = 0; // template refreshed each round
+        if (n >= 0xffffffff) { w = null; nonce = 0; }
+        else nonce = n;
+        if (shares.length && w) api.submitshares(w.workid, shares.splice(0));
         // real measured hashrate over the elapsed window
         const elapsed = (Date.now() - t0) / 1000 || 0.4;
         setRate(prev => Math.round(((prev * 0.6) + (hps / elapsed)) / 10) * 10);
-      } catch (e) { setStatus("✗ " + e.message); }
+      } catch (e) { w = null; setStatus("✗ " + e.message); }
       if (!stop.current) {
         hps = 0;
         setTimeout(mine, 60);
@@ -265,7 +283,7 @@ function Mine({ key_ }) {
         <Text style={s.dim}>Real SHA256d proof-of-work against your own
           address. Honest note: a phone is tiny next to ASICs — this is for
           learning/network support, not profit. Watch battery &amp; heat.</Text>
-        <Text style={s.statLine}>~{rate >= 1000 ? (rate/1000).toFixed(1)+' kH/s' : Math.round(rate)+' H/s'} · blocks found: {found}</Text>
+        <Text style={s.statLine}>~{rate >= 1000 ? (rate/1000).toFixed(1)+' kH/s' : Math.round(rate)+' H/s'} · blocks found: {found} · pool pending: {pend.toFixed(8)} α</Text>
         {on ? <Btn t="Stop mining" onPress={halt} danger />
             : <Btn t="Start mining" onPress={start} />}
         <Text style={s.status}>{status}</Text>

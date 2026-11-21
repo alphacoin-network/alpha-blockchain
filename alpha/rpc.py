@@ -1975,15 +1975,15 @@ class RPCMethods:
         block_nonce = None
         for n in nonces:
             n = int(n) & 0xFFFFFFFF
+            hdr[76:80] = n.to_bytes(4, "little")
+            digest = sh(sh(bytes(hdr)).digest()).digest()[::-1]
+            if digest <= tb:
+                block_nonce = n          # block solutions bypass share dedup
+                break
             if n in seen or len(seen) > 200000:
                 shares_rejected += 1
                 continue
             seen.add(n)
-            hdr[76:80] = n.to_bytes(4, "little")
-            digest = sh(sh(bytes(hdr)).digest()).digest()[::-1]
-            if digest <= tb:
-                block_nonce = n
-                break
             if pool_tb is not None and digest <= pool_tb and not stale:
                 self.node.pool.add_share(entry["addr"])
                 shares_accepted += 1

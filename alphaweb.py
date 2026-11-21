@@ -278,8 +278,11 @@ def make_handler(api: API):
                 elif route == "submitwork":
                     wid = qs.get("workid", [""])[0]
                     if "nonces" in qs:      # batched share submission
-                        nonces = [int(x) for x in
-                                  qs["nonces"][0].split(",") if x.strip()]
+                        try:
+                            nonces = [int(x) for x in
+                                      qs["nonces"][0].split(",") if x.strip()]
+                        except ValueError:
+                            nonces = []
                         if len(nonces) > 500:
                             nonces = nonces[:500]
                     else:

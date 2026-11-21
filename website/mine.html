@@ -287,7 +287,8 @@ async function submitShares(workid, nonces){
   try{
     const r = await fetch(`/api/submitwork?workid=${workid}&nonces=${nonces.join(',')}`);
     const j = await r.json();
-    if(j.stale && miningOn){ log('work stale — fetching new template'); mineRound(); }
+    if(j.stale && miningOn){ log('work stale — refreshing template');
+      roundDone = true; killWorkers(); mineRound(); }
   }catch(e){ /* transient — shares are best-effort */ }
 }
 $('start').onclick = async () => {
