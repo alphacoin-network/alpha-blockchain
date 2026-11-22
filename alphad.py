@@ -18,6 +18,8 @@ import urllib.request
 from alpha import constants, rpc
 from alpha.node import Node
 
+sys.setrecursionlimit(10000)  # deep catch-up orphan chains / nested parses
+
 
 BOOTSTRAP_URL = "https://alphacoin.network/bootstrap.tar.gz"
 

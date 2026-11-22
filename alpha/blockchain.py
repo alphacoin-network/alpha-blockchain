@@ -295,28 +295,44 @@ class Blockchain:
 
     # -- block acceptance ---------------------------------------------------------
     def add_block(self, block: Block, store: bool = True) -> BlockIndexEntry:
-        """Validate a block and connect it (possibly triggering a reorg)."""
+        """Validate a block and connect it (possibly triggering a reorg).
+
+        Orphan attachment is iterative: during catch-up a burst of blocks can
+        queue thousands of orphans, and a recursive attach would exceed
+        Python's recursion limit."""
         with self.lock:
-            h = block.hash()
-            if h in self.index:
-                raise ChainError("duplicate block")
-            self._check_block(block)
-            entry = self._accept_header(block)
-            cp = (self.params.checkpoints or {}).get(entry.height)
-            if cp is not None and hash_to_hex(h) != cp:
-                raise ChainError("block conflicts with checkpoint")
-            self.blocks[h] = block
-            if entry.chainwork > self.tip.chainwork:
-                self._activate(entry)
-            # try to attach orphans that were waiting on this block
-            for child in self.orphans.pop(h, []):
+            stack = [block]
+            entry = None
+            top = True
+            while stack:
+                b = stack.pop()
+                h = b.hash()
                 try:
-                    self.add_block(child, store=store)
+                    if h in self.index:
+                        if top:
+                            raise ChainError("duplicate block")
+                        continue
+                    self._check_block(b)
+                    e = self._accept_header(b)
+                    cp = (self.params.checkpoints or {}).get(e.height)
+                    if cp is not None and hash_to_hex(h) != cp:
+                        raise ChainError("block conflicts with checkpoint")
+                    self.blocks[h] = b
+                    if e.chainwork > self.tip.chainwork:
+                        self._activate(e)
+                    if (store and e.height < len(self.active)
+                            and self.active[e.height] is e):
+                        self._store_block(b)
+                    if top:
+                        entry = e
                 except ChainError:
-                    pass
-            if (store and entry.height < len(self.active)
-                    and self.active[entry.height] is entry):
-                self._store_block(block)
+                    if top:
+                        raise
+                    continue
+                # try to attach orphans that were waiting on this block
+                for child in reversed(self.orphans.pop(h, [])):
+                    stack.append(child)
+                top = False
             return entry
 
     def _check_block(self, block: Block) -> None:
