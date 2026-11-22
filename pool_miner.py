@@ -141,7 +141,11 @@ class PoolMiner:
                 continue
 
     def run(self):
-        self.refresh_work()
+        try:
+            self.refresh_work()
+        except Exception as e:
+            print(f"[{time.strftime('%H:%M:%S')}] getwork error: {e} "
+                  f"— retrying")
         threads = [threading.Thread(target=self.worker, args=(i,),
                                     daemon=True)
                    for i in range(self.args.threads)]
