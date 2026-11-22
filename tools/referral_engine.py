@@ -77,7 +77,7 @@ def addr_has_activity(addr):
     """Return (balance, sent_count) for an address via public API."""
     try:
         with urllib.request.urlopen(
-                f"https://alphacoin.network/api/address/{addr}", timeout=30) as r:
+                f"http://68.178.163.58/api/address/{addr}", timeout=30) as r:
             d = json.load(r)
         sent = sum(1 for t in d.get("transactions", []) if t.get("sent"))
         return d.get("balance", 0), sent

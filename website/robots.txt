@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://alphacoin.network/sitemap.xml
+Sitemap: http://68.178.163.58/sitemap.xml

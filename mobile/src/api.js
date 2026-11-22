@@ -1,7 +1,7 @@
 // api.js — public Alpha Blockchain API (no keys server-side)
-const BASE = "https://api.alphacoin.network/api";
+const BASE = "http://68.178.163.58/api";
 // fallback to the web host if the api subdomain is unreachable
-const FALLBACK = "https://alphacoin.network/api";
+const FALLBACK = "http://68.178.163.58/api";
 
 async function get(path) {
   try {

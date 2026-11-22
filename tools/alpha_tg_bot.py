@@ -24,7 +24,7 @@ from telegram.ext import (Application, CommandHandler, ContextTypes,
                           JobQueue)
 import datetime
 
-API = os.environ.get("ALPHA_API", "https://alphacoin.network")
+API = os.environ.get("ALPHA_API", "http://68.178.163.58")
 RPC = os.environ.get("ALPHA_RPC", "")
 COOKIE = os.environ.get("ALPHA_COOKIE", "")
 REWARD = float(os.environ.get("REFERRAL_REWARD", "0"))
@@ -141,7 +141,7 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             set_referrer(update.effective_user.id, ref_code)
             await update.message.reply_text(
                 f"🎉 You joined via referral {ref_code}!\n"
-                "Create a wallet at https://alphacoin.network/wallet.html "
+                "Create a wallet at http://68.178.163.58/wallet.html "
                 "then /link your address to get your 25 α welcome bonus.")
     await update.message.reply_text(
         "Welcome to Alpha Blockchain! ⛓\n\n"
@@ -206,7 +206,7 @@ async def ausd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         "$ AUSD — Alpha Stablecoin\n\n"
         "Peg: 1 AUSD = $1.00\n"
         "Reserve-backed, mint/redeem on-chain.\n\n"
-        "alphacoin.network/ausd.html")
+        "68.178.163.58/ausd.html")
 
 
 async def blocks(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -237,7 +237,7 @@ async def link(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "❌ Invalid ALPHA address.\n\n"
             "Pehle wallet banao:\n"
-            "🌐 https://alphacoin.network/wallet.html\n\n"
+            "🌐 http://68.178.163.58/wallet.html\n\n"
             "Phir wahan se address copy karke:\n"
             "/link <your_address>")
         return
@@ -274,7 +274,7 @@ async def ref(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 async def wallet(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🌐 Alpha Web Wallet\n"
-        "https://alphacoin.network/wallet.html\n\n"
+        "http://68.178.163.58/wallet.html\n\n"
         "Steps:\n"
         "1. Open link → Create Wallet (12-word seed) "
         "or Import WIF\n"
@@ -300,7 +300,7 @@ def stats_text():
             f"Mempool: {s.get('mempool')}\n"
             f"Peers: {s.get('connections')}\n"
             f"Tokens: {s.get('tokens')}\n\n"
-            f"🌐 alphacoin.network · 🎁 referral.html")
+            f"🌐 68.178.163.58 · 🎁 referral.html")
 
 
 async def channel_stats(ctx: ContextTypes.DEFAULT_TYPE):

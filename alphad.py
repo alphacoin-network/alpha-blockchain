@@ -21,7 +21,7 @@ from alpha.node import Node
 sys.setrecursionlimit(10000)  # deep catch-up orphan chains / nested parses
 
 
-BOOTSTRAP_URL = "https://alphacoin.network/bootstrap.tar.gz"
+BOOTSTRAP_URL = "http://68.178.163.58:8080/bootstrap.tar.gz"
 
 
 def _install_signal_handlers() -> None:

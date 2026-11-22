@@ -14,7 +14,7 @@ import json, os, urllib.request, base64
 RPC = os.environ.get("ALPHA_RPC", "http://127.0.0.1:8332")
 COOKIE = os.environ.get("ALPHA_COOKIE", "")
 FALLBACK = float(os.environ.get("ALPHA_USD_PRICE", "0.05"))  # admin-set USD/ALPHA
-API = os.environ.get("ALPHA_API", "https://alphacoin.network")
+API = os.environ.get("ALPHA_API", "http://68.178.163.58")
 
 
 def rpc(method, *params):

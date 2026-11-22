@@ -19,8 +19,8 @@ OPTIONAL
 --------
 - Commands (new window):  alpha_cli.exe getblockcount
                           alpha_cli.exe getconnectioncount
-- Explorer:               https://explorer.alphacoin.network
-- Wallet:                 https://wallet.alphacoin.network
+- Explorer:               https://explorer.68.178.163.58
+- Wallet:                 https://wallet.68.178.163.58
 
 NOTES
 -----

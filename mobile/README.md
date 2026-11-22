@@ -35,7 +35,7 @@ eas build -p ios              # needs Apple developer account
 ## Security notes
 
 - The app talks only to the **public** read API
-  (`api.alphacoin.network` → `alphacoin.network` fallback) — no RPC
+  (`api.68.178.163.58` → `68.178.163.58` fallback) — no RPC
   credentials in the app, ever.
 - Transactions are built and signed on-device; the server only sees the
   final raw tx via `/api/broadcast`.
