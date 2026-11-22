@@ -293,6 +293,34 @@ python3 alphad.py --chain main --datadir ./data-mainnet</pre></div>
       offline.</p></div>
   </div></div>
 
+  <!-- ============ POOL MINING ============ -->
+  <div class="gsec" id="pool"><h3>⛏ Pool mining — earn even small amounts</h3>
+  <p>Solo mining is winner-take-all: only the miner who finds a full block gets the
+     reward. <b>Pool mode</b> fixes that — the same way Bitcoin pools work — so every
+     miner earns a proportional share, down to decimal ALPHA.</p>
+  <div class="kgrid">
+    <div class="kcard"><h4>1 · How it works</h4>
+      <p>Your browser or phone hashes locally and submits <b>shares</b> — near-miss
+         hashes that meet an easier pool target. The server <b>re-verifies every
+         share's hash</b> — fake shares are impossible.</p></div>
+    <div class="kcard"><h4>2 · When a block is found</h4>
+      <p>If any pool miner hits the real block target, the coinbase pays the pool
+         address and the reward is split <b>pro-rata by verified shares</b> — exact
+         integer accounting, decimal ALPHA display (8 decimals, like Bitcoin).</p></div>
+    <div class="kcard"><h4>3 · Vesting &amp; payout</h4>
+      <p>Credits vest for <b>100 blocks</b> (coinbase maturity — same rule as block
+         rewards) then pay out automatically to your address. Check pending at
+         <code>/api/poolinfo?address=…</code>.</p></div>
+    <div class="kcard"><h4>4 · Security</h4>
+      <p>Duplicate nonces rejected, stale templates rejected, share batches
+         rate-limited, work cache bounded. The pool can never mint value — credits
+         exist only against real accepted blocks.</p></div>
+  </div>
+  <p><b>Where:</b> <a href="mine.html">mine.html</a> (browser) and the
+     <a href="app.html">mobile app</a> both use pool mode automatically — just enter
+     your address and start. Node miners using <code>mine_alpha.py</code> solo-mine
+     to their own address via their node.</p></div>
+
   <!-- ============ FAQ ============ -->
   <div class="gsec" id="faq"><h3>Frequently asked questions</h3>
   <div class="kgrid">

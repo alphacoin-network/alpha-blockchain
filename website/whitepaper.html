@@ -300,6 +300,14 @@
   hour. If they're generated too fast, the difficulty increases:</p>
   <div class="formula">new_target = old_target × clamp(actual_timespan / 20160, ¼, 4)
   (every 2016 blocks; target spacing = 10 minutes)</div>
+  <h4>4.3 Pool mining</h4>
+  <p>Solo mining pays only the block winner. Alpha also supports pooled mining:
+  miners submit <b>shares</b> — hashes that meet an easier pool target — and every
+  share is verified server-side against the real block template. When a pool miner
+  finds a full block, the coinbase reward is distributed pro-rata by verified
+  shares in integer base units, vested for the 100-block coinbase maturity period,
+  then paid out automatically. The pool cannot mint value: credits exist only
+  against accepted blocks. See the <a href="guide.html#pool">mining guide</a>.</p>
 
   <h2 id="network">5. Network</h2>
   <p>The steps to run the network — identical to Bitcoin's:</p>
