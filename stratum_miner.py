@@ -11,6 +11,7 @@ Usage:
 """
 import argparse
 import json
+import os
 import socket
 import struct
 import sys
@@ -27,8 +28,9 @@ def dsha(b: bytes) -> bytes:
 
 
 class StratumMiner:
-    def __init__(self, host, port, address, threads):
+    def __init__(self, host, port, address, threads, password=""):
         self.host, self.port, self.address = host, port, address
+        self.password = password
         self.nthreads = threads
         self.sock = None
         self.job = None              # latest notify
@@ -47,7 +49,7 @@ class StratumMiner:
         self._send({"id": 2, "method": "mining.extranonce.subscribe",
                     "params": []})
         self._send({"id": 3, "method": "mining.authorize",
-                    "params": [self.address, "x"]})
+                    "params": [self.address, self.password]})
         threading.Thread(target=self._reader, daemon=True).start()
 
     def _send(self, obj):
@@ -179,9 +181,14 @@ def main():
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=8335)
     ap.add_argument("--address", required=True)
+    ap.add_argument("--password", default=os.environ.get(
+        "ALPHA_STRATUM_PASSWORD", ""),
+        help="stratum secret (or set ALPHA_STRATUM_PASSWORD)")
     ap.add_argument("--threads", type=int, default=4)
     a = ap.parse_args()
-    StratumMiner(a.host, a.port, a.address, a.threads).run()
+    if not a.password:
+        print("warning: no stratum password — server may reject authorize")
+    StratumMiner(a.host, a.port, a.address, a.threads, a.password).run()
 
 
 if __name__ == "__main__":

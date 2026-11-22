@@ -10,7 +10,10 @@ Wire format: newline-delimited JSON over TCP.
   mining.notify (server->client) / mining.submit
 """
 
+import hmac
 import json
+import os
+import secrets as _secrets
 import socket
 import threading
 import time
@@ -22,6 +25,35 @@ from .utils import (BytesReader, compact_to_target, hash_to_hex, now,
                     ser_compact_size)
 
 STRATUM_PORT = 8335
+
+
+def _load_secret(data_dir: str | None) -> str:
+    """Return the stratum authorization secret.
+
+    Priority: ALPHA_STRATUM_SECRET env var > <datadir>/stratum.secret
+    (auto-generated on first use, mode 0600). Stratum refuses to authorize
+    without it — this keeps public stratum ports from being farmed by
+    anonymous ASICs.
+    """
+    env = os.environ.get("ALPHA_STRATUM_SECRET", "").strip()
+    if env:
+        return env
+    path = os.path.join(data_dir or ".", "stratum.secret")
+    try:
+        with open(path) as f:
+            s = f.read().strip()
+            if s:
+                return s
+    except OSError:
+        pass
+    s = _secrets.token_hex(32)
+    try:
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
+            f.write(s + "\n")
+    except OSError:
+        pass
+    return s
 
 
 def _display(b: bytes) -> str:
@@ -47,10 +79,11 @@ class StratumSession:
     MAX_SUBMITS_PER_MIN = 60
     AUTH_TIMEOUT = 300          # seconds to authorize before we drop
 
-    def __init__(self, conn, addr, node):
+    def __init__(self, conn, addr, node, secret: str = ""):
         self.conn = conn
         self.addr = addr
         self.node = node
+        self.secret = secret
         self.sid = None                # extranonce1 (4 bytes)
         self.payout_spk = None
         self.jobs = {}                 # job_id -> job dict
@@ -77,7 +110,6 @@ class StratumSession:
     # -- job construction -------------------------------------------------
     def _build_job(self):
         """Create a template for this session's payout address."""
-        import secrets as _sec
         params = self.node.params
         tip = self.node.chain.tip
         height = tip.height + 1
@@ -87,7 +119,7 @@ class StratumSession:
         extra = eno1.to_bytes(4, "big") + b"\x00" * 4
         need_w = any(e.tx.has_witness()
                      for e in self.node.mempool.txs.values())
-        reserved = _sec.token_bytes(32) if need_w else None
+        reserved = _secrets.token_bytes(32) if need_w else None
         blk = self.node.get_block_template(self.payout_spk,
                                            extra_data=b"/S/" + extra,
                                            reserved=reserved)
@@ -208,6 +240,13 @@ class StratumSession:
             self.reply(mid, True)
         elif method == "mining.authorize":
             user = params[0] if params else ""
+            password = params[1] if len(params) > 1 else ""
+            # constant-time secret check — without it anyone could attach
+            # ASICs to a public stratum port and take all the blocks
+            if not self.secret or not hmac.compare_digest(
+                    str(password), self.secret):
+                self.reply(mid, False)
+                return
             try:
                 spk = script.script_for_address(user, self.node.params)
             except Exception:
@@ -241,6 +280,9 @@ def serve(node, port: int = STRATUM_PORT):
     srv.bind(("0.0.0.0", port))
     srv.listen(64)
     sessions = []
+    secret = _load_secret(getattr(node, "data_dir", None))
+    print(f"stratum auth: secret required "
+          f"({'env ALPHA_STRATUM_SECRET' if os.environ.get('ALPHA_STRATUM_SECRET') else 'file stratum.secret in datadir'})")
 
     def accept_loop():
         while not node.stopped:
@@ -255,7 +297,7 @@ def serve(node, port: int = STRATUM_PORT):
                 except OSError:
                     pass
                 continue
-            sess = StratumSession(conn, addr, node)
+            sess = StratumSession(conn, addr, node, secret)
             sessions.append(sess)
             threading.Thread(target=sess.run, daemon=True).start()
 
