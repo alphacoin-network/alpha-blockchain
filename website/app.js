@@ -1,5 +1,7 @@
 const api = p => fetch('/api/' + p).then(r => r.json());
 const el = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const short = h => h ? h.slice(0, 10) + '…' + h.slice(-8) : '—';
 const fmt = n => Number(n).toLocaleString('en-US', { maximumFractionDigits: 8 });
 const fmtHash = h => { h = Number(h);

@@ -26,7 +26,10 @@ import os
 from . import constants
 
 # Pool share target = block target * POOL_SHARE_MULT  (easier => more shares)
-POOL_SHARE_MULT = 200
+# ~1e6 gives a typical ~300 kH/s browser miner a share every ~10-30s at
+# current difficulty — visible decimal earnings without enabling spam
+# (every share is still hash-verified server-side).
+POOL_SHARE_MULT = 1_000_000
 # Don't let the share target get trivially easy on low-difficulty chains
 _POOL_TARGET_CAP = 1 << 255
 

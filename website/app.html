@@ -92,7 +92,8 @@ window.addEventListener('error',e=>{const g=document.getElementById('gateMsg');i
 window.addEventListener('unhandledrejection',e=>{const g=document.getElementById('gateMsg');if(g)g.textContent='⚠ '+(e.reason&&e.reason.message||e.reason||'async error');});
 const KEY='alpha_mine_last';
 let mining=false,nonces=0,found=0,t0=0,work=null,addr='',uptime=0,log=[],earnedSats=0;
-function addLog(m){log.unshift(new Date().toLocaleTimeString()+' — '+m);if(log.length>30)log.pop();
+function addLog(m){m=String(m).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ log.unshift(new Date().toLocaleTimeString()+' — '+m);if(log.length>30)log.pop();
  document.getElementById('log').innerHTML=log.map(l=>'<div>'+l+'</div>').join('');}
 let thr=Math.min(4,navigator.hardwareConcurrency||2);
 function setThr(n){thr=n;document.getElementById('th').textContent=thr+' cores';
@@ -109,9 +110,10 @@ function ltTarget(hashHex,tHex){
  return BigInt('0x'+bytesToHex(bytes))<BigInt('0x'+tHex);
 }
 async function getWork(){
- const r=await fetch('/api/minework?address='+encodeURIComponent(addr));
+ const r=await fetch('/api/minework?address='+encodeURIComponent(addr)+'&pool=1');
  const d=await r.json();if(d.error)throw new Error(d.error);
  work={id:d.workid,prefix:hexToBytes(d.data),target:d.target,height:d.height,
+       pool_target:d.pool_target||d.target,
        subsidy:d.subsidy,reward:d.reward,reward_sats:d.reward_sats};
 }
 let workers=[];
@@ -146,37 +148,44 @@ function spawnWorkers(){
   w.onmessage=async ev=>{
    const d=ev.data;
    if(d.count!==undefined){nonces+=d.count;return;}
-   if(d.found!==undefined&&work){
-    const res=await submit(d.found);
-    if(res.accepted){found++;document.getElementById('bf').textContent=found;
-     const rs=(res.reward_sats!=null)?res.reward_sats:Math.round((res.reward!=null?res.reward:50)*1e8);
-     earnedSats+=rs;document.getElementById('earn2').textContent=alpha(earnedSats)+' α';
-     document.getElementById('sess').innerHTML='<span class="pulse"></span>block '+res.height+'!';
-     addLog('⛏ BLOCK FOUND — height '+res.height+'! +'+alpha(rs)+' α');
-     // restart workers with fresh template (old workers keep stale work)
-     workers.forEach(w=>w.terminate());workers=[];
-     await getWork();spawnWorkers();}
-   }
+   if(d.found!==undefined&&work){shareBuf.push(d.found);flushShares();}
   };
-  w.postMessage({prefix:work.prefix,target:work.target,start:i,step:thr});
+  w.postMessage({prefix:work.prefix,target:work.pool_target,start:i,step:thr});
   workers.push(w);
  }
 }
-async function submit(n){
- const r=await fetch('/api/submitwork?workid='+work.id+'&nonce='+n);
- return r.json();
+let shareBuf=[],shareTimer=null;
+async function flushShares(){
+ if(!shareBuf.length||!work)return;
+ const batch=shareBuf.splice(0,500);
+ try{
+  const r=await fetch('/api/submitwork?workid='+work.id+'&nonces='+batch.join(','));
+  const d=await r.json();
+  if(d.accepted){found++;document.getElementById('bf').textContent=found;
+   const rs=(d.reward_sats!=null)?d.reward_sats:Math.round((d.reward!=null?d.reward:50)*1e8);
+   earnedSats+=rs;document.getElementById('earn2').textContent=alpha(earnedSats)+' α';
+   document.getElementById('sess').innerHTML='<span class="pulse"></span>pool block '+d.height+'!';
+   addLog('⛏ POOL BLOCK — height '+d.height+'! reward split pro-rata');
+   workers.forEach(w=>w.terminate());workers=[];
+   await getWork();if(mining)spawnWorkers();}
+  else if(d.error)addLog('submit: '+d.error);
+ }catch(e){shareBuf=shareBuf.concat(batch);} // retry next flush
 }
+function submit(n){flushShares();}
+let netH=385000;
 function upd(){const dt=(Date.now()-t0)/1000||1;const h=nonces/dt;
  document.getElementById('hr').textContent=(h/1000).toFixed(1)+' kH/s';
  document.getElementById('nt').textContent=nonces.toLocaleString();
- // honest estimate: network ~385kH/s total → share % of blocks
- const netH=385000;const share=h/(netH+h);
+ // pool estimate: your share of pool hashrate × blocks/day × reward —
+ // pool pays pro-rata when IT finds a block, so this is approximate
+ const share=h/(netH+h);
  const subsidy=(work&&typeof work.subsidy==='number')?work.subsidy:50;
  const perDay=share*144*subsidy;
  document.getElementById('earn').textContent=mining?(perDay<0.000001?perDay.toExponential(2):alpha(perDay))+' α/day':'—';}
 async function toggleMine(){
  const now=Date.now(),last=+localStorage.getItem(KEY)||0;
  if(mining){mining=false;workers.forEach(w=>w.terminate());workers=[];
+  clearInterval(shareTimer);flushShares();
   document.getElementById('mineBtn').className='big';
   document.getElementById('mineBtn').textContent='▶ Start Mining';
   document.getElementById('sess').textContent='stopped';addLog('Mining stopped — '+found+' block(s)');return;}
@@ -198,7 +207,9 @@ async function toggleMine(){
   document.getElementById('sess').textContent='error';
   document.getElementById('gateMsg').textContent='⚠ getwork failed: '+e.message;return;}
  if(typeof Worker==='undefined'){mining=false;document.getElementById('gateMsg').textContent='⚠ Web Workers not supported in this browser';return;}
- spawnWorkers();
+ spawnWorkers();shareTimer=setInterval(flushShares,5000);
+ // live network hashrate for honest earnings estimate
+ fetch('/api/stats').then(r=>r.json()).then(s=>{if(s&&s.hashrate)netH=s.hashrate;}).catch(()=>{});
  setInterval(()=>{upd();uptime++;const m=Math.floor(uptime/60),s=uptime%60;
   document.getElementById('sess').innerHTML='<span class="pulse"></span>mining '+m+'m '+s+'s';},1000);
 }

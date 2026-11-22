@@ -83,7 +83,7 @@ nav('tok');
 async function load() {
   const ts = await api('tokens').catch(()=>[]);
   el('tokens').innerHTML = ts.length ? ts.map(t =>
-    `<tr><td><b>${t.name}</b></td>
+    `<tr><td><b>${esc(t.name)}</b></td>
      <td class="hash"><a href="#" onclick="holders('${t.token_id}');return false">${short(t.token_id)}</a></td>
      <td>${t.decimals}</td><td class="num">${fmt(t.display_supply)}</td>
      <td class="hash">${short(t.issuer||'—')}</td><td>${t.created_height}</td></tr>`).join('')
@@ -92,7 +92,7 @@ async function load() {
 async function holders(tid) {
   const d = await api('token/'+tid).catch(()=>null);
   if (!d || !d.info) { el('holders').innerHTML = '<div class="detail">not found</div>'; return; }
-  el('holders').innerHTML = `<div class="detail flash"><h3>${d.info.name} — holders</h3>
+  el('holders').innerHTML = `<div class="detail flash"><h3>${esc(d.info.name)} — holders</h3>
     <div class="tbl-wrap"><table><tr><th>Address</th><th class="num">Balance</th></tr>
     ${d.holders.length ? d.holders.map(h =>
       `<tr><td class="hash">${h.address||'—'}</td><td class="num">${fmt(h.display_balance)}</td></tr>`).join('')
@@ -105,7 +105,7 @@ async function loadOrders() {
   const names = {}; ts.forEach(t => names[t.token_id] = t.name);
   el('orders').innerHTML = os.length ? os.map(o =>
     `<tr><td class="hash">${short(o.order_id)}</td>
-     <td><b>${names[o.token_id]||short(o.token_id)}</b></td>
+     <td><b>${esc(names[o.token_id]||short(o.token_id))}</b></td>
      <td class="num">${fmt(o.amount)}</td><td class="num">${o.total_alpha.toFixed(4)}</td>
      <td class="hash">${short(o.seller||'—')}</td><td>${o.height}</td></tr>`).join('')
     : '<tr><td colspan="6" class="loading">no open orders</td></tr>';

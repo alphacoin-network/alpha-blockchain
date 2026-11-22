@@ -275,7 +275,7 @@ async function onWorkerMsg(e){
 }
 function log(msg, cls){
   const el = $('log');
-  el.innerHTML += `<div class="${cls||''}">[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+  el.innerHTML += `<div class="${cls||''}">[${new Date().toLocaleTimeString()}] ${esc(msg)}</div>`;
   el.scrollTop = el.scrollHeight;
 }
 async function getWork(addr){

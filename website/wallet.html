@@ -960,7 +960,7 @@ async function refresh(){
     const seen=new Set();
     mt.innerHTML=tokAll.filter(t=>{const k=t.token_id||t.id;if(seen.has(k))return false;seen.add(k);return true;})
       .map(t=>{const bv=t.display_balance??t.balance??t.amount??0;
-        return `<div class="txrow"><a href="tokens.html" style="color:var(--accent)">${(t.name||t.token_id||"").slice(0,24)}</a> <span style="color:var(--green)">bal ${typeof bv==="number"?bv.toFixed(4):bv}</span></div>`;}).join("");
+        return `<div class="txrow"><a href="tokens.html" style="color:var(--accent)">${esc((t.name||t.token_id||"").slice(0,24))}</a> <span style="color:var(--green)">bal ${typeof bv==="number"?bv.toFixed(4):bv}</span></div>`;}).join("");
   }else tc.classList.add("hidden");
   const j={transactions:txs0};
   let sent=[];try{sent=JSON.parse(localStorage.getItem(sentKey())||"[]");}catch(e){}

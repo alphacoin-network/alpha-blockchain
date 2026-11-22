@@ -54,6 +54,11 @@ _RL_RULES = {
     "poolinfo": (30, 60),      # pool balance queries / min per IP
     "broadcast": (20, 60),     # 20 raw tx broadcasts / min per IP
     "support": (10, 3600),     # 10 support tickets / hour per IP
+    # scantxoutset-backed reads — expensive, cap per IP
+    "address": (20, 60),
+    "utxos": (20, 60),
+    "balances": (10, 60),
+    "search": (30, 60),
 }
 
 
@@ -254,7 +259,8 @@ def make_handler(api: API):
 
         def _api(self, path, qs):
             route = path[5:].strip("/")
-            rule = _RL_RULES.get(route)
+            rule = _RL_RULES.get(route) or \
+                _RL_RULES.get(route.split("/", 1)[0])
             if rule is not None:
                 ip = self._client_ip()
                 limit, window = rule
@@ -439,8 +445,13 @@ def make_handler(api: API):
         def _static(self, path):
             if path in ("/", ""):
                 path = "/index.html"
-            target = os.path.normpath(os.path.join(WEB_DIR, path.lstrip("/")))
-            if not target.startswith(os.path.normpath(WEB_DIR)):
+            web_root = os.path.normpath(WEB_DIR)
+            target = os.path.normpath(os.path.join(web_root, path.lstrip("/")))
+            try:
+                inside = os.path.commonpath([web_root, target]) == web_root
+            except ValueError:
+                inside = False
+            if not inside:
                 self.send_error(403)
                 return
             if not os.path.isfile(target):

@@ -102,7 +102,7 @@ async function search() {
       <div class="k">Balance</div><div class="v">${fmt(a.balance)} α</div>
       <div class="k">UTXOs</div><div class="v">${a.utxo_count}</div></div>
       ${a.tokens.length ? `<div class="tbl-wrap" style="margin-top:16px"><table><tr><th>Token</th><th class="num">Balance</th></tr>
-        ${a.tokens.map(t=>`<tr><td>${t.name}</td><td class="num">${fmt(t.display_balance)}</td></tr>`).join('')}</table></div>`:''}
+        ${a.tokens.map(t=>`<tr><td>${esc(t.name)}</td><td class="num">${fmt(t.display_balance)}</td></tr>`).join('')}</table></div>`:''}
       </div>`;
   }).catch(() => el('result').innerHTML='<div class="detail">not found</div>');
 }
